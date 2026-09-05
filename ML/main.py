@@ -19,7 +19,10 @@ from stt.router import router as stt_router
 from tts.router import router as tts_router
 from stt.schemas import HealthResponse
 
+# Clinical AI
+from clinical.router import router as clinical_router
 
+# Document Intelligence & OCR services
 try:
     from ocr.ocr_engine import run_ocr
     from ocr.entity_extraction import extract_entities
@@ -68,8 +71,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 @app.get("/")
 def root_health():
@@ -97,6 +99,9 @@ async def health_check():
 
 app.include_router(stt_router)
 app.include_router(tts_router)
+
+# Include Clinical AI router
+app.include_router(clinical_router)
 
 
 
@@ -135,8 +140,8 @@ async def process_document(
     try:
 
         text = run_ocr(
-            raw_bytes,
-            GEMINI_API_KEY
+            clean_bytes,
+            GROQ_API_KEY
         )
 
     except Exception as e:
@@ -155,14 +160,12 @@ async def process_document(
             detail="No text could be extracted from the document."
         )
 
-
-    if not GEMINI_API_KEY:
-
+    if not GROQ_API_KEY:
         raise HTTPException(
             status_code=503,
             detail=(
-                "GEMINI_API_KEY is not configured. "
-                "Entity extraction requires Gemini."
+                "GROQ_API_KEY is not configured. "
+                "Entity extraction requires Groq."
             )
         )
 
@@ -171,7 +174,7 @@ async def process_document(
 
         extracted = extract_entities(
             text,
-            GEMINI_API_KEY
+            GROQ_API_KEY
         )
 
     except Exception as e:

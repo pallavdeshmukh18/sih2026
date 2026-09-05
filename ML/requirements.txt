@@ -12,3 +12,4 @@ paddleocr
 sarvamai>=0.1.32
 httpx>=0.27.0
 pytest>=8.0.0
+groq>=0.9.0

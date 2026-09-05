@@ -8,20 +8,20 @@ except ImportError:
 
 
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
-GEMINI_MODEL = os.environ.get(
-    "GEMINI_MODEL",
-    "gemini-3.6-flash"
+GROQ_TEXT_MODEL = os.environ.get(
+    "GROQ_TEXT_MODEL",
+    "openai/gpt-oss-20b"
 )
 
-GEMINI_URL = (
-    f"https://generativelanguage.googleapis.com/v1beta/"
-    f"models/{GEMINI_MODEL}:generateContent"
+GROQ_VISION_MODEL = os.environ.get(
+    "GROQ_VISION_MODEL",
+    "openai/gpt-oss-20b"
 )
 
-GEMINI_TIMEOUT_SECONDS = int(
-    os.environ.get("GEMINI_TIMEOUT_SECONDS", "30")
+GROQ_TIMEOUT_SECONDS = int(
+    os.environ.get("GROQ_TIMEOUT_SECONDS", "30")
 )
 
 
