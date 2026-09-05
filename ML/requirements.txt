@@ -1,0 +1,11 @@
+requests
+python-dotenv
+paddlepaddle
+paddleocr
+opencv-python
+numpy
+pillow
+fastapi
+uvicorn
+pydantic
+python-multipart
