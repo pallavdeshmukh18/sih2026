@@ -140,7 +140,7 @@ async def process_document(
     try:
 
         text = run_ocr(
-            clean_bytes,
+            raw_bytes,
             GROQ_API_KEY
         )
 
