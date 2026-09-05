@@ -68,14 +68,14 @@
 
 ## 👥 Team Contributions
 
-| Team Member | Role & Key Implementation |
+| Team Member | Primary Role & Responsibility |
 | :--- | :--- |
-| **Param Savla** | **Clinical AI & ML Engine:** Groq LLM migration (`openai/gpt-oss-20b`), AYUSH Dashavidha Pariksha ontology, adaptive questioning engine, red-flag safety rules, clinical summarizer, PaddleOCR bug fixes, FastAPI routes, and 100% test coverage (`test_clinical_engine.py`). |
-| **Vedansh Dubey** | **Core Backend Integration:** Gateway orchestration, clinical session pipeline, Express routes, and Supabase database migrations. |
-| **Pallav Deshmukh** | **Auth Integration:** Doctor email/password & Patient OTP auth flows, JWT middleware, bcrypt password hashing, and user authentication API routes. |
-| **Nisarg Anand** | **Frontend & Document Storage:** Landing page UI, Signup page UI, doctor DB tables, medical document storage & OCR vector embeddings. |
-| **Anuj Ghugarkar** | **Voice Integration:** Sarvam AI Speech-to-Text (STT Saaras v4) and Text-to-Speech (TTS Bulbul v3) voice processing pipeline. |
-| **Anushka Gupte** | **OCR & Search Pipeline:** Document OCR parsing, JSON medical entity extraction, and document search. |
+| **Pallav Deshmukh** | **Authentication, Identity & Security:** Patient/Doctor signup/login auth flows, ABHA integration, RBAC, JWT middleware, and session security. |
+| **Vedansh Dubey** | **Core Backend & Clinical Data Architecture:** Express REST gateway orchestration, medical history & document APIs, database schema, and AI service orchestration. |
+| **Anuj Ghugarkar** | **Voice & Conversational Interface:** Multilingual STT (Sarvam Saaras v4) and TTS (Sarvam Bulbul v3) voice intake pipeline & tele-interface. |
+| **Anushka Gupte** | **OCR, Document Intelligence & Red Flags:** Document OCR pipeline, JSON medical entity extraction, document embeddings retrieval, and red-flag rule implementation. |
+| **Param Savla** | **ML/AI Pipeline & Adaptive Questioning:** Groq LLM clinical engine (`openai/gpt-oss-20b`), AYUSH Dashavidha Pariksha ontology, adaptive questioning engine, structured extraction, summarizer, and 100% test coverage. |
+| **Nisarg Anand** | **Frontend & User Experience:** Vite React UI, patient voice/touch kiosk flow, physician dashboard summary view, and medical timeline UI. |
 
 ---
 
