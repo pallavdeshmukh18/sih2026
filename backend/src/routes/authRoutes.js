@@ -12,7 +12,19 @@ router.post("/patient/verify-phone", authController.verifyPhone);
 router.post("/patient/login/phone", authController.loginPhone);
 router.post("/patient/login/phone/verify", authController.verifyLoginPhone);
 
-// Authenticated User Identity
+// Patient Email Registration Flow
+router.post("/patient/register/email", authController.registerEmail);
+router.post("/patient/verify-email", authController.verifyEmail);
+
+// Patient Email Login Flow
+router.post("/patient/login/email", authController.loginEmail);
+router.post("/patient/login/email/verify", authController.verifyLoginEmail);
+
+// Patient Google OAuth 2.0 Flow
+router.get("/patient/google", authController.initiateGoogleAuth);
+router.get("/patient/google/callback", authController.handleGoogleCallback);
+
+// Authenticated User Identity (Shared for all login methods)
 router.get("/me", authenticateToken, authController.getMe);
 
 module.exports = router;
