@@ -13,6 +13,7 @@ const {
 } = require("../services/otpService");
 const { sendEmailOTP } = require("../services/emailService");
 const googleAuthService = require("../services/googleAuthService");
+const oauthExchangeService = require("../services/oauthExchangeService");
 
 const JWT_SECRET = process.env.JWT_SECRET || "medikiosk_jwt_secret_key_change_in_production";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
@@ -1040,8 +1041,8 @@ async function handleGoogleCallback(req, res) {
                 { expiresIn: JWT_EXPIRES_IN }
             );
 
-            return res.status(200).json({
-                message: "Google login successful",
+            const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+            const exchangeCode = oauthExchangeService.createExchangeCode({
                 token,
                 user: {
                     id: user.id,
@@ -1051,6 +1052,8 @@ async function handleGoogleCallback(req, res) {
                     loginMethod: user.login_method,
                 },
             });
+
+            return res.redirect(`${frontendUrl}/auth/google/callback?code=${exchangeCode}`);
         }
 
         // Step B: Account Collision Check - check if email is registered via another login method (e.g. email/phone)
@@ -1092,8 +1095,8 @@ async function handleGoogleCallback(req, res) {
             { expiresIn: JWT_EXPIRES_IN }
         );
 
-        return res.status(201).json({
-            message: "Google registration successful",
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const exchangeCode = oauthExchangeService.createExchangeCode({
             token,
             user: {
                 id: newUser.id,
@@ -1103,6 +1106,8 @@ async function handleGoogleCallback(req, res) {
                 loginMethod: newUser.login_method,
             },
         });
+
+        return res.redirect(`${frontendUrl}/auth/google/callback?code=${exchangeCode}`);
     } catch (error) {
         await client.query("ROLLBACK;");
         console.error("Error in handleGoogleCallback:", error.message);
@@ -1113,6 +1118,46 @@ async function handleGoogleCallback(req, res) {
         });
     } finally {
         client.release();
+    }
+}
+
+/**
+ * 11. Exchange Google OAuth Single-Use Code for JWT Token and User Profile
+ * POST /api/auth/patient/google/exchange
+ */
+async function exchangeGoogleCode(req, res) {
+    try {
+        const { code } = req.body;
+
+        if (!code) {
+            return res.status(400).json({
+                message: "Authorization code is required.",
+            });
+        }
+
+        const result = oauthExchangeService.consumeExchangeCode(code);
+
+        if (!result.success) {
+            if (result.reason === "EXPIRED") {
+                return res.status(400).json({
+                    message: "Exchange code has expired. Please try logging in again.",
+                });
+            }
+            return res.status(400).json({
+                message: "Invalid or expired exchange code.",
+            });
+        }
+
+        return res.status(200).json({
+            message: "Google authentication successful",
+            token: result.payload.token,
+            user: result.payload.user,
+        });
+    } catch (error) {
+        console.error("Error in exchangeGoogleCode:", error.message);
+        return res.status(500).json({
+            message: "Internal server error during exchange code consumption",
+        });
     }
 }
 
@@ -1290,6 +1335,7 @@ module.exports = {
     verifyLoginEmail,
     initiateGoogleAuth,
     handleGoogleCallback,
+    exchangeGoogleCode,
     getMe,
     loginDoctor,
 };

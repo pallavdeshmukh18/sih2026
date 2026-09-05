@@ -23,6 +23,7 @@ router.post("/patient/login/email/verify", authController.verifyLoginEmail);
 // Patient Google OAuth 2.0 Flow
 router.get("/patient/google", authController.initiateGoogleAuth);
 router.get("/patient/google/callback", authController.handleGoogleCallback);
+router.post("/patient/google/exchange", authController.exchangeGoogleCode);
 
 // Doctor Email + Password Login Flow
 router.post("/doctor/login", authController.loginDoctor);

@@ -8,6 +8,7 @@
   background: linear-gradient(135deg, var(--color-teal) 0%, #3a7a85 100%);
   overflow: hidden;
   font-family: var(--font-sans);
+  padding: 20px;
 }
 
 /* Background blob effects matching the reference image's wavy design */
@@ -43,8 +44,8 @@
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.5);
   width: 100%;
-  max-width: 900px;
-  min-height: 550px;
+  max-width: 950px;
+  min-height: 600px;
   border-radius: 24px;
   display: flex;
   position: relative;
@@ -55,8 +56,8 @@
 
 /* Left side: Form */
 .formSection {
-  flex: 1;
-  padding: 60px 40px;
+  flex: 1.2;
+  padding: 40px 36px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -64,46 +65,106 @@
 
 .formHeader {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 20px;
 }
 
 .formHeader h1 {
   font-family: var(--font-sans);
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--color-dark);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .formHeader p {
   color: var(--color-text-muted);
-  font-size: 15px;
+  font-size: 14px;
+}
+
+/* Role Selector Tabs */
+.roleSelector {
+  display: flex;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 16px;
+  width: 100%;
+  max-width: 360px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.roleTab {
+  flex: 1;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  transition: all 0.2s ease;
+}
+
+.roleTabActive {
+  background: white;
+  color: var(--color-teal);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Method Selector Pills */
+.methodSelector {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.methodPill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(115, 176, 184, 0.3);
+  color: var(--color-text-muted);
+  background: transparent;
+  transition: all 0.2s ease;
+}
+
+.methodPillActive {
+  background: var(--color-teal);
+  color: white;
+  border-color: var(--color-teal);
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   width: 100%;
-  max-width: 320px;
+  max-width: 360px;
   margin: 0 auto;
+}
+
+.nameRow {
+  display: flex;
+  gap: 12px;
 }
 
 /* Glassmorphic Input Group */
 .inputGroup {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.9);
   border-radius: 12px;
-  padding: 14px 20px;
+  padding: 12px 16px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.02);
   position: relative;
   transition: all 0.3s ease;
+  width: 100%;
 }
 
 .inputGroup:focus-within {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.95);
   border-color: var(--color-teal);
   box-shadow: 0 4px 20px rgba(115, 176, 184, 0.15);
 }
@@ -112,16 +173,19 @@
   color: var(--color-teal);
   display: flex;
   align-items: center;
-  margin-right: 12px;
+  margin-right: 10px;
+  flex-shrink: 0;
 }
 
-.inputGroup input {
+.inputGroup input,
+.inputGroup select {
   border: none;
   background: transparent;
   width: 100%;
   font-size: 14px;
   color: var(--color-dark);
   outline: none;
+  font-family: var(--font-sans);
 }
 
 .inputGroup input::placeholder {
@@ -143,15 +207,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 13px;
-  padding: 0 10px;
-}
-
-.checkboxLabel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--color-text-muted);
-  cursor: pointer;
+  padding: 0 4px;
 }
 
 .forgotLink {
@@ -176,21 +232,26 @@
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(115, 176, 184, 0.3);
   transition: transform 0.2s, box-shadow 0.2s;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
-.submitBtn:hover {
+.submitBtn:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(115, 176, 184, 0.5);
+}
+
+.submitBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .divider {
   display: flex;
   align-items: center;
   text-align: center;
-  margin: 16px 0 8px 0;
+  margin: 12px 0 4px 0;
   color: var(--color-text-muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .divider::before,
@@ -219,6 +280,7 @@
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+  width: 100%;
 }
 
 .googleBtn:hover {
@@ -231,22 +293,47 @@
   height: 20px;
 }
 
+.errorBanner {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.noticeBanner {
+  background: rgba(115, 176, 184, 0.12);
+  border: 1px solid rgba(115, 176, 184, 0.3);
+  color: #2b575e;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .switchAuth {
   text-align: center;
-  margin-top: 24px;
-  font-size: 14px;
+  margin-top: 16px;
+  font-size: 13px;
   color: var(--color-text-muted);
 }
 
 .switchLink {
   color: var(--color-teal);
   font-weight: 600;
-  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
 }
 
 .backHome {
   text-align: center;
-  margin-top: 24px;
+  margin-top: 16px;
 }
 
 .backHome a {
@@ -260,11 +347,11 @@
   color: var(--color-teal);
 }
 
-/* Right side: Welcome Text */
+/* Right side: Welcome Section */
 .welcomeSection {
   flex: 1;
   background: transparent;
-  padding: 60px 50px;
+  padding: 40px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -285,21 +372,27 @@
 @media (max-width: 768px) {
   .authCard {
     flex-direction: column;
-    margin: 20px;
+    margin: 10px;
     min-height: auto;
   }
   
   .welcomeSection {
     border-left: none;
     border-top: 1px solid rgba(0,0,0,0.05);
-    padding: 40px 30px;
+    padding: 30px 20px;
   }
   
   .bgBlobTopRight, .bgBlobBottomLeft {
-    display: none; /* Simplify background on mobile */
+    display: none;
   }
   
   .authContainer {
-    background: white; /* Clean white bg on mobile for readability */
+    background: white;
+    padding: 10px;
+  }
+
+  .nameRow {
+    flex-direction: column;
+    gap: 16px;
   }
 }
