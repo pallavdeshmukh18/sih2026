@@ -8,8 +8,8 @@ const faqs = [
     answer: "Advocates Don't Cost A Cent Because Your Insurance Covers All Patient Advocacy Fees. You Would Usually Pay For It Out Of Pocket. If It Turns Out That Your Insurance Does Not Cover It, We Simply Invoice You For The Month. No Hidden Fees. Cancel Anytime."
   },
   {
-    question: "Is Baba AI Or Humans?",
-    answer: "Baba is a combination of both. We use AI to handle administrative tasks and gather information, while our dedicated human advocates provide personalized care, empathy, and strategic guidance for your unique health journey."
+    question: "Is MediKiosk AI Or Humans?",
+    answer: "MediKiosk is a combination of both. We use AI to handle administrative tasks and gather information, while our dedicated human advocates provide personalized care, empathy, and strategic guidance for your unique health journey."
   },
   {
     question: "What Is A Care Advocate?",

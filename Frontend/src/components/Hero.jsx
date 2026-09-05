@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import styles from './Hero.module.css';
 import heroBg from '../assets/hero_bg.jpg';
 
@@ -7,16 +8,18 @@ const Hero = () => {
     <section className={styles.hero} style={{ backgroundImage: `url(${heroBg})` }}>
       <div className={styles.overlay}></div>
       <div className={styles.content}>
-        <span className={styles.label}>BABY TECHNOLOGIES</span>
+        <span className={styles.label}>MEDIKIOSK HEALTH SYSTEM</span>
         <h1 className={styles.title}>
           Navigating Healthcare Is<br />Hard But Manageable.
         </h1>
         <p className={styles.subtitle}>
           Imagine a healthcare journey designed for you — clear, transparent, and supportive.
         </p>
-        <button className={styles.ctaButton}>
-          Book A Call With Us Today
-        </button>
+        <div className={styles.ctaGroup}>
+          <Link to="/auth" className={styles.ctaButton}>
+            Book A Call With Us Today
+          </Link>
+        </div>
         
         <div className={styles.partners}>
           {/* We'll use simple text/spans to represent logos for now as they are small and gray */}

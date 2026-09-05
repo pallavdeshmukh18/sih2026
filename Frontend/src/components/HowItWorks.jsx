@@ -16,7 +16,7 @@ const HowItWorks = () => {
       <div className="container">
         <div ref={headerRef} className={`${styles.header} reveal`}>
           <h2>Here's How It Works</h2>
-          <p>A simpler, more effective healing process with BabyConnect.</p>
+          <p>A simpler, more effective healing process with MediKiosk.</p>
         </div>
         
         <div className={styles.grid}>

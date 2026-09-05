@@ -18,7 +18,7 @@ const Footer = () => {
       <div className={styles.footerBottom}>
         <div className={`container ${styles.container}`}>
           <div className={styles.left}>
-            <span>© Baba Inc. 2026</span>
+            <span>© MediKiosk Inc. 2026</span>
             <a href="#privacy">Privacy Policy</a>
             <a href="#terms">Terms and Conditions</a>
           </div>

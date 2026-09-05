@@ -78,6 +78,17 @@
   animation: fadeInUp 0.8s ease-out 0.4s forwards;
 }
 
+.ctaGroup {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 80px;
+  opacity: 0;
+  animation: fadeInUp 0.8s ease-out 0.6s forwards;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 .ctaButton {
   background: var(--color-dark);
   color: var(--color-light);
@@ -85,15 +96,40 @@
   border-radius: 100px;
   font-size: 16px;
   font-weight: 500;
-  margin-bottom: 80px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 0.2s, box-shadow 0.2s;
-  opacity: 0;
-  animation: fadeInUp 0.8s ease-out 0.6s forwards;
 }
 
 .ctaButton:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.secondaryButton {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  color: var(--color-text-main);
+  padding: 16px 28px;
+  border-radius: 100px;
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.secondaryButton:hover {
+  background: #ffffff;
+  border-color: var(--color-teal);
+  color: var(--color-teal);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(13, 148, 136, 0.12);
 }
 
 .partners {

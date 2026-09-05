@@ -19,7 +19,7 @@ const Navbar = () => {
   return (
     <nav className={`${styles.navbar} ${scrolled ? styles.scrolled : ''}`}>
       <div className={styles.container}>
-        <div className={styles.logo}>baba</div>
+        <Link to="/" className={styles.logo}>MediKiosk</Link>
         
         <ul className={`${styles.navLinks} ${menuOpen ? styles.navLinksOpen : ''}`}>
           <li><a href="#mission" onClick={() => setMenuOpen(false)}>Our Mission</a></li>
