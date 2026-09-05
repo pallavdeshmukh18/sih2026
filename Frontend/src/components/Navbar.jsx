@@ -30,7 +30,7 @@ const Navbar = () => {
   const displayName = user?.role === "doctor" ? `Dr. ${user.firstName}` : user?.firstName;
 
   return (
-    <nav className={`${styles.navbar} ${scrolled ? styles.scrolled : ""}`}>
+    <nav className={`${styles.navbar} ${scrolled ? 'glass' : ""}`}>
       <div className={styles.container}>
         <Link to="/" className={styles.logo}>
           MediKiosk

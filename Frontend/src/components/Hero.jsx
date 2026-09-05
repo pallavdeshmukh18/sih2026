@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import styles from './Hero.module.css';
 import heroBg from '../assets/hero_bg.jpg';
 
@@ -7,7 +8,12 @@ const Hero = () => {
   return (
     <section className={styles.hero} style={{ backgroundImage: `url(${heroBg})` }}>
       <div className={styles.overlay}></div>
-      <div className={styles.content}>
+      <motion.div 
+        className={styles.content}
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      >
         <span className={styles.label}>MEDIKIOSK HEALTH SYSTEM</span>
         <h1 className={styles.title}>
           Navigating Healthcare Is<br />Hard But Manageable.
@@ -28,7 +34,7 @@ const Hero = () => {
           <span className={styles.partnerLogo}>Y COMBINATOR</span>
           <span className={styles.partnerLogo}>FORBES</span>
         </div>
-      </div>
+      </motion.div>
       
       {/* Bottom gradient transition to next section */}
       <div className={styles.bottomGradient}></div>

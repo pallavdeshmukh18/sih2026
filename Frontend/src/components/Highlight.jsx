@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styles from './Highlight.module.css';
-import { useScrollReveal } from '../hooks/useScrollReveal';
+import { motion } from 'framer-motion';
 
 const tabs = [
   {
@@ -27,11 +27,16 @@ const tabs = [
 
 const Highlight = () => {
   const [activeTab, setActiveTab] = useState(0);
-  const sectionRef = useScrollReveal();
 
   return (
     <section className={styles.section}>
-      <div ref={sectionRef} className={`container ${styles.container} reveal`}>
+      <motion.div 
+        className={`container ${styles.container}`}
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-100px" }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      >
         
         {/* Left Card */}
         <div className={styles.leftCard}>
@@ -76,7 +81,7 @@ const Highlight = () => {
           <div className={styles.colorfulBg}></div>
         </div>
         
-      </div>
+      </motion.div>
     </section>
   );
 };

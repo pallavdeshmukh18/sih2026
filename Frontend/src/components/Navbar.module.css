@@ -3,16 +3,10 @@
   top: 0;
   left: 0;
   width: 100%;
-  z-index: 100;
-  padding: 24px 0;
+  padding: 20px 0;
+  z-index: 1000;
   transition: all 0.3s ease;
-}
-
-.scrolled {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  padding: 16px 0;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  background: transparent;
 }
 
 .container {

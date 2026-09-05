@@ -1,73 +1,103 @@
 import React from 'react';
 import styles from './HowItWorks.module.css';
-import consultationImg from '../assets/consultation.jpg';
-import { useScrollReveal } from '../hooks/useScrollReveal';
+import { motion } from 'framer-motion';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import anim1 from '../assets/animations/6855771.lottie?url';
+import anim2 from '../assets/animations/6855773.lottie?url';
+import anim3 from '../assets/animations/6855776.lottie?url';
 
 const HowItWorks = () => {
-  const headerRef = useScrollReveal();
-  const card1Ref = useScrollReveal({ threshold: 0.1, triggerOnce: true });
-  const card2Ref = useScrollReveal({ threshold: 0.1, triggerOnce: true });
-  const card3Ref = useScrollReveal({ threshold: 0.1, triggerOnce: true });
-  const card4Ref = useScrollReveal({ threshold: 0.1, triggerOnce: true });
-  const card5Ref = useScrollReveal({ threshold: 0.1, triggerOnce: true });
-
   return (
     <section id="mission" className="section" style={{ backgroundColor: 'var(--color-light-grey)' }}>
-      <div className="container">
-        <div ref={headerRef} className={`${styles.header} reveal`}>
+      <div className={`container ${styles.container}`}>
+        <motion.div 
+          className={styles.header}
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6 }}
+        >
           <h2>Here's How It Works</h2>
           <p>A simpler, more effective healing process with MediKiosk.</p>
-        </div>
+        </motion.div>
         
-        <div className={styles.grid}>
-          {/* Card 1: Consultation (spans 2 rows) */}
-          <div ref={card1Ref} className={`${styles.card} ${styles.cardConsultation} reveal delay-100`}>
-            <div className={styles.imgWrapper}>
-              <img src={consultationImg} alt="Consultation" />
+        <div className={styles.zigZagContainer}>
+          {/* Row 1: SVG Left, Text Right */}
+          <motion.div 
+            className={styles.row}
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.7 }}
+          >
+            <div className={styles.visualCol}>
+              <div className={styles.lottieContainer}>
+                <DotLottieReact src={anim1} loop autoplay />
+              </div>
             </div>
-            <div className={styles.cardContent}>
+            <div className={styles.textCol}>
+              <span className={styles.stepNumber}>Step 01</span>
               <h3>Consultation</h3>
               <p>Start with a quick chat to let us know your concerns.</p>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Card 2: Meet Your Advocate */}
-          <div ref={card2Ref} className={`${styles.card} reveal delay-200`}>
-            <div className={styles.cardContent}>
+          {/* Row 2: Text Left, SVG Right */}
+          <motion.div 
+            className={`${styles.row} ${styles.rowReverse}`}
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.7 }}
+          >
+            <div className={styles.visualCol}>
+              <div className={styles.lottieContainer}>
+                <DotLottieReact src={anim2} loop autoplay />
+              </div>
+            </div>
+            <div className={styles.textCol}>
+              <span className={styles.stepNumber}>Step 02</span>
               <h3>Meet Your Advocate</h3>
               <p>We will match you with a dedicated advocate who will guide you every step.</p>
-            </div>
-          </div>
-
-          {/* Card 3: +98% */}
-          <div ref={card3Ref} className={`${styles.card} reveal delay-300`}>
-            <div className={styles.cardContent}>
-              <div className={styles.statLarge}>+98%</div>
-              <p>Patient satisfaction guaranteed.</p>
-            </div>
-          </div>
-
-          {/* Card 4: Stats */}
-          <div ref={card4Ref} className={`${styles.card} ${styles.cardStats} reveal delay-200`}>
-            <div className={styles.cardContent}>
-              <div className={styles.statGroup}>
-                <div className={styles.statNumber}>10+</div>
-                <div className={styles.statLabel}>Years Of Experience</div>
-              </div>
-              <div className={styles.statGroup}>
-                <div className={styles.statNumber}>50+</div>
-                <div className={styles.statLabel}>Professionals</div>
+              
+              <div className={styles.statBox}>
+                <div className={styles.statLarge}>+98%</div>
+                <div className={styles.statLabel}>Patient satisfaction<br/>guaranteed.</div>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Card 5: Focus On You */}
-          <div ref={card5Ref} className={`${styles.card} reveal delay-300`}>
-            <div className={styles.cardContent}>
+          {/* Row 3: SVG Left, Text Right */}
+          <motion.div 
+            className={styles.row}
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.7 }}
+          >
+            <div className={styles.visualCol}>
+              <div className={styles.lottieContainer}>
+                <DotLottieReact src={anim3} loop autoplay />
+              </div>
+            </div>
+            <div className={styles.textCol}>
+              <span className={styles.stepNumber}>Step 03</span>
               <h3>Focus On You</h3>
               <p>An individual approach, care, and attention from the onset of your health management plan.</p>
+              
+              <div className={styles.statsRow}>
+                <div className={styles.statItem}>
+                  <div className={styles.statNum}>10+</div>
+                  <div className={styles.statText}>Years Experience</div>
+                </div>
+                <div className={styles.statItem}>
+                  <div className={styles.statNum}>50+</div>
+                  <div className={styles.statText}>Professionals</div>
+                </div>
+              </div>
             </div>
-          </div>
+          </motion.div>
+
         </div>
       </div>
     </section>

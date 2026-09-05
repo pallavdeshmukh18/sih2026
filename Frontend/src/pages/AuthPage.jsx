@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import lottieUrl from "../assets/d62JHEJbaa.lottie?url";
 import { useAuth } from "../context/AuthContext";
+import toast from "react-hot-toast";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     loginPatientPhone,
     verifyPatientPhoneLogin,
@@ -39,12 +41,10 @@ const AuthPage = () => {
 
     // UI States
     const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
 
     // Reset fields on tab changes
     const resetForm = () => {
-        setError(null);
         setStep(1);
         setOtp("");
         setVerificationId("");
@@ -70,14 +70,14 @@ const AuthPage = () => {
     // Doctor Login Submit
     const handleDoctorLogin = async (e) => {
         e.preventDefault();
-        setError(null);
         setLoading(true);
         try {
             const res = await loginDoctor(email, password);
             login(res.token, res.user);
+            toast.success("Welcome back, Doctor!");
             navigate("/doctor/dashboard");
         } catch (err) {
-            setError(err.message || "Invalid doctor credentials.");
+            toast.error(err.message || "Invalid doctor credentials.");
         } finally {
             setLoading(false);
         }
@@ -86,16 +86,17 @@ const AuthPage = () => {
     // Patient Phone Login / Registration Handlers
     const handlePatientPhoneStep1 = async (e) => {
         e.preventDefault();
-        setError(null);
         setLoading(true);
         try {
             if (mode === "login") {
                 const res = await loginPatientPhone(phone);
                 setVerificationId(res.verificationId);
                 setStep(2);
+                toast.success("OTP sent to your phone.");
             } else {
                 if (!firstName || !phone || !dateOfBirth || !gender) {
-                    throw new Error("Please complete all required registration fields.");
+                    toast.error("Please complete all required registration fields.");
+                    return;
                 }
                 const res = await registerPatientPhone({
                     firstName,
@@ -106,9 +107,10 @@ const AuthPage = () => {
                 });
                 setVerificationId(res.verificationId);
                 setStep(2);
+                toast.success("OTP sent to your phone.");
             }
         } catch (err) {
-            setError(err.message || "Failed to request OTP.");
+            toast.error(err.message || "Failed to request OTP.");
         } finally {
             setLoading(false);
         }
@@ -116,7 +118,6 @@ const AuthPage = () => {
 
     const handlePatientPhoneStep2 = async (e) => {
         e.preventDefault();
-        setError(null);
         setLoading(true);
         try {
             let res;
@@ -126,9 +127,10 @@ const AuthPage = () => {
                 res = await verifyPatientPhoneRegistration(verificationId, otp);
             }
             login(res.token, res.user);
+            toast.success("Successfully logged in!");
             navigate("/patient/dashboard");
         } catch (err) {
-            setError(err.message || "Invalid OTP verification code.");
+            toast.error(err.message || "Invalid OTP verification code.");
         } finally {
             setLoading(false);
         }
@@ -137,16 +139,17 @@ const AuthPage = () => {
     // Patient Email Login / Registration Handlers
     const handlePatientEmailStep1 = async (e) => {
         e.preventDefault();
-        setError(null);
         setLoading(true);
         try {
             if (mode === "login") {
                 const res = await loginPatientEmail(email);
                 setVerificationId(res.verificationId);
                 setStep(2);
+                toast.success("OTP sent to your email.");
             } else {
                 if (!firstName || !email || !dateOfBirth || !gender) {
-                    throw new Error("Please complete all required registration fields.");
+                    toast.error("Please complete all required registration fields.");
+                    return;
                 }
                 const res = await registerPatientEmail({
                     firstName,
@@ -157,9 +160,10 @@ const AuthPage = () => {
                 });
                 setVerificationId(res.verificationId);
                 setStep(2);
+                toast.success("OTP sent to your email.");
             }
         } catch (err) {
-            setError(err.message || "Failed to request OTP.");
+            toast.error(err.message || "Failed to request OTP.");
         } finally {
             setLoading(false);
         }
@@ -167,7 +171,6 @@ const AuthPage = () => {
 
     const handlePatientEmailStep2 = async (e) => {
         e.preventDefault();
-        setError(null);
         setLoading(true);
         try {
             let res;
@@ -177,9 +180,10 @@ const AuthPage = () => {
                 res = await verifyPatientEmailRegistration(verificationId, otp);
             }
             login(res.token, res.user);
+            toast.success("Successfully logged in!");
             navigate("/patient/dashboard");
         } catch (err) {
-            setError(err.message || "Invalid OTP verification code.");
+            toast.error(err.message || "Invalid OTP verification code.");
         } finally {
             setLoading(false);
         }
@@ -222,12 +226,18 @@ const AuthPage = () => {
                         </button>
                     </div>
 
-                    {/* Error Banner */}
-                    {error && <div className={styles.errorBanner}>{error}</div>}
-
+                    <AnimatePresence mode="wait">
                     {/* DOCTOR AUTHENTICATION FORM */}
                     {role === "doctor" && (
-                        <form className={styles.form} onSubmit={handleDoctorLogin}>
+                        <motion.form 
+                            key="doctor-form"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.3 }}
+                            className={styles.form} 
+                            onSubmit={handleDoctorLogin}
+                        >
                             <div className={styles.inputGroup}>
                                 <span className={styles.icon}>
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -274,12 +284,18 @@ const AuthPage = () => {
                             <button type="submit" className={styles.submitBtn} disabled={loading}>
                                 {loading ? "Authenticating..." : "SIGN IN AS DOCTOR"}
                             </button>
-                        </form>
+                        </motion.form>
                     )}
 
                     {/* PATIENT AUTHENTICATION FORM */}
                     {role === "patient" && (
-                        <>
+                        <motion.div
+                            key="patient-form"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ duration: 0.3 }}
+                        >
                             {/* Patient Method Selector */}
                             <div className={styles.methodSelector}>
                                 <button
@@ -554,8 +570,9 @@ const AuthPage = () => {
                                     )}
                                 </p>
                             )}
-                        </>
+                        </motion.div>
                     )}
+                    </AnimatePresence>
 
                     <div className={styles.backHome}>
                         <Link to="/">← Back to Home</Link>
