@@ -1,0 +1,47 @@
+# --- Secrets / env ---
+.env
+*.env
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Vector DB / model caches ---
+chroma_store/
+*.sqlite3
+.cache/
+*.pt
+*.bin
+
+# --- Uploaded / processed patient documents (never commit real patient data) ---
+tmp_uploads/
+uploads/
+*.jpg
+*.jpeg
+*.png
+*.pdf
+!docs/**/*.png
+!docs/**/*.jpg
+
+# --- OS / editor junk ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# --- Logs ---
+*.log
+logs/
