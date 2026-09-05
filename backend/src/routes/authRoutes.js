@@ -24,6 +24,9 @@ router.post("/patient/login/email/verify", authController.verifyLoginEmail);
 router.get("/patient/google", authController.initiateGoogleAuth);
 router.get("/patient/google/callback", authController.handleGoogleCallback);
 
+// Doctor Email + Password Login Flow
+router.post("/doctor/login", authController.loginDoctor);
+
 // Authenticated User Identity (Shared for all login methods)
 router.get("/me", authenticateToken, authController.getMe);
 

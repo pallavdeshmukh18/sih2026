@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 const pool = require("../config/db");
 const { normalizePhone, isValidIndianPhone } = require("../utils/phoneUtils");
 const { normalizeEmail, isValidEmail } = require("../utils/emailUtils");
@@ -1167,6 +1168,117 @@ async function getMe(req, res) {
     }
 }
 
+// ==================================================
+// DOCTOR AUTHENTICATION CONTROLLERS
+// ==================================================
+
+/**
+ * 12. Doctor Login via Email + Password
+ * POST /api/auth/doctor/login
+ */
+async function loginDoctor(req, res) {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({
+                message: "Missing required fields: email and password are required.",
+            });
+        }
+
+        const normalizedEmail = normalizeEmail(email);
+        if (!isValidEmail(normalizedEmail)) {
+            return res.status(400).json({
+                message: "Invalid email address format.",
+            });
+        }
+
+        // Query user and doctor profile
+        const userResult = await pool.query(
+            `SELECT u.id, u.first_name, u.last_name, u.email, u.password_hash, u.role, u.login_method, u.is_active,
+                    d.user_id AS doctor_profile_id, d.verification_status
+             FROM users u
+             LEFT JOIN doctor_profiles d ON u.id = d.user_id
+             WHERE u.email = $1;`,
+            [normalizedEmail]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(401).json({
+                message: "Invalid email or password",
+            });
+        }
+
+        const user = userResult.rows[0];
+
+        // Security check: Must have role = 'doctor'
+        if (user.role !== "doctor") {
+            return res.status(401).json({
+                message: "Invalid email or password",
+            });
+        }
+
+        // Security check: Must be active
+        if (!user.is_active) {
+            return res.status(403).json({
+                message: "Doctor account is inactive.",
+            });
+        }
+
+        // Security check: Doctor profile must exist
+        if (!user.doctor_profile_id) {
+            return res.status(403).json({
+                message: "Doctor profile not found.",
+            });
+        }
+
+        // Security check: Verification status must equal 'verified'
+        if (user.verification_status !== "verified") {
+            return res.status(403).json({
+                message: `Doctor account verification status is ${user.verification_status}. Access restricted to verified doctors.`,
+            });
+        }
+
+        // Verify password hash
+        if (!user.password_hash) {
+            return res.status(401).json({
+                message: "Invalid email or password",
+            });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+        if (!isMatch) {
+            return res.status(401).json({
+                message: "Invalid email or password",
+            });
+        }
+
+        // Issue standard MediKiosk JWT token
+        const token = jwt.sign(
+            { sub: user.id, role: user.role },
+            JWT_SECRET,
+            { expiresIn: JWT_EXPIRES_IN }
+        );
+
+        return res.status(200).json({
+            message: "Doctor login successful",
+            token,
+            user: {
+                id: user.id,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                role: user.role,
+                loginMethod: user.login_method,
+            },
+        });
+    } catch (error) {
+        console.error("Error in loginDoctor:", error.message);
+        return res.status(500).json({
+            message: "Internal server error during doctor login",
+        });
+    }
+}
+
 module.exports = {
     registerPhone,
     verifyPhone,
@@ -1179,4 +1291,5 @@ module.exports = {
     initiateGoogleAuth,
     handleGoogleCallback,
     getMe,
+    loginDoctor,
 };
