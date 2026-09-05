@@ -1,0 +1,8 @@
+{
+  "success": true,
+  "request_id": "example-request-id",
+  "audio_base64": "BASE64_AUDIO_HERE",
+  "audio_format": "wav",
+  "language_code": "en-IN",
+  "speaker": "shubh"
+}
