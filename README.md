@@ -75,7 +75,7 @@
 | **Pallav Deshmukh** | **Auth Integration:** Doctor email/password & Patient OTP auth flows, JWT middleware, bcrypt password hashing, and user authentication API routes. |
 | **Nisarg Anand** | **Frontend & Document Storage:** Landing page UI, Signup page UI, doctor DB tables, medical document storage & OCR vector embeddings. |
 | **Anuj Ghugarkar** | **Voice Integration:** Sarvam AI Speech-to-Text (STT Saaras v4) and Text-to-Speech (TTS Bulbul v3) voice processing pipeline. |
-| **OCR & Search Pipeline** | Document OCR parsing, JSON medical entity extraction, and document search. |
+| **Anushka Gupte** | **OCR & Search Pipeline:** Document OCR parsing, JSON medical entity extraction, and document search. |
 
 ---
 
