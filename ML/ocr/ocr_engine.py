@@ -3,58 +3,51 @@ import requests
 import os
 
 os.environ["FLAGS_enable_pir_api"] = "0"
+os.environ["GLOG_minloglevel"] = "2"  # Suppress C++ logging
+import logging
+logging.getLogger("ppocr").setLevel(logging.ERROR)
+
 from ocr.preprocess import preprocess_image
 from config import (
-    GEMINI_URL,
-    GEMINI_TIMEOUT_SECONDS,
+    GROQ_VISION_MODEL,
     ENABLE_OCR_FALLBACK,
 )
+from groq import Groq
 
 
-def ocr_with_gemini(image_bytes: bytes, api_key: str) -> str:
-    """Primary OCR using Gemini on the original image."""
+def ocr_with_groq(image_bytes: bytes, api_key: str) -> str:
+    """Primary OCR using Groq Vision on the original image."""
 
     b64 = base64.b64encode(image_bytes).decode("utf-8")
+    client = Groq(api_key=api_key)
 
-    payload = {
-        "contents": [{
-            "parts": [
-                {
-                    "text": (
-                        "Transcribe ALL visible text in this medical document image "
-                        "exactly as written, including handwritten text. "
-                        "Preserve line breaks. "
-                        "The document may contain English, Hindi, or mixed "
-                        "English-Hindi text. "
-                        "Output ONLY the raw transcribed text."
-                    )
-                },
-                {
-                    "inline_data": {
-                        "mime_type": "image/png",
-                        "data": b64
-                    }
-                }
-            ]
-        }]
-    }
-
-    response = requests.post(
-        f"{GEMINI_URL}?key={api_key}",
-        json=payload,
-        timeout=GEMINI_TIMEOUT_SECONDS
+    chat_completion = client.chat.completions.create(
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text", 
+                        "text": (
+                            "Transcribe ALL visible text in this medical document image "
+                            "exactly as written, including handwritten text. "
+                            "Preserve line breaks. "
+                            "The document may contain English, Hindi, or mixed "
+                            "English-Hindi text. "
+                            "Output ONLY the raw transcribed text."
+                        )
+                    },
+                    {
+                        "type": "image_url", 
+                        "image_url": {"url": f"data:image/png;base64,{b64}"}
+                    },
+                ],
+            }
+        ],
+        model=GROQ_VISION_MODEL,
     )
 
-    if not response.ok:
-        print("Gemini status code:", response.status_code)
-        print("Gemini response:", response.text)
-
-    response.raise_for_status()
-
-    return (
-        response.json()["candidates"][0]["content"]["parts"][0]["text"]
-        .strip()
-    )
+    return chat_completion.choices[0].message.content.strip()
 
 
 def ocr_with_paddleocr(image_bytes: bytes) -> str:
@@ -73,17 +66,13 @@ def ocr_with_paddleocr(image_bytes: bytes) -> str:
         image_path = temp.name
 
     try:
-        print("Initializing PaddleOCR...")
-
         ocr = PaddleOCR(
             lang="hi",
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_textline_orientation=False,
+            use_doc_orientation_classify=True,
+            use_doc_unwarping=True,
+            use_textline_orientation=True,
             enable_mkldnn=False
         )
-
-        print("Running PaddleOCR inference...")
 
         result = ocr.predict(image_path)
 
@@ -122,26 +111,28 @@ def run_ocr(
 ) -> str:
 
     # -------------------------------------------------
-    # 1. PRIMARY: Gemini OCR
+    # 1. PRIMARY: Groq OCR
     # -------------------------------------------------
 
-    if api_key:
+    if api_key and GROQ_VISION_MODEL != "openai/gpt-oss-20b":
 
         try:
-            text = ocr_with_gemini(
+            text = ocr_with_groq(
                 image_bytes,
                 api_key
             )
 
             if text.strip():
-                print("OCR successful using Gemini.")
+                print("OCR successful using Groq.")
                 return text
 
         except Exception as e:
 
             print(
-                f"Gemini OCR failed: {e}"
+                f"Groq OCR failed: {e}"
             )
+    elif GROQ_VISION_MODEL == "openai/gpt-oss-20b":
+        pass  # Groq Vision bypassed (mock model does not support images)
 
     # -------------------------------------------------
     # 2. FALLBACK: PaddleOCR
@@ -150,11 +141,6 @@ def run_ocr(
     if ENABLE_OCR_FALLBACK:
 
         try:
-
-            print(
-                "Trying PaddleOCR fallback..."
-            )
-
             # Preprocess ONLY for PaddleOCR
             processed_image = preprocess_image(
                 image_bytes
@@ -179,5 +165,5 @@ def run_ocr(
             )
 
     raise RuntimeError(
-        "Both Gemini OCR and PaddleOCR failed."
+        "Both Groq OCR and PaddleOCR failed."
     )

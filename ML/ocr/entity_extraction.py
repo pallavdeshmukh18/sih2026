@@ -1,8 +1,6 @@
 import json
-import requests
-import time
-
-from config import GEMINI_URL, GEMINI_TIMEOUT_SECONDS
+from config import GROQ_TEXT_MODEL
+from groq import Groq
 from schemas import ExtractedDocument
 
 
@@ -54,106 +52,34 @@ OCR TEXT:
 """
 
 
-def extract_entities(
-    ocr_text: str,
-    api_key: str,
-    max_retries: int = 3
-):
-    payload = {
-        "contents": [
+def extract_entities(ocr_text: str, api_key: str):
+    client = Groq(api_key=api_key)
+
+    prompt = EXTRACTION_PROMPT.format(ocr_text=ocr_text)
+
+    chat_completion = client.chat.completions.create(
+        messages=[
             {
-                "parts": [
-                    {
-                        "text": EXTRACTION_PROMPT.format(
-                            ocr_text=ocr_text
-                        )
-                    }
-                ]
+                "role": "system",
+                "content": "You must output a valid JSON object."
+            },
+            {
+                "role": "user",
+                "content": prompt,
             }
-        ]
-    }
-
-    for attempt in range(max_retries):
-
-        try:
-            resp = requests.post(
-                f"{GEMINI_URL}?key={api_key}",
-                json=payload,
-                timeout=GEMINI_TIMEOUT_SECONDS
-            )
-
-            # Retry temporary Gemini availability errors
-            if resp.status_code in [429, 500, 502, 503, 504]:
-
-                print(
-                    f"Gemini entity extraction returned "
-                    f"{resp.status_code}. "
-                    f"Attempt {attempt + 1}/{max_retries}"
-                )
-
-                if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt
-
-                    print(
-                        f"Retrying in {wait_time} seconds..."
-                    )
-
-                    time.sleep(wait_time)
-                    continue
-
-            if not resp.ok:
-                print(
-                    "Entity extraction status code:",
-                    resp.status_code
-                )
-                print(
-                    "Entity extraction response:",
-                    resp.text
-                )
-
-            resp.raise_for_status()
-
-            break
-
-        except requests.exceptions.RequestException as e:
-
-            if attempt == max_retries - 1:
-                raise
-
-            wait_time = 2 ** attempt
-
-            print(
-                f"Entity extraction request failed: {e}"
-            )
-
-            print(
-                f"Retrying in {wait_time} seconds..."
-            )
-
-            time.sleep(wait_time)
-
-    text = (
-        resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-        .strip()
+        ],
+        model=GROQ_TEXT_MODEL,
+        response_format={"type": "json_object"}
     )
 
-    if text.startswith("```json"):
-        text = text[len("```json"):]
-
-    if text.startswith("```"):
-        text = text[len("```"):]
-
-    if text.endswith("```"):
-        text = text[:-3]
-
-    text = text.strip()
+    text = chat_completion.choices[0].message.content.strip()
 
     try:
         data = json.loads(text)
 
     except json.JSONDecodeError as e:
         raise ValueError(
-            f"Gemini returned invalid JSON: {e}\n"
+            f"Groq returned invalid JSON: {e}\n"
             f"Response was: {text}"
         )
 
