@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 
-import StatCard from "./shared/widgets/StatCard";
-import ChartPlaceholder from "./shared/widgets/ChartPlaceholder";
-import CalendarPlaceholder from "./shared/widgets/CalendarPlaceholder";
-import PatientTable from "./shared/widgets/PatientTable";
+import StatCard from "../components/StatCard";
+import ChartPlaceholder from "../components/ChartPlaceholder";
+import CalendarPlaceholder from "../components/CalendarPlaceholder";
+import PatientTable from "../components/PatientTable";
 import { useAuth } from "../context/AuthContext";
 import { User, Stethoscope, Users, Bed } from "lucide-react";
 import { motion } from "framer-motion";
