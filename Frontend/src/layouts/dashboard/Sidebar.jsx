@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
     LayoutDashboard, User, Stethoscope, Users, Building, Calendar, 
-    FileText, ClipboardList, Bed, CreditCard, Mail, Layout, LogOut, MoreVertical
+    FileText, ClipboardList, Bed, CreditCard, Mail, Layout, LogOut, MoreVertical, UserCog
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../context/AuthContext';
@@ -42,6 +42,13 @@ const Sidebar = () => {
                         <NavLink to="/patient/history" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                             <FileText size={20} />
                             <span>Medical History</span>
+                        </NavLink>
+                    )}
+
+                    {role === 'doctor' && (
+                        <NavLink to="/doctor/team" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                            <UserCog size={20} />
+                            <span>Team</span>
                         </NavLink>
                     )}
 

@@ -17,6 +17,7 @@ import Appointments from "./pages/patient/Appointments";
 import Documents from "./pages/patient/Documents";
 import DoctorAppointments from "./pages/doctor/DoctorAppointments";
 import PatientAccess from "./pages/doctor/PatientAccess";
+import TeamManagement from "./pages/doctor/TeamManagement";
 import ComingSoon from "./pages/ComingSoon";
 
 // New Shared Pages
@@ -66,6 +67,7 @@ function App() {
             <Route path="dashboard" element={<DoctorDashboard />} />
             <Route path="appointments" element={<DoctorAppointments />} />
             <Route path="patients" element={<PatientAccess />} />
+            <Route path="team" element={<TeamManagement />} />
             
             {/* New Dummy Pages */}
             <Route path="account" element={<Account />} />

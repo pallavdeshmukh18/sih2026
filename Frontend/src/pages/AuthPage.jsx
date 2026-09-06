@@ -15,6 +15,7 @@ import {
     registerPatientEmail,
     verifyPatientEmailRegistration,
     loginDoctor,
+    registerDoctor,
 } from "../services/api";
 import styles from "./AuthPage.module.css";
 
@@ -25,6 +26,7 @@ const AuthPage = () => {
     // Primary Auth States
     const [role, setRole] = useState("patient"); // 'patient' | 'doctor'
     const [mode, setMode] = useState("login"); // 'login' | 'register'
+    const [doctorMode, setDoctorMode] = useState("login"); // 'login' | 'register'
     const [method, setMethod] = useState("phone"); // 'phone' | 'email' | 'google'
     const [step, setStep] = useState(1); // 1: Info/Credentials input, 2: OTP input
 
@@ -38,6 +40,9 @@ const AuthPage = () => {
     const [gender, setGender] = useState("Male");
     const [otp, setOtp] = useState("");
     const [verificationId, setVerificationId] = useState("");
+    const [registrationNumber, setRegistrationNumber] = useState("");
+    const [specialization, setSpecialization] = useState("");
+    const [department, setDepartment] = useState("");
 
     // UI States
     const [showPassword, setShowPassword] = useState(false);
@@ -52,6 +57,7 @@ const AuthPage = () => {
 
     const handleRoleChange = (newRole) => {
         setRole(newRole);
+        setDoctorMode("login");
         resetForm();
     };
 
@@ -205,7 +211,7 @@ const AuthPage = () => {
                 <div className={styles.formSection}>
                     <div className={styles.formHeader}>
                         <h1>MediKiosk</h1>
-                        <p>{role === "patient" ? (mode === "login" ? "Patient Sign In" : "Patient Registration") : "Doctor Portal Sign In"}</p>
+                        <p>{role === "patient" ? (mode === "login" ? "Patient Sign In" : "Patient Registration") : (doctorMode === "login" ? "Doctor Portal Sign In" : "Doctor Registration")}</p>
                     </div>
 
                     {/* Role Selector Tabs */}
@@ -229,62 +235,207 @@ const AuthPage = () => {
                     <AnimatePresence mode="wait">
                         {/* DOCTOR AUTHENTICATION FORM */}
                         {role === "doctor" && (
-                            <motion.form
-                                key="doctor-form"
+                            <motion.div
+                                key={`doctor-${doctorMode}`}
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 transition={{ duration: 0.3 }}
-                                className={styles.form}
-                                onSubmit={handleDoctorLogin}
                             >
-                                <div className={styles.inputGroup}>
-                                    <span className={styles.icon}>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                                            <polyline points="22,6 12,13 2,6"></polyline>
-                                        </svg>
-                                    </span>
-                                    <input
-                                        type="email"
-                                        placeholder="Doctor Email Address"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                    />
-                                </div>
-
-                                <div className={styles.inputGroup}>
-                                    <span className={styles.icon}>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                                        </svg>
-                                    </span>
-                                    <input
-                                        type={showPassword ? "text" : "password"}
-                                        placeholder="Password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                    />
+                                {/* Doctor Login / Register Toggle */}
+                                <div className={styles.methodSelector} style={{ marginBottom: '20px' }}>
                                     <button
                                         type="button"
-                                        className={styles.eyeIcon}
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        aria-label="Toggle password visibility"
+                                        className={`${styles.methodPill} ${doctorMode === 'login' ? styles.methodPillActive : ''}`}
+                                        onClick={() => { setDoctorMode('login'); resetForm(); }}
                                     >
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                            <circle cx="12" cy="12" r="3"></circle>
-                                        </svg>
+                                        Sign In
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`${styles.methodPill} ${doctorMode === 'register' ? styles.methodPillActive : ''}`}
+                                        onClick={() => { setDoctorMode('register'); resetForm(); }}
+                                    >
+                                        Register
                                     </button>
                                 </div>
 
-                                <button type="submit" className={styles.submitBtn} disabled={loading}>
-                                    {loading ? "Authenticating..." : "SIGN IN AS DOCTOR"}
-                                </button>
-                            </motion.form>
+                                {/* DOCTOR LOGIN FORM */}
+                                {doctorMode === 'login' && (
+                                    <form
+                                        className={styles.form}
+                                        onSubmit={handleDoctorLogin}
+                                    >
+                                        <div className={styles.inputGroup}>
+                                            <span className={styles.icon}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                                    <polyline points="22,6 12,13 2,6"></polyline>
+                                                </svg>
+                                            </span>
+                                            <input
+                                                type="email"
+                                                placeholder="Doctor Email Address"
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                        <div className={styles.inputGroup}>
+                                            <span className={styles.icon}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                                </svg>
+                                            </span>
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                placeholder="Password"
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                required
+                                            />
+                                            <button
+                                                type="button"
+                                                className={styles.eyeIcon}
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                aria-label="Toggle password visibility"
+                                            >
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <button type="submit" className={styles.submitBtn} disabled={loading}>
+                                            {loading ? "Authenticating..." : "SIGN IN AS DOCTOR"}
+                                        </button>
+                                    </form>
+                                )}
+
+                                {/* DOCTOR REGISTER FORM */}
+                                {doctorMode === 'register' && (
+                                    <form
+                                        className={styles.form}
+                                        onSubmit={async (e) => {
+                                            e.preventDefault();
+                                            if (!firstName || !email || !password || !registrationNumber) {
+                                                toast.error('Please fill in all required fields.');
+                                                return;
+                                            }
+                                            if (password.length < 8) {
+                                                toast.error('Password must be at least 8 characters.');
+                                                return;
+                                            }
+                                            setLoading(true);
+                                            try {
+                                                await registerDoctor({ firstName, lastName, email, password, registrationNumber, specialization, department });
+                                                toast.success('Account created! Awaiting admin verification before you can log in.');
+                                                setDoctorMode('login');
+                                                resetForm();
+                                            } catch (err) {
+                                                toast.error(err.message || 'Registration failed.');
+                                            } finally {
+                                                setLoading(false);
+                                            }
+                                        }}
+                                    >
+                                        <div className={styles.nameRow}>
+                                            <div className={styles.inputGroup}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="First Name *"
+                                                    value={firstName}
+                                                    onChange={(e) => setFirstName(e.target.value)}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className={styles.inputGroup}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Last Name"
+                                                    value={lastName}
+                                                    onChange={(e) => setLastName(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className={styles.inputGroup}>
+                                            <span className={styles.icon}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                                    <polyline points="22,6 12,13 2,6"></polyline>
+                                                </svg>
+                                            </span>
+                                            <input
+                                                type="email"
+                                                placeholder="Email Address *"
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                        <div className={styles.inputGroup}>
+                                            <span className={styles.icon}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                                </svg>
+                                            </span>
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                placeholder="Password (min 8 chars) *"
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                required
+                                            />
+                                            <button type="button" className={styles.eyeIcon} onClick={() => setShowPassword(!showPassword)}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                    <circle cx="12" cy="12" r="3"></circle>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <div className={styles.inputGroup}>
+                                            <span className={styles.icon}>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                                </svg>
+                                            </span>
+                                            <input
+                                                type="text"
+                                                placeholder="Medical Registration Number *"
+                                                value={registrationNumber}
+                                                onChange={(e) => setRegistrationNumber(e.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                        <div className={styles.nameRow}>
+                                            <div className={styles.inputGroup}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Specialization (e.g. Cardiology)"
+                                                    value={specialization}
+                                                    onChange={(e) => setSpecialization(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className={styles.inputGroup}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Department"
+                                                    value={department}
+                                                    onChange={(e) => setDepartment(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <button type="submit" className={styles.submitBtn} disabled={loading}>
+                                            {loading ? "Creating Account..." : "CREATE DOCTOR ACCOUNT"}
+                                        </button>
+                                        <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', textAlign: 'center', marginTop: '8px' }}>
+                                            Your account will be pending admin verification before you can log in.
+                                        </p>
+                                    </form>
+                                )}
+                            </motion.div>
                         )}
 
                         {/* PATIENT AUTHENTICATION FORM */}

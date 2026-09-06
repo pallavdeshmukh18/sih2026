@@ -99,6 +99,11 @@ export async function exchangeGoogleCode(code) {
 // DOCTOR AUTHENTICATION API CALLS
 // ==================================================
 
+/** Doctor Registration via Email + Password */
+export async function registerDoctor(doctorData) {
+    return apiRequest("/api/auth/doctor/register", "POST", doctorData);
+}
+
 /** Doctor Email + Password Login */
 export async function loginDoctor(email, password) {
     return apiRequest("/api/auth/doctor/login", "POST", { email, password });
@@ -111,4 +116,23 @@ export async function loginDoctor(email, password) {
 /** Fetch Authenticated User Profile */
 export async function fetchMe(token) {
     return apiRequest("/api/auth/me", "GET", null, token);
+}
+
+// ==================================================
+// DOCTOR STAFF MANAGEMENT API CALLS
+// ==================================================
+
+/** Create a staff account (admin, receptionist, nurse) — Doctor only */
+export async function createStaffAccount(staffData, token) {
+    return apiRequest("/api/doctor/staff/create", "POST", staffData, token);
+}
+
+/** Get all staff under a doctor */
+export async function getStaffList(token) {
+    return apiRequest("/api/doctor/staff", "GET", null, token);
+}
+
+/** Delete a staff account */
+export async function deleteStaffAccount(staffId, token) {
+    return apiRequest(`/api/doctor/staff/${staffId}`, "DELETE", null, token);
 }
