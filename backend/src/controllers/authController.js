@@ -1218,7 +1218,98 @@ async function getMe(req, res) {
 // ==================================================
 
 /**
- * 12. Doctor Login via Email + Password
+ * 12. Doctor Registration via Email + Password
+ * POST /api/auth/doctor/register
+ */
+async function registerDoctor(req, res) {
+    try {
+        const { firstName, lastName, email, password, registrationNumber, specialization, department } = req.body;
+
+        if (!firstName || !email || !password || !registrationNumber) {
+            return res.status(400).json({
+                message: "Missing required fields: firstName, email, password, registrationNumber",
+            });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({ message: "Password must be at least 8 characters." });
+        }
+
+        const normalizedEmail = normalizeEmail(email);
+        if (!isValidEmail(normalizedEmail)) {
+            return res.status(400).json({ message: "Invalid email address format." });
+        }
+
+        // Check email uniqueness
+        const existingEmail = await pool.query(
+            "SELECT id FROM users WHERE email = $1;",
+            [normalizedEmail]
+        );
+        if (existingEmail.rows.length > 0) {
+            return res.status(409).json({ message: "An account with this email already exists." });
+        }
+
+        // Check registration number uniqueness
+        const existingReg = await pool.query(
+            "SELECT user_id FROM doctor_profiles WHERE registration_number = $1;",
+            [registrationNumber]
+        );
+        if (existingReg.rows.length > 0) {
+            return res.status(409).json({ message: "This medical registration number is already in use." });
+        }
+
+        const saltRounds = 12;
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+
+        // Begin transaction
+        const client = await pool.connect();
+        try {
+            await client.query("BEGIN");
+
+            // Insert into users
+            const userResult = await client.query(
+                `INSERT INTO users (first_name, last_name, email, password_hash, role, login_method, is_active)
+                 VALUES ($1, $2, $3, $4, 'doctor', 'email', TRUE)
+                 RETURNING id, first_name, last_name, email, role;`,
+                [firstName, lastName || null, normalizedEmail, passwordHash]
+            );
+
+            const newUser = userResult.rows[0];
+
+            // Insert into doctor_profiles (verification_status = 'pending' by default)
+            await client.query(
+                `INSERT INTO doctor_profiles (user_id, registration_number, specialization, department)
+                 VALUES ($1, $2, $3, $4);`,
+                [newUser.id, registrationNumber, specialization || null, department || null]
+            );
+
+            await client.query("COMMIT");
+
+            return res.status(201).json({
+                message: "Doctor account created. Your account is pending verification by the admin.",
+                user: {
+                    id: newUser.id,
+                    firstName: newUser.first_name,
+                    lastName: newUser.last_name,
+                    email: newUser.email,
+                    role: newUser.role,
+                    verificationStatus: "pending",
+                },
+            });
+        } catch (txErr) {
+            await client.query("ROLLBACK");
+            throw txErr;
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        console.error("Error in registerDoctor:", error.message);
+        return res.status(500).json({ message: "Internal server error during doctor registration." });
+    }
+}
+
+/**
+ * 13. Doctor Login via Email + Password
  * POST /api/auth/doctor/login
  */
 async function loginDoctor(req, res) {
@@ -1337,5 +1428,6 @@ module.exports = {
     handleGoogleCallback,
     exchangeGoogleCode,
     getMe,
+    registerDoctor,
     loginDoctor,
 };

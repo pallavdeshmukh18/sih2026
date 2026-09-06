@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const authController = require("../controllers/authController");
+const staffController = require("../controllers/staffController");
 const authenticateToken = require("../middleware/authMiddleware");
 
 // Patient Phone Registration Flow
@@ -25,8 +26,12 @@ router.get("/patient/google", authController.initiateGoogleAuth);
 router.get("/patient/google/callback", authController.handleGoogleCallback);
 router.post("/patient/google/exchange", authController.exchangeGoogleCode);
 
-// Doctor Email + Password Login Flow
+// Doctor Email + Password Register & Login Flow
+router.post("/doctor/register", authController.registerDoctor);
 router.post("/doctor/login", authController.loginDoctor);
+
+// Staff (Admin, Receptionist, Nurse) Login Flow
+router.post("/staff/login", staffController.loginStaff);
 
 // Authenticated User Identity (Shared for all login methods)
 router.get("/me", authenticateToken, authController.getMe);

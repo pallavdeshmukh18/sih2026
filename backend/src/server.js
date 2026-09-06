@@ -9,6 +9,7 @@ const appointmentRoutes = require("./routes/appointmentRoutes");
 const sessionRoutes = require("./routes/sessionRoutes");
 const documentRoutes = require("./routes/documentRoutes");
 const doctorRoutes = require("./routes/doctorRoutes");
+const staffRoutes = require("./routes/staffRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -23,6 +24,7 @@ app.use("/api/appointments", appointmentRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/doctor", doctorRoutes);
+app.use("/api/doctor/staff", staffRoutes);
 
 app.get("/", (req, res) => {
     res.json({
