@@ -1,98 +1,100 @@
 import React, { useState, useEffect } from "react";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import StatCard from "./shared/widgets/StatCard";
+import ChartPlaceholder from "./shared/widgets/ChartPlaceholder";
+import CalendarPlaceholder from "./shared/widgets/CalendarPlaceholder";
+import PatientTable from "./shared/widgets/PatientTable";
 import { useAuth } from "../context/AuthContext";
+import { User, Stethoscope, Users, Bed } from "lucide-react";
 import { motion } from "framer-motion";
-import styles from "./AuthPage.module.css";
+
 
 const PatientDashboard = () => {
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 800);
+        const timer = setTimeout(() => setIsLoading(false), 500);
         return () => clearTimeout(timer);
     }, []);
 
-    return (
-        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", backgroundColor: "#f8fafc" }}>
-            <Navbar />
-            <main style={{ flex: 1, padding: "120px 24px 60px", maxWidth: "1200px", margin: "0 auto", width: "100%" }}>
-                <div style={{
-                    background: "white",
-                    borderRadius: "24px",
-                    padding: "40px",
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
-                    border: "1px solid var(--color-border)"
-                }}>
-                    {isLoading ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "24px", opacity: 0.7 }}>
-                            <div className="skeleton skeleton-title"></div>
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
-                                <div className="skeleton skeleton-card"></div>
-                                <div className="skeleton skeleton-card"></div>
-                            </div>
-                        </div>
-                    ) : (
-                        <motion.div 
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.4 }}
-                        >
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", flexWrap: "wrap", gap: "16px" }}>
-                                <div>
-                                    <span style={{
-                                        background: "rgba(115, 176, 184, 0.15)",
-                                        color: "var(--color-teal)",
-                                        padding: "6px 16px",
-                                        borderRadius: "20px",
-                                        fontSize: "13px",
-                                        fontWeight: "600",
-                                        textTransform: "uppercase"
-                                    }}>
-                                        Patient Portal
-                                    </span>
-                                    <h1 style={{ fontSize: "32px", marginTop: "12px", fontFamily: "var(--font-sans)", fontWeight: "700" }}>
-                                        Welcome, {user?.firstName} {user?.lastName || ""} 👋
-                                    </h1>
-                                </div>
-                                <button
-                                    onClick={logout}
-                                    style={{
-                                        background: "#ef4444",
-                                        color: "white",
-                                        padding: "10px 24px",
-                                        borderRadius: "12px",
-                                        fontWeight: "600",
-                                        fontSize: "14px",
-                                        cursor: "pointer",
-                                        transition: "all 0.2s"
-                                    }}
-                                >
-                                    Logout
-                                </button>
-                            </div>
-
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px", marginTop: "30px" }}>
-                                <div style={{ background: "var(--color-light-grey)", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)" }} className="glass">
-                                    <h3 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "8px" }}>Patient Identity</h3>
-                                    <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Role: <strong style={{ color: "var(--color-dark)" }}>{user?.role}</strong></p>
-                                    <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Login Method: <strong style={{ color: "var(--color-dark)" }}>{user?.loginMethod}</strong></p>
-                                    <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Patient ID: <span style={{ fontFamily: "monospace", fontSize: "12px" }}>{user?.id}</span></p>
-                                </div>
-
-                                <div style={{ background: "var(--color-light-grey)", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)" }} className="glass">
-                                    <h3 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "8px" }}>Healthcare Intake Kiosk</h3>
-                                    <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>
-                                        Patient check-in, triage workflow, and vitals integration coming soon.
-                                    </p>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
+    if (isLoading) {
+        return (
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px", opacity: 0.7 }}>
+                <div className="skeleton skeleton-title"></div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "24px" }}>
+                    <div className="skeleton skeleton-card"></div>
+                    <div className="skeleton skeleton-card"></div>
+                    <div className="skeleton skeleton-card"></div>
+                    <div className="skeleton skeleton-card"></div>
                 </div>
-            </main>
-            <Footer />
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ paddingBottom: "24px" }}>
+            <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                style={{ display: "flex", flexDirection: "column", gap: "24px" }}
+            >
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "24px" }}>
+                    <StatCard 
+                        title="Visitors" 
+                        icon={User} 
+                        value="4,592" 
+                        trend={15.9} 
+                        subtitle="Stay informed with real-time data to enhance patient care and visitor management."
+                    />
+                    <StatCard 
+                        title="Doctors" 
+                        icon={Stethoscope} 
+                        value="260" 
+                        trend={15.9}
+                        bgLight={true}
+                        iconBg="rgba(255,255,255,0.5)"
+                        subtitle="Stay updated with essential details to streamline medical support and management."
+                    />
+                    <StatCard 
+                        title="Patient" 
+                        icon={Users} 
+                        value="540" 
+                        trend={15.9}
+                        subtitle="Keep track of patient information at a glance, with easy access to key details for personalized care."
+                    />
+                    <StatCard 
+                        title="Total Bed" 
+                        icon={Bed} 
+                        value="1205" 
+                        highlight={
+                            <>
+                                <div>
+                                    <div style={{fontSize: '16px', fontWeight: 'bold', color: 'var(--color-dark)'}}>110 Bed</div>
+                                    <div style={{fontSize: '11px', color: 'var(--color-text-muted)'}}>Private Bed</div>
+                                </div>
+                                <div>
+                                    <div style={{fontSize: '16px', fontWeight: 'bold', color: 'var(--color-dark)'}}>215 Bed</div>
+                                    <div style={{fontSize: '11px', color: 'var(--color-text-muted)'}}>General Bed</div>
+                                </div>
+                            </>
+                        }
+                    />
+                </div>
+                
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "24px" }}>
+                    <div style={{ minHeight: "360px" }}>
+                        <ChartPlaceholder />
+                    </div>
+                    <div>
+                        <CalendarPlaceholder />
+                    </div>
+                </div>
+                
+                <div>
+                    <PatientTable />
+                </div>
+            </motion.div>
         </div>
     );
 };

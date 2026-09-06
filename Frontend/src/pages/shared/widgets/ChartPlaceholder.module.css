@@ -1,0 +1,90 @@
+.container {
+  background-color: var(--color-light);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-dark);
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-dark);
+}
+
+.dotOnTime {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-dark);
+}
+
+.dotLate {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-text-muted);
+}
+
+.chartArea {
+  display: flex;
+  flex: 1;
+  gap: 16px;
+  padding-bottom: 8px;
+}
+
+.yAxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-bottom: 30px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.graph {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.svg {
+  flex: 1;
+  width: 100%;
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.xAxis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}

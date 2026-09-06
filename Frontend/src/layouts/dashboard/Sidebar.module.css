@@ -1,0 +1,98 @@
+.sidebar {
+  width: 100%;
+  height: auto;
+  background-color: var(--color-light);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  font-family: var(--font-sans);
+  padding: 0 16px;
+}
+
+.nav {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex: 1;
+  overflow-x: auto;
+  padding: 0;
+  gap: 16px;
+}
+
+.menuSection {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionTitle {
+  display: none;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.navItem:hover {
+  background-color: var(--color-light-grey);
+  color: var(--color-dark);
+}
+
+.navItem.active {
+  background-color: rgba(115, 176, 184, 0.1);
+  color: var(--color-teal);
+}
+
+.logoutSection {
+  margin-left: auto;
+  padding-left: 16px;
+}
+
+.logoutButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.logoutButton:hover {
+  background-color: #fef2f2;
+}
+
+/* Custom Scrollbar for horizontal nav */
+.sidebar::-webkit-scrollbar {
+  height: 6px;
+}
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.sidebar:hover::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+}

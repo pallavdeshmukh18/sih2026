@@ -2,19 +2,32 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { Toaster } from "react-hot-toast";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute from "./layouts/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
 import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
 import GoogleCallback from "./pages/GoogleCallback";
-import DashboardLayout from "./components/dashboard/DashboardLayout";
-import PatientOverview from "./pages/patient/PatientOverview";
+import DashboardLayout from "./layouts/dashboard/DashboardLayout";
+
+// Original Core Pages
+import PatientDashboard from "./pages/PatientDashboard";
+import DoctorDashboard from "./pages/DoctorDashboard";
 import MedicalHistory from "./pages/patient/MedicalHistory";
 import Appointments from "./pages/patient/Appointments";
 import Documents from "./pages/patient/Documents";
-import DoctorOverview from "./pages/doctor/DoctorOverview";
 import DoctorAppointments from "./pages/doctor/DoctorAppointments";
 import PatientAccess from "./pages/doctor/PatientAccess";
+import ComingSoon from "./pages/ComingSoon";
+
+// New Shared Pages
+import Account from "./pages/shared/Account";
+import DoctorDirectory from "./pages/shared/DoctorDirectory";
+import Departments from "./pages/shared/Departments";
+import PatientSchedule from "./pages/shared/PatientSchedule";
+import BedManager from "./pages/shared/BedManager";
+import Payment from "./pages/shared/Payment";
+import Mail from "./pages/shared/Mail";
+
 import "./App.css";
 
 function App() {
@@ -30,19 +43,41 @@ function App() {
 
           {/* Protected Patient Routes */}
           <Route path="/patient" element={<ProtectedRoute role="patient"><DashboardLayout /></ProtectedRoute>}>
-            <Route path="dashboard" element={<PatientOverview />} />
+            <Route path="dashboard" element={<PatientDashboard />} />
             <Route path="history" element={<MedicalHistory />} />
             <Route path="appointments" element={<Appointments />} />
             <Route path="documents" element={<Documents />} />
+            
+            {/* New Dummy Pages */}
+            <Route path="account" element={<Account />} />
+            <Route path="doctor" element={<DoctorDirectory />} />
+            <Route path="departments" element={<Departments />} />
+            <Route path="schedule" element={<PatientSchedule />} />
+            <Route path="bed" element={<BedManager />} />
+            <Route path="payment" element={<Payment />} />
+            <Route path="mail" element={<Mail />} />
+
             <Route path="" element={<Navigate to="/patient/dashboard" replace />} />
+            <Route path="*" element={<ComingSoon />} />
           </Route>
 
           {/* Protected Doctor Routes */}
           <Route path="/doctor" element={<ProtectedRoute role="doctor"><DashboardLayout /></ProtectedRoute>}>
-            <Route path="dashboard" element={<DoctorOverview />} />
+            <Route path="dashboard" element={<DoctorDashboard />} />
             <Route path="appointments" element={<DoctorAppointments />} />
             <Route path="patients" element={<PatientAccess />} />
+            
+            {/* New Dummy Pages */}
+            <Route path="account" element={<Account />} />
+            <Route path="doctor" element={<DoctorDirectory />} />
+            <Route path="departments" element={<Departments />} />
+            <Route path="schedule" element={<DoctorAppointments />} />
+            <Route path="bed" element={<BedManager />} />
+            <Route path="payment" element={<Payment />} />
+            <Route path="mail" element={<Mail />} />
+
             <Route path="" element={<Navigate to="/doctor/dashboard" replace />} />
+            <Route path="*" element={<ComingSoon />} />
           </Route>
         </Routes>
       </Router>

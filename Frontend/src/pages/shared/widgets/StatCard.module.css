@@ -1,0 +1,98 @@
+.card {
+  background-color: var(--color-light);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+.cardLight {
+  background-color: rgba(115, 176, 184, 0.1);
+  border-color: rgba(115, 176, 184, 0.2);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.iconWrapper {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-dark);
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-dark);
+}
+
+.moreBtn {
+  color: var(--color-text-muted);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.valueGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-dark);
+  font-family: var(--font-sans);
+}
+
+.trend {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 20px;
+}
+
+.trendUp {
+  background-color: #d1fae5;
+  color: #059669;
+}
+
+.trendDown {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.highlightContainer {
+  margin-top: 8px;
+  display: flex;
+  gap: 24px;
+}

@@ -1,73 +1,166 @@
-import React, { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
-import { motion } from "framer-motion";
+import React, { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { motion } from 'framer-motion';
+import { Info, Clock, FileText, CheckCircle2, ChevronDown } from 'lucide-react';
+import styles from './PatientOverview.module.css';
 
 const PatientOverview = () => {
-    const { user } = useAuth();
-    const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('Overview');
 
-    useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 800);
-        return () => clearTimeout(timer);
-    }, []);
+  return (
+    <div className={styles.container}>
+      {/* Middle Column: Main Content */}
+      <main className={styles.mainContent}>
+        <div className={styles.breadcrumbs}>
+          <span>Dashboard</span> &gt; <span className={styles.currentCrumb}>Overview</span>
+        </div>
 
-    if (isLoading) {
-        return (
-            <div style={{ display: "flex", flexDirection: "column", gap: "24px", opacity: 0.7 }}>
-                <div className="skeleton skeleton-title"></div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
-                    <div className="skeleton skeleton-card"></div>
-                    <div className="skeleton skeleton-card"></div>
-                </div>
+        <div className={styles.tabs}>
+          <button className={`${styles.tab} ${activeTab === 'Overview' ? styles.activeTab : ''}`} onClick={() => setActiveTab('Overview')}>
+            <Info size={16} /> Overview
+          </button>
+          <button className={`${styles.tab} ${activeTab === 'Booking' ? styles.activeTab : ''}`} onClick={() => setActiveTab('Booking')}>
+            <Clock size={16} /> Booking History
+          </button>
+          <button className={`${styles.tab} ${activeTab === 'Invoices' ? styles.activeTab : ''}`} onClick={() => setActiveTab('Invoices')}>
+            <FileText size={16} /> Invoices
+          </button>
+        </div>
+
+        <div className={styles.metricsGrid}>
+          <div className={styles.metricCard}>
+            <div className={styles.metricIcon} style={{ background: '#e0f2fe', color: '#0ea5e9' }}>🌡️</div>
+            <div className={styles.metricData}>
+              <p>Body Temperature</p>
+              <h3>98.6 <span>°F</span></h3>
             </div>
-        );
-    }
-
-    return (
-        <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-        >
-            <div style={{ marginBottom: "30px" }}>
-                <h1 style={{ fontSize: "32px", fontFamily: "var(--font-sans)", fontWeight: "700" }}>
-                    Welcome back, {user?.firstName} 👋
-                </h1>
-                <p style={{ color: "var(--color-text-muted)", marginTop: "8px" }}>Here's an overview of your health portal.</p>
+          </div>
+          <div className={styles.metricCard}>
+            <div className={styles.metricIcon} style={{ background: '#fee2e2', color: '#ef4444' }}>🩸</div>
+            <div className={styles.metricData}>
+              <p>Blood Pressure</p>
+              <h3>120/80 <span>mmHg</span></h3>
             </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px", marginTop: "30px" }}>
-                <div style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)" }} className="glass">
-                    <h3 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "16px" }}>Upcoming Appointment</h3>
-                    <div style={{ display: "flex", alignItems: "center", gap: "16px", background: "#f8fafc", padding: "16px", borderRadius: "12px" }}>
-                        <div style={{ background: "var(--color-teal)", color: "white", width: "48px", height: "48px", borderRadius: "12px", display: "flex", flexDirection: "column", alignItems: "center", justify: "center", padding: "4px" }}>
-                            <span style={{ fontSize: "12px", fontWeight: "600", textTransform: "uppercase" }}>Oct</span>
-                            <span style={{ fontSize: "18px", fontWeight: "700", lineHeight: "1" }}>14</span>
-                        </div>
-                        <div>
-                            <h4 style={{ fontSize: "15px", fontWeight: "600" }}>General Checkup</h4>
-                            <p style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>Dr. Sarah Jenkins • 10:00 AM</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)" }} className="glass">
-                    <h3 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "16px" }}>Recent Documents</h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", border: "1px solid var(--color-border)", borderRadius: "8px" }}>
-                            <div style={{ background: "#eef2ff", padding: "8px", borderRadius: "8px", color: "#4f46e5" }}>
-                                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                            </div>
-                            <div>
-                                <p style={{ fontSize: "14px", fontWeight: "600" }}>Blood_Test_Results.pdf</p>
-                                <p style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>Added Oct 1, 2026</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+          </div>
+          <div className={styles.metricCard}>
+            <div className={styles.metricIcon} style={{ background: '#fce7f3', color: '#db2777' }}>🧪</div>
+            <div className={styles.metricData}>
+              <p>Blood Sugar</p>
+              <h3>95 <span>mg/dl</span></h3>
             </div>
-        </motion.div>
-    );
+          </div>
+          <div className={styles.metricCard}>
+            <div className={styles.metricIcon} style={{ background: '#e0e7ff', color: '#6366f1' }}>⚖️</div>
+            <div className={styles.metricData}>
+              <p>Body Weight</p>
+              <h3>68 <span>kg</span></h3>
+            </div>
+          </div>
+          <div className={styles.metricCard}>
+            <div className={styles.metricIcon} style={{ background: '#fef3c7', color: '#d97706' }}>💤</div>
+            <div className={styles.metricData}>
+              <p>Avg. Sleep Time</p>
+              <h3>7.5 <span>hr</span></h3>
+            </div>
+          </div>
+          <div className={`${styles.metricCard} ${styles.addMoreCard}`}>
+            <p>+ Add More</p>
+          </div>
+        </div>
+
+        <div className={styles.splitSection}>
+          {/* Functional Status */}
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h3>Functional Status</h3>
+              <span className={styles.scoreBadge}>90/100</span>
+            </div>
+            <div className={styles.progressItem}>
+              <div className={styles.progressLabel}><span>Basic ADL</span><span>10/12</span></div>
+              <div className={styles.progressBar}><div className={styles.progressFill} style={{ width: '83%', background: '#f97316' }}></div></div>
+            </div>
+            <div className={styles.progressItem}>
+              <div className={styles.progressLabel}><span>Intermediate ADL</span><span>8/12</span></div>
+              <div className={styles.progressBar}><div className={styles.progressFill} style={{ width: '66%', background: '#84cc16' }}></div></div>
+            </div>
+            <div className={styles.progressItem}>
+              <div className={styles.progressLabel}><span>Mental Health</span><span>20/25</span></div>
+              <div className={styles.progressBar}><div className={styles.progressFill} style={{ width: '80%', background: '#eab308' }}></div></div>
+            </div>
+            <div className={styles.progressItem}>
+              <div className={styles.progressLabel}><span>Social Interaction</span><span>28/30</span></div>
+              <div className={styles.progressBar}><div className={styles.progressFill} style={{ width: '93%', background: '#06b6d4' }}></div></div>
+            </div>
+          </div>
+
+          {/* Todo List */}
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h3>Todo List</h3>
+              <a href="#" className={styles.seeAll}>See All</a>
+            </div>
+            <div className={styles.todoList}>
+              <div className={styles.todoItem}>
+                <span>Regular Morning Walk</span>
+                <CheckCircle2 size={18} className={styles.checked} />
+              </div>
+              <div className={styles.todoItem}>
+                <span>Take Vitamin D Supplement</span>
+                <CheckCircle2 size={18} className={styles.unchecked} />
+              </div>
+              <div className={styles.todoItem}>
+                <span>2L Water</span>
+                <CheckCircle2 size={18} className={styles.checked} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Right Column: Profile Sidebar */}
+      <aside className={styles.rightSidebar}>
+        <div className={styles.profileHeader}>
+          <div className={styles.profileAvatar}>{user?.firstName?.[0] || 'U'}</div>
+          <div className={styles.profileName}>
+            <h3>{user?.firstName} {user?.lastName}</h3>
+            <p>ID: #492817349</p>
+            <button className={styles.editBtn}>Edit Profile</button>
+          </div>
+        </div>
+
+        <div className={styles.accordionGroup}>
+          <div className={styles.accordion}>
+            <div className={styles.accordionHeader}>
+              <h4>Basic Information</h4>
+              <ChevronDown size={16} />
+            </div>
+            <div className={styles.accordionContent}>
+              <div className={styles.infoRow}><span>Gender</span><p>Not Specified</p></div>
+              <div className={styles.infoRow}><span>Age</span><p>Not Specified</p></div>
+              <div className={styles.infoRow}><span>Phone</span><p>{user?.phone || 'N/A'}</p></div>
+              <div className={styles.infoRow}><span>Email</span><p>{user?.email || 'N/A'}</p></div>
+              <div className={styles.infoRow}><span>Insurance</span><p>Add Insurance Details</p></div>
+            </div>
+          </div>
+          
+          <div className={styles.accordion}>
+            <div className={styles.accordionHeader}>
+              <h4>Appointments History</h4>
+              <ChevronDown size={16} />
+            </div>
+          </div>
+          
+          <div className={styles.accordion}>
+            <div className={styles.accordionHeader}>
+              <h4>Medications</h4>
+              <ChevronDown size={16} />
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
 };
 
 export default PatientOverview;
