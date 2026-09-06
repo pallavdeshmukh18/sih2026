@@ -63,7 +63,7 @@ const PORT = process.env.PORT || 5001;
 
 // Only listen if not imported by test suites
 if (require.main === module) {
-    app.listen(PORT, () => {
+    app.listen(PORT, "0.0.0.0", () => {
         console.log(`MediKiosk server running on port ${PORT}`);
     });
 }
