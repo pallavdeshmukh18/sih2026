@@ -1,28 +1,117 @@
-.layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background-color: #f8fafc;
+
+.layout { --color-teal:#176b4d; --color-primary:#176b4d; --color-secondary:#b96f32; --color-dark:#213d31; --color-border:#e6e1d5; --color-text-muted:#7d887f; --color-bg:#f7f3e9; min-height:100vh; background:var(--color-bg); font-size:13px; }
+.mainWrapper{margin-left:76px;padding-top:68px;min-width:0;position:relative;background-color:#f8f5ec;background-image:radial-gradient(circle at 89% 9%,rgba(196,119,52,.1),transparent 210px),radial-gradient(circle at 8% 92%,rgba(33,105,72,.07),transparent 240px)}.mainContent{padding:22px 24px 28px;min-width:0;width:100%;position:relative;z-index:1}
+.heritageMotif{position:fixed;right:8px;top:78px;width:104px;height:104px;border:1px solid rgba(184,111,49,.14);border-radius:50%;z-index:0;pointer-events:none;display:grid;place-items:center;transform:rotate(22.5deg)}
+.heritageMotif:before,.heritageMotif:after{content:"";position:absolute;inset:15px;border:1px solid rgba(184,111,49,.13);transform:rotate(45deg)}
+.heritageMotif:after{inset:31px;border-radius:50%;transform:none}.heritageMotif span{color:#b8753c;opacity:.2;font-size:15px}
+.layout h1,.layout h2,.layout h3,.layout h4,.layout h5,.layout h6{font-family:var(--font-sans);font-weight:650;letter-spacing:-.4px}
+.mainContent :global(.workspaceCard){background:#fff!important;border:1px solid #e3ebe6!important;border-radius:12px!important;box-shadow:0 3px 12px #183b2704;}
+.mainContent :global(.workspaceGrid){gap:18px!important;min-width:0}
+.mainContent :global(.workspaceGrid)>*{min-width:0}
+.mainContent table{font-size:12px}.mainContent thead{background:#f7f9f7}.mainContent th{font-size:10px!important;text-transform:uppercase;letter-spacing:.7px}.mainContent td,.mainContent th{padding:14px 18px!important}.mainContent tbody tr:hover{background:#f8fbf9}.mainContent input,.mainContent select,.mainContent textarea{font-family:inherit;max-width:100%;min-width:0}.mainContent button{transition:filter .15s,box-shadow .15s}.mainContent button:hover{filter:brightness(.96)}.mainContent h1{font-size:25px!important;letter-spacing:-.8px}.mainContent :global(.workspacePage){padding:0!important;height:auto!important;min-height:0}
+@media(min-width:1600px){.mainContent{padding:18px 20px}}
+@media(max-width:1100px){.mainWrapper{margin-left:76px}.mainContent{padding:18px}}
+@media(max-width:900px){.mainContent :global(.workspaceGrid){grid-template-columns:minmax(0,1fr)!important;height:auto!important}}
+@media(max-width:760px){.mainWrapper{margin-left:0;padding-top:111px}.mainContent{padding:14px}.mainContent h1{font-size:23px!important}.mainContent :global(.workspaceHeader){flex-wrap:wrap;gap:14px}.mainContent td,.mainContent th{white-space:nowrap}}
+@media(prefers-reduced-motion:reduce){.layout *{animation:none!important;transition:none!important}}
+
+.layout{--color-white:#fff;--shadow-md:0 3px 12px #183b2706;--radius-xl:12px}
+.patientLayout{--color-teal:#287c5b;--color-primary:#287c5b;--color-secondary:#d9954b;background:#f7f3e9}
+.patientLayout .mainContent{background-image:radial-gradient(circle at 96% 4%,rgba(224,160,84,.08),transparent 180px)}
+.patientLayout>header{border-bottom-color:#dfe8df}
+.patientLayout>header:after{content:"";position:absolute;left:22px;bottom:-1px;width:58px;height:2px;background:linear-gradient(90deg,#287c5b 0 44%,#fff 44% 58%,#dc9748 58%);border-radius:2px}
+.patientLayout .mainContent :global(.workspacePage)>div>:first-child h1:after{content:" ✦";color:#d99a52;font-size:.65em}
+.patientLayout .mainContent :global(.workspaceCard){border-top-color:#dbe7dc!important}
+.patientLayout .mainContent :global(.workspaceCard):nth-child(2n){box-shadow:inset 0 2px rgba(222,151,72,.08),0 2px 5px rgba(30,66,35,.025)!important}
+.doctorLayout{--color-teal:#176b4d;--color-primary:#176b4d;--color-secondary:#c17b3d}
+.doctorLayout .mainContent{background-image:linear-gradient(90deg,rgba(193,123,61,.07) 1px,transparent 1px),linear-gradient(rgba(193,123,61,.07) 1px,transparent 1px);background-size:36px 36px;background-position:right -1px bottom -1px;background-repeat:no-repeat}
+
+/* Shared signed-in page design system */
+.mainContent :global(.workspacePage){color:#263e32;position:relative}
+.mainContent :global(.workspacePage):before{content:"नमस्ते";display:inline-block;margin-bottom:4px;font-family:Georgia,serif;font-size:9px;letter-spacing:1.2px;color:#b47740}
+.mainContent :global(.workspacePage)>div{gap:18px!important}
+.mainContent :global(.workspacePage)>div>:global(.workspaceHeader):first-child{padding:17px 19px!important;border-left:3px solid #bd773b;border-radius:5px 17px 5px 5px;background:linear-gradient(90deg,rgba(255,253,247,.9),rgba(239,246,237,.52))}
+.mainContent :global(.workspacePage)>div>:global(.workspaceHeader):first-child:before{content:"✦";color:#c08045;font-size:11px;align-self:flex-start;margin-top:8px}
+.mainContent :global(.workspacePage) h1{font-family:Georgia,'Times New Roman',serif!important;font-size:27px!important;line-height:1.25;margin:0!important;color:#244536!important}
+.mainContent :global(.workspacePage) h1+ p{font-size:11px!important;color:#819087!important;margin-top:5px!important}
+.mainContent :global(.workspaceCard){overflow:hidden;background:rgba(255,255,255,.94)!important;border-color:#e6e1d5!important;border-radius:14px!important;box-shadow:0 7px 22px rgba(56,60,39,.045)!important;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.mainContent :global(.workspaceCard):hover{border-color:#d7e3da!important;box-shadow:0 6px 18px rgba(37,74,48,.045)!important}
+.mainContent :global(.workspaceCard)>:global(.workspaceHeader){padding:16px 18px!important;background:#fafcf9!important}
+.mainContent :global(.workspaceCard)>:global(.workspaceHeader){background:linear-gradient(90deg,#fafcf9,#fff9ef)!important;border-bottom-color:#eee6d9!important}
+.mainContent :global(.workspaceCard)>:global(.workspaceHeader):before{content:"✦";font-size:9px;color:#bd7c42;margin-right:5px}
+.mainContent :global(.workspaceHeader) h3{font-size:13px!important}
+.mainContent :global(.workspacePage)>div>:global(.workspaceHeader)>button{background:#187a55!important;border-radius:7px!important;padding:10px 15px!important;font-size:10px!important;box-shadow:0 3px 7px rgba(24,122,85,.12)}
+.mainContent :global(.workspacePage) input,
+.mainContent :global(.workspacePage) select,
+.mainContent :global(.workspacePage) textarea{border-color:#dfe7e1!important;border-radius:7px!important;background:#fbfcfb!important;font-size:11px!important;color:#3d5147!important}
+.mainContent :global(.workspacePage) input:focus,
+.mainContent :global(.workspacePage) select:focus,
+.mainContent :global(.workspacePage) textarea:focus{border-color:#77a98d!important;box-shadow:0 0 0 3px rgba(55,130,88,.08)!important;outline:none!important;background:#fff!important}
+.mainContent :global(.workspacePage) table{background:#fff}
+.mainContent :global(.workspacePage) thead{background:#f7faf7!important;color:#829087!important}
+.mainContent :global(.workspacePage) tbody tr{transition:background .15s ease}
+.mainContent :global(.workspacePage) tbody tr:last-child{border-bottom:0!important}
+.mainContent :global(.workspacePage) td{color:#607067;font-size:11px!important}
+.mainContent :global(.workspacePage) th{color:#89958e!important;font-size:8.5px!important}
+.mainContent :global(.workspacePage) button{font-size:10px}
+.mainContent :global(.workspacePage) :global(.workspaceGrid){gap:16px!important}
+
+@media(max-width:600px){
+  .mainContent :global(.workspacePage)>div{gap:14px!important}
+  .mainContent :global(.workspacePage)>div>:global(.workspaceHeader){align-items:flex-start!important}
+  .mainContent :global(.workspacePage)>div>:global(.workspaceHeader)>button{width:100%;justify-content:center}
+  .mainContent :global(.workspaceCard)>:global(.workspaceHeader){padding:14px!important}
 }
 
-.mainWrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
+/* Keep cultural cues restrained and product-led. */
+.mainContent :global(.workspacePage):before,
+.mainContent :global(.workspacePage)>div>:global(.workspaceHeader):first-child:before,
+.mainContent :global(.workspaceCard)>:global(.workspaceHeader):before{content:none}
+.patientLayout .mainContent :global(.workspacePage)>div>:first-child h1:after{content:none}
+.mainContent :global(.workspacePage)>div>:global(.workspaceHeader):first-child{border-left-width:2px;border-radius:5px 12px 5px 5px}
+.mainContent :global(.workspaceCard){border-radius:11px!important;box-shadow:0 3px 12px rgba(56,60,39,.035)!important}
 
-.mainContent {
-  flex: 1;
-  padding: 24px 32px;
-  overflow-y: auto;
+/* A quiet continuation of the public site's editorial visual language. */
+.layout{
+  --color-dark:#0f172a;
+  --color-text-muted:#64748b;
+  --color-border:#e2e8f0;
+  --color-bg:#f8fafc;
+  background:#f8fafc;
 }
-
-.layout h1,
-.layout h2,
-.layout h3,
-.layout h4,
-.layout h5,
-.layout h6 {
-  font-family: var(--font-sans);
+.mainWrapper,
+.patientLayout .mainContent,
+.doctorLayout .mainContent{
+  background-color:#f8fafc;
+  background-image:none;
 }
+.layout h1,.layout h2,.layout h3,.layout h4,.layout h5,.layout h6{
+  color:#0f172a;
+}
+.mainContent :global(.workspacePage) h1{
+  font-family:var(--font-serif)!important;
+  font-weight:500!important;
+  color:#0f172a!important;
+}
+.mainContent :global(.workspacePage)>div>:global(.workspaceHeader):first-child{
+  border-left:0;
+  border-radius:0;
+  background:transparent;
+  padding:10px 2px!important;
+}
+.mainContent :global(.workspaceCard){
+  border-color:#e2e8f0!important;
+  border-radius:16px!important;
+  box-shadow:0 4px 18px rgba(15,23,42,.035)!important;
+}
+.mainContent :global(.workspaceCard)>:global(.workspaceHeader){
+  background:#fff!important;
+  border-bottom-color:#edf1f5!important;
+}
+.mainContent :global(.workspacePage)>div>:global(.workspaceHeader)>button{
+  background:#0f172a!important;
+  border-radius:999px!important;
+  padding:10px 18px!important;
+}
+.mainWrapper{padding-top:72px}
+@media(max-width:760px){.mainWrapper{padding-top:127px}}

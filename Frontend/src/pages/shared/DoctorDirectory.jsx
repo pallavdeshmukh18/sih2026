@@ -13,7 +13,7 @@ const doctors = [
 
 const DoctorDirectory = () => {
     return (
-        <div style={{ paddingBottom: "24px" }}>
+        <div className="workspacePage" style={{ paddingBottom: "24px" }}>
             <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -25,9 +25,9 @@ const DoctorDirectory = () => {
                     <p style={{ color: "var(--color-text-muted)", marginTop: "8px" }}>Browse our directory of specialized doctors.</p>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
+                <div className="workspaceGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
                     {doctors.map((doc, idx) => (
-                        <div key={idx} style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)", display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                        <div className="workspaceCard" key={idx} style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)", display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                             <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--color-light-grey)', color: 'var(--color-teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: '700', marginBottom: '16px' }}>
                                 {doc.img}
                             </div>

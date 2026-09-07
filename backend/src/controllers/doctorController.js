@@ -236,8 +236,85 @@ async function confirmConsultation(req, res, next) {
     }
 }
 
+/**
+ * 4. List all pending doctor verification requests
+ * GET /api/doctor/admin/pending
+ * Access: doctor (superadmin acting as platform admin)
+ */
+async function getPendingDoctors(req, res) {
+    try {
+        const result = await pool.query(
+            `SELECT u.id, u.first_name, u.last_name, u.email, u.created_at,
+                    d.registration_number, d.specialization, d.department, d.verification_status
+             FROM users u
+             JOIN doctor_profiles d ON u.id = d.user_id
+             WHERE d.verification_status = 'pending'
+             ORDER BY u.created_at DESC;`
+        );
+
+        return res.status(200).json({
+            pending: result.rows.map(r => ({
+                id: r.id,
+                name: `${r.first_name} ${r.last_name || ''}`.trim(),
+                email: r.email,
+                registrationNumber: r.registration_number,
+                specialization: r.specialization,
+                department: r.department,
+                verificationStatus: r.verification_status,
+                createdAt: r.created_at,
+            })),
+        });
+    } catch (error) {
+        console.error('Error in getPendingDoctors:', error.message);
+        return res.status(500).json({ message: 'Internal server error.' });
+    }
+}
+
+/**
+ * 5. Verify or reject a doctor
+ * PATCH /api/doctor/admin/verify/:doctorId
+ * Body: { action: 'verify' | 'reject' }
+ * Access: doctor (superadmin)
+ */
+async function verifyDoctor(req, res) {
+    try {
+        const { doctorId } = req.params;
+        const { action } = req.body; // 'verify' | 'reject'
+
+        if (!['verify', 'reject'].includes(action)) {
+            return res.status(400).json({ message: "action must be 'verify' or 'reject'" });
+        }
+
+        const newStatus = action === 'verify' ? 'verified' : 'rejected';
+
+        const result = await pool.query(
+            `UPDATE doctor_profiles
+             SET verification_status = $1,
+                 verified_at = $2
+             WHERE user_id = $3
+             RETURNING user_id;`,
+            [newStatus, action === 'verify' ? new Date() : null, doctorId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Doctor not found.' });
+        }
+
+        return res.status(200).json({
+            message: `Doctor has been ${newStatus}.`,
+            doctorId,
+            verificationStatus: newStatus,
+        });
+    } catch (error) {
+        console.error('Error in verifyDoctor:', error.message);
+        return res.status(500).json({ message: 'Internal server error.' });
+    }
+}
+
 module.exports = {
     getDoctorQueue,
     getPatientUnifiedHistory,
     confirmConsultation,
+    getPendingDoctors,
+    verifyDoctor,
 };

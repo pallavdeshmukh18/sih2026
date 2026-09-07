@@ -58,7 +58,7 @@ const Sidebar = () => {
                     </NavLink>
                     
                     {role === 'doctor' ? (
-                        <NavLink to="/doctor/appointments" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                        <NavLink to="/doctor/schedule" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                             <Calendar size={20} />
                             <span>Schedule</span>
                         </NavLink>

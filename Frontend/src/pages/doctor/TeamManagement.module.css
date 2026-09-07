@@ -426,3 +426,5 @@
     .tableRow > div:nth-child(3),
     .tableRow > div:nth-child(5) { display: none; }
 }
+
+.page{gap:18px;padding-bottom:20px}.hierarchyBanner{background:#edf4e8;border-color:#dce8d5}.hierarchyIcon,.hierarchyText,.hierarchyText strong{color:#5a7950}.createBtn{background:var(--color-teal);font-size:12px}.subtitle{font-size:12px}

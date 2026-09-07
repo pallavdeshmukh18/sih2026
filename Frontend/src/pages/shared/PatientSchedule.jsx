@@ -1,63 +1,13 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin } from 'lucide-react';
+import ui from './PortalPage.module.css';
+import styles from './PatientSchedule.module.css';
 
-const PatientSchedule = () => {
-    return (
-        <div style={{ paddingBottom: "24px" }}>
-            <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-                style={{ display: "flex", flexDirection: "column", gap: "24px" }}
-            >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                        <h1 style={{ fontSize: "28px", fontFamily: "var(--font-sans)", fontWeight: "700", color: "var(--color-dark)" }}>Schedule</h1>
-                        <p style={{ color: "var(--color-text-muted)", marginTop: "8px" }}>Your upcoming healthcare calendar.</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <button style={{ background: 'white', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                            <ChevronLeft size={20} color="var(--color-dark)" />
-                        </button>
-                        <span style={{ display: 'flex', alignItems: 'center', fontWeight: '600', fontSize: '15px' }}>October 2026</span>
-                        <button style={{ background: 'white', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                            <ChevronRight size={20} color="var(--color-dark)" />
-                        </button>
-                    </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '24px' }}>
-                    {/* Calendar Grid (Dummy) */}
-                    <div style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)", minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                            <CalendarIcon size={48} style={{ opacity: 0.2, margin: '0 auto 16px auto' }} />
-                            <p>Full Month Calendar View</p>
-                        </div>
-                    </div>
-
-                    {/* Upcoming Events */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--color-dark)' }}>Upcoming Events</h3>
-                        
-                        <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)', borderLeft: '4px solid var(--color-teal)' }}>
-                            <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--color-dark)', marginBottom: '8px' }}>Dr. Sarah Jenkins</h4>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                                <Clock size={14} /> Oct 15, 10:00 AM
-                            </div>
-                        </div>
-
-                        <div style={{ background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid var(--color-border)', borderLeft: '4px solid #f59e0b' }}>
-                            <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--color-dark)', marginBottom: '8px' }}>Dr. Robert Miles</h4>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                                <Clock size={14} /> Oct 22, 02:30 PM
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </motion.div>
-        </div>
-    );
-};
-
-export default PatientSchedule;
+const events={15:{name:'Dr. Sarah Jenkins',type:'Cardiology',time:'10:00 AM',place:'Cardiology · Room 204'},22:{name:'Dr. Robert Miles',type:'Dental consultation',time:'02:30 PM',place:'Virtual appointment'}};
+const days=[...Array(35)].map((_,i)=>i<3?'':i-2);
+export default function PatientSchedule(){
+ const [selected,setSelected]=useState(15);
+ return <div className={ui.page}><header className={ui.header}><div><div className={ui.eyebrow}>CARE CALENDAR</div><h1>Your schedule</h1><p>Keep track of appointments, reminders, and follow-ups.</p></div><button className={ui.primary}><CalendarDays size={15}/> Add reminder</button></header>
+ <div className={ui.layout}><section className={ui.card}><div className={ui.cardHeader}><div><h2>October 2026</h2><p>Select a date to view its care plan</p></div><div className={ui.toolbar}><button className={ui.iconButton}><ChevronLeft size={14}/></button><button className={ui.secondary}>Today</button><button className={ui.iconButton}><ChevronRight size={14}/></button></div></div><div className={styles.calendar}><div className={styles.week}>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=><span key={x}>{x}</span>)}</div><div className={styles.days}>{days.map((d,i)=><button key={i} disabled={!d} onClick={()=>d&&setSelected(d)} className={`${selected===d?styles.selected:''} ${events[d]?styles.hasEvent:''}`}><span>{d}</span>{events[d]&&<small>{events[d].type}</small>}</button>)}</div></div></section>
+ <aside className={ui.sideStack}><div className={ui.softPanel}><span className={ui.softIcon}><CalendarDays size={19}/></span><h2>{selected} October</h2><p>{events[selected]?'You have one scheduled care event.':'No appointments scheduled for this day.'}</p></div><section className={ui.card}><div className={ui.cardHeader}><h2>Upcoming care</h2><span className={`${ui.badge} ${ui.success}`}>2 planned</span></div><div className={ui.list}>{Object.entries(events).map(([day,e])=><button key={day} className={ui.listItem} onClick={()=>setSelected(Number(day))}><span className={styles.eventDate}><strong>{day}</strong>OCT</span><span className={ui.listItemMain}><strong>{e.name}</strong><p>{e.type}</p></span><span className={ui.listItemMeta}><Clock3 size={11}/>{e.time}</span></button>)}</div></section>{events[selected]&&<section className={ui.card}><div className={styles.detail}><span className={styles.detailIcon}><MapPin size={16}/></span><div><strong>{events[selected].place}</strong><p>Arrive 10 minutes before your appointment.</p></div></div></section>}</aside></div></div>;
+}

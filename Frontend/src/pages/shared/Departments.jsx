@@ -13,7 +13,7 @@ const depts = [
 
 const Departments = () => {
     return (
-        <div style={{ paddingBottom: "24px" }}>
+        <div className="workspacePage" style={{ paddingBottom: "24px" }}>
             <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -25,9 +25,9 @@ const Departments = () => {
                     <p style={{ color: "var(--color-text-muted)", marginTop: "8px" }}>Explore hospital departments and specializations.</p>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+                <div className="workspaceGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
                     {depts.map((dept, idx) => (
-                        <div key={idx} style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)", display: 'flex', flexDirection: 'column' }}>
+                        <div className="workspaceCard" key={idx} style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)", display: 'flex', flexDirection: 'column' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
                                 <div style={{ background: dept.bg, color: dept.color, width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <dept.icon size={24} />
@@ -38,7 +38,7 @@ const Departments = () => {
                                 </div>
                             </div>
                             
-                            <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+                            <div className="workspaceHeader" style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-dark)', fontSize: '14px', fontWeight: '500' }}>
                                     <Users size={16} color="var(--color-text-muted)" />
                                     Active Patients

@@ -2,13 +2,36 @@
   --font-serif: 'Playfair Display', serif;
   --font-sans: 'Inter', sans-serif;
   --font-dashboard: 'Plus Jakarta Sans', sans-serif;
-  
-  --color-dark: #111111;
+
+  --color-dark: #0f172a; /* Slate 900 */
   --color-light: #ffffff;
-  --color-light-grey: #f8f8f8;
-  --color-teal: #73b0b8;
-  --color-border: #e2e2e2;
-  --color-text-muted: #555555;
+  --color-light-grey: #f8fafc; /* Slate 50 */
+  --color-teal: #0d9488; /* Teal 600 */
+  --color-border: #e2e8f0; /* Slate 200 */
+  --color-text-muted: #64748b; /* Slate 500 */
+  --color-text: #334155; /* Slate 700 */
+
+  /* Modern Dashboard Variables */
+  --color-primary: #0284c7; /* Sky 600 */
+  --color-secondary: #0ea5e9; /* Sky 500 */
+  --color-bg: #f1f5f9; /* Slate 100 */
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-glow: 0 0 20px rgba(2, 132, 199, 0.15);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html {
@@ -31,9 +54,11 @@ html {
 body {
   font-family: var(--font-sans);
   color: var(--color-dark);
-  background-color: var(--color-light);
+  background-color: var(--color-bg);
   line-height: 1.5;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {

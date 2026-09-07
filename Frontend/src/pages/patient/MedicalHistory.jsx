@@ -4,7 +4,7 @@ import { Activity, Thermometer, ShieldAlert, Syringe } from 'lucide-react';
 
 const MedicalHistory = () => {
     return (
-        <div style={{ paddingBottom: "24px" }}>
+        <div className="workspacePage" style={{ paddingBottom: "24px" }}>
             <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -16,9 +16,9 @@ const MedicalHistory = () => {
                     <p style={{ color: "var(--color-text-muted)", marginTop: "8px" }}>Manage your allergies, conditions, and past surgeries.</p>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+                <div className="workspaceGrid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
                     {/* Allergies & Conditions */}
-                    <div style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)" }}>
+                    <div className="workspaceCard" style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
                             <div style={{ background: "#fee2e2", padding: "10px", borderRadius: "12px", color: "#ef4444" }}>
                                 <ShieldAlert size={20} />
@@ -26,21 +26,21 @@ const MedicalHistory = () => {
                             <h3 style={{ fontSize: "18px", fontWeight: "600", color: "var(--color-dark)" }}>Allergies & Conditions</h3>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "16px", borderBottom: "1px solid var(--color-border)" }}>
+                            <div className="workspaceHeader" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "16px", borderBottom: "1px solid var(--color-border)" }}>
                                 <div>
                                     <h4 style={{ fontSize: "15px", fontWeight: "600", color: "var(--color-dark)" }}>Penicillin Allergy</h4>
                                     <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "4px" }}>Diagnosed: Aug 2015</p>
                                 </div>
                                 <span style={{ background: "#fee2e2", color: "#b91c1c", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "600" }}>Severe</span>
                             </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "16px", borderBottom: "1px solid var(--color-border)" }}>
+                            <div className="workspaceHeader" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "16px", borderBottom: "1px solid var(--color-border)" }}>
                                 <div>
                                     <h4 style={{ fontSize: "15px", fontWeight: "600", color: "var(--color-dark)" }}>Type 2 Diabetes</h4>
                                     <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "4px" }}>Diagnosed: Mar 2021</p>
                                 </div>
                                 <span style={{ background: "#e0f2fe", color: "#0369a1", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "600" }}>Chronic</span>
                             </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div className="workspaceHeader" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <div>
                                     <h4 style={{ fontSize: "15px", fontWeight: "600", color: "var(--color-dark)" }}>Seasonal Asthma</h4>
                                     <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "4px" }}>Diagnosed: Apr 2018</p>
@@ -51,7 +51,7 @@ const MedicalHistory = () => {
                     </div>
 
                     {/* Current Medications */}
-                    <div style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)" }}>
+                    <div className="workspaceCard" style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
                             <div style={{ background: "#e0e7ff", padding: "10px", borderRadius: "12px", color: "#4f46e5" }}>
                                 <Syringe size={20} />
@@ -60,14 +60,14 @@ const MedicalHistory = () => {
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                             <div style={{ padding: "16px", borderRadius: "12px", border: "1px solid var(--color-border)", background: "#f8fafc" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                                <div className="workspaceHeader" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                                     <h4 style={{ fontSize: "15px", fontWeight: "600", color: "var(--color-dark)" }}>Metformin</h4>
                                     <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--color-text-muted)" }}>500mg</span>
                                 </div>
                                 <p style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>Take 1 tablet twice daily with meals.</p>
                             </div>
                             <div style={{ padding: "16px", borderRadius: "12px", border: "1px solid var(--color-border)", background: "#f8fafc" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                                <div className="workspaceHeader" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                                     <h4 style={{ fontSize: "15px", fontWeight: "600", color: "var(--color-dark)" }}>Albuterol Inhaler</h4>
                                     <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--color-text-muted)" }}>90mcg</span>
                                 </div>
@@ -78,7 +78,7 @@ const MedicalHistory = () => {
                 </div>
 
                 {/* Past Surgeries & Procedures */}
-                <div style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)" }}>
+                <div className="workspaceCard" style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
                         <div style={{ background: "#dcfce7", padding: "10px", borderRadius: "12px", color: "#16a34a" }}>
                             <Activity size={20} />

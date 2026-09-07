@@ -1,127 +1,27 @@
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 32px;
-  background-color: var(--color-light);
-  border-bottom: 1px solid var(--color-border);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+.topbar{height:64px;position:fixed;inset:0 0 auto 0;z-index:40;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-bottom:1px solid #e5ebe9;display:flex;align-items:center;padding:0 22px;gap:26px}
+.logo{display:flex;align-items:center;gap:9px;font-size:21px;font-weight:750;letter-spacing:-.8px;min-width:168px;color:#173b30}.logoIcon{background:#167b59;color:#fff;width:32px;height:32px;border-radius:10px;display:grid;place-items:center}.logoDot{color:#2d986e;margin-left:-8px}.breadcrumb{display:flex;align-items:center;gap:13px;font-size:12px;color:#8b9892}.breadcrumb strong{font-weight:550;text-transform:capitalize;color:#384e44}.actions{margin-left:auto;display:flex;align-items:center;gap:18px}.portal{font-size:10px;text-transform:uppercase;letter-spacing:1px;background:#f0f7f3;color:#377d5c;padding:6px 10px;border-radius:5px;font-weight:650}.iconButton{color:#7d8d84;display:grid;place-items:center}.profile{display:flex;gap:10px;align-items:center;padding-left:18px;border-left:1px solid #e6ece8}.avatar{width:34px;height:34px;border-radius:50%;background:#e8eee4;color:#537244;font-size:11px;font-weight:700;display:grid;place-items:center}.userName{font-size:12px;font-weight:650}.userName small{display:block;font-size:10px;text-transform:capitalize;color:#89958e;font-weight:400}
+@media(max-width:760px){.topbar{height:64px;padding:0 16px;gap:10px}.breadcrumb,.portal,.userName{display:none}.actions{gap:14px}.logo{min-width:0;font-size:19px}.profile{padding-left:10px}}
+.logoIcon{background:linear-gradient(145deg,#167b59,#246c51);box-shadow:inset -4px -4px 0 rgba(240,160,70,.18)}
+.logoDot{color:#da9548}
 
-.logoIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* Indian editorial shell */
+.topbar{height:68px;background:rgba(255,253,247,.96);border-bottom-color:#e8e0d1}.topbar:after{content:"";position:absolute;left:0;bottom:-1px;width:230px;height:2px;background:linear-gradient(90deg,#176b4d 0 62%,#f8f3e9 62% 68%,#c47b3e 68%)}
+.logoIcon{width:34px;height:34px;border-radius:50% 50% 9px 9px;border:2px solid #efe5cc;box-shadow:inset -4px -4px 0 rgba(240,160,70,.18),0 3px 9px rgba(25,87,62,.14)}
+.brandWords{display:flex;align-items:baseline;position:relative}.brandWords small{position:absolute;left:1px;top:22px;font-family:Georgia,serif;font-size:6px;letter-spacing:2.2px;color:#a36b3a;font-weight:600}.logoDot{margin-left:1px}
+.portal{font-size:9px;letter-spacing:1.1px;background:#f3f6ec;border:1px solid #e5e6d6;border-radius:4px 9px 4px 9px}.portal i{font-style:normal;color:#c17a3c;margin-right:6px}.avatar{width:36px;height:36px;border-radius:50% 50% 10px 10px;border:1px solid #dfe4d6}
+@media(max-width:760px){.topbar{height:68px}}
 
-.logoText {
-  font-family: var(--font-serif);
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--color-dark);
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.themeToggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.iconActive {
-  color: var(--color-dark);
-}
-
-.iconMuted {
-  color: #a0aec0;
-}
-
-.toggleSwitch {
-  width: 40px;
-  height: 20px;
-  background-color: #e2e8f0;
-  border-radius: 20px;
-  position: relative;
-  cursor: pointer;
-}
-
-.toggleKnob {
-  width: 16px;
-  height: 16px;
-  background-color: white;
-  border-radius: 50%;
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  transition: transform 0.2s;
-}
-
-.divider {
-  width: 1px;
-  height: 24px;
-  background-color: var(--color-border);
-  margin: 0 8px;
-}
-
-.iconButton {
-  position: relative;
-  color: var(--color-text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  transition: background-color 0.2s;
-}
-
-.iconButton:hover {
-  background-color: var(--color-light-grey);
-  color: var(--color-dark);
-}
-
-.badge {
-  position: absolute;
-  top: 0px;
-  right: 0px;
-  background-color: #a78bfa;
-  color: white;
-  font-size: 10px;
-  font-weight: bold;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid white;
-}
-
-
-
-.avatar {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, var(--color-teal), #4d8b94);
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 14px;
-}
+/* Mirror the landing navigation without changing the portal structure. */
+.topbar{height:72px;background:rgba(255,255,255,.92);border-bottom-color:#e2e8f0;padding-inline:24px}
+.topbar:after{content:none}
+.logo{font-family:var(--font-serif);font-size:24px;font-weight:700;color:#0f172a;letter-spacing:-.5px}
+.logoIcon{width:32px;height:32px;border:0;border-radius:50%;background:#0f172a;box-shadow:none}
+.logoDot{color:#0d9488}
+.brandWords small{display:none}
+.breadcrumb{color:#94a3b8}
+.breadcrumb strong{color:#475569}
+.portal{background:#f0fdfa;border-color:#ccfbf1;color:#0f766e;border-radius:999px}
+.portal i{color:inherit}
+.avatar{border:0;border-radius:50%;background:#f1f5f9;color:#475569}
+@media(max-width:760px){.topbar{height:72px}}

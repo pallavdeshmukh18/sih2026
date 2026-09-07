@@ -11,14 +11,14 @@ const patientAccessData = [
 
 const PatientAccess = () => {
     return (
-        <div style={{ paddingBottom: "24px" }}>
+        <div className="workspacePage" style={{ paddingBottom: "24px" }}>
             <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
                 style={{ display: "flex", flexDirection: "column", gap: "24px" }}
             >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="workspaceHeader" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                         <h1 style={{ fontSize: "28px", fontFamily: "var(--font-sans)", fontWeight: "700", color: "var(--color-dark)" }}>Patients</h1>
                         <p style={{ color: "var(--color-text-muted)", marginTop: "8px" }}>Securely manage patients and access clinical records.</p>
@@ -29,10 +29,10 @@ const PatientAccess = () => {
                     </button>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px' }}>
+                <div className="workspaceGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px' }}>
                     {/* Patient Table */}
-                    <div style={{ background: "white", borderRadius: "16px", border: "1px solid var(--color-border)", overflow: "hidden" }}>
-                        <div style={{ padding: "24px", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="workspaceCard" style={{ background: "white", borderRadius: "16px", border: "1px solid var(--color-border)", overflow: "hidden" }}>
+                        <div className="workspaceHeader" style={{ padding: "24px", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div style={{ position: 'relative', width: '300px' }}>
                                 <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
                                 <input 
@@ -105,7 +105,7 @@ const PatientAccess = () => {
                             </p>
                         </div>
                         
-                        <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', textAlign: 'center' }}>
+                        <div className="workspaceCard" style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', textAlign: 'center' }}>
                             <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '50%', color: 'var(--color-text-muted)' }}>
                                 <Lock size={32} />
                             </div>

@@ -21,14 +21,14 @@ const wards = [
 
 const BedManager = () => {
     return (
-        <div style={{ paddingBottom: "24px" }}>
+        <div className="workspacePage" style={{ paddingBottom: "24px" }}>
             <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
                 style={{ display: "flex", flexDirection: "column", gap: "24px" }}
             >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="workspaceHeader" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                         <h1 style={{ fontSize: "28px", fontFamily: "var(--font-sans)", fontWeight: "700", color: "var(--color-dark)" }}>Bed Manager</h1>
                         <p style={{ color: "var(--color-text-muted)", marginTop: "8px" }}>Track hospital bed availability and occupancy in real-time.</p>
@@ -48,9 +48,9 @@ const BedManager = () => {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     {wards.map((ward, wIdx) => (
-                        <div key={wIdx} style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)" }}>
+                        <div className="workspaceCard" key={wIdx} style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)" }}>
                             <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--color-dark)', marginBottom: '20px' }}>{ward.name}</h3>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px' }}>
+                            <div className="workspaceGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px' }}>
                                 {ward.beds.map((bed, bIdx) => {
                                     let bg = '#dcfce7';
                                     let color = '#166534';
@@ -67,7 +67,7 @@ const BedManager = () => {
 
                                     return (
                                         <div key={bIdx} style={{ background: bg, color: color, padding: '16px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div className="workspaceHeader" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                 <span style={{ fontSize: '16px', fontWeight: '700' }}>{bed.id}</span>
                                                 {icon}
                                             </div>

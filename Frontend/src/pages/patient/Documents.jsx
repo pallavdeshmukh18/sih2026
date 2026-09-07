@@ -4,14 +4,14 @@ import { FileText, Search, Sparkles, Upload, FileSignature } from 'lucide-react'
 
 const Documents = () => {
     return (
-        <div style={{ paddingBottom: "24px" }}>
+        <div className="workspacePage" style={{ paddingBottom: "24px" }}>
             <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
                 style={{ display: "flex", flexDirection: "column", gap: "24px" }}
             >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="workspaceHeader" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                         <h1 style={{ fontSize: '28px', fontFamily: 'var(--font-sans)', fontWeight: '700', color: "var(--color-dark)" }}>Documents & AI</h1>
                         <p style={{ color: 'var(--color-text-muted)', marginTop: '8px' }}>Manage files, view OCR extractions, and search semantically.</p>
@@ -22,10 +22,10 @@ const Documents = () => {
                     </button>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '24px' }}>
+                <div className="workspaceGrid" style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '24px' }}>
                     {/* Main Semantic Search Area */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid var(--color-border)' }}>
+                        <div className="workspaceCard" style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid var(--color-border)' }}>
                             <div style={{ position: 'relative' }}>
                                 <Search size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
                                 <input 
@@ -51,11 +51,11 @@ const Documents = () => {
                             </div>
                         </div>
 
-                        <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid var(--color-border)' }}>
+                        <div className="workspaceCard" style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid var(--color-border)' }}>
                             <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: 'var(--color-dark)' }}>Your Files</h3>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 {/* File 1 */}
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', border: '1px solid var(--color-border)', borderRadius: '12px' }}>
+                                <div className="workspaceHeader" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', border: '1px solid var(--color-border)', borderRadius: '12px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                         <div style={{ background: '#eef2ff', padding: '12px', borderRadius: '10px', color: '#4f46e5' }}>
                                             <FileText size={24} />
@@ -69,7 +69,7 @@ const Documents = () => {
                                 </div>
                                 
                                 {/* File 2 */}
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', border: '1px solid var(--color-border)', borderRadius: '12px' }}>
+                                <div className="workspaceHeader" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', border: '1px solid var(--color-border)', borderRadius: '12px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                         <div style={{ background: '#fef3c7', padding: '12px', borderRadius: '10px', color: '#d97706' }}>
                                             <FileSignature size={24} />
@@ -95,7 +95,7 @@ const Documents = () => {
                             </p>
                         </div>
                         
-                        <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid var(--color-border)' }}>
+                        <div className="workspaceCard" style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid var(--color-border)' }}>
                             <h4 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--color-dark)', marginBottom: '16px' }}>Recent Extractions</h4>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                 <div style={{ borderLeft: '2px solid var(--color-teal)', paddingLeft: '12px' }}>
