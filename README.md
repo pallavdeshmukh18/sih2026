@@ -119,7 +119,7 @@ SARVAM_API_KEY=your_sarvam_api_key
 ```
 Run the FastAPI service:
 ```bash
-python -m uvicorn ML.main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 - Interactive API Docs: `http://localhost:8000/docs`
 
