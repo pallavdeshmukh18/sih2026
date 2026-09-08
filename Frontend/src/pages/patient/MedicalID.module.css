@@ -1,1 +1,154 @@
-.page{max-width:1700px;margin:-18px -20px -24px;padding-bottom:24px!important;color:#142238;background:#fbfcfb}.hero{height:154px;position:relative;overflow:hidden;padding:24px 30px}.hero>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.hero:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(251,252,251,.08),transparent 58%);pointer-events:none}.heroCopy{position:relative;z-index:1;max-width:53%}.heroCopy>span{color:#55736f;font-size:8px;font-weight:800;letter-spacing:2.2px}.hero h1{margin:8px 0 3px!important;color:#101f36!important;font:600 34px/1 'Playfair Display',serif!important}.heroCopy p{color:#5c7181;font-size:11px}.hero blockquote{position:absolute;z-index:1;top:29px;left:49%;color:#365d59;font:500 13px/1.45 'Playfair Display',serif}.hero blockquote:after{content:"";display:block;width:30px;height:2px;margin-top:9px;background:#237267}.patientCard{position:relative;z-index:2;margin:-9px 26px 12px;padding:12px 16px 14px;border:1px solid #e0e8e3;border-radius:14px;background:rgba(255,255,255,.97);box-shadow:0 7px 24px rgba(30,65,58,.05)}.patientHeader{display:flex;align-items:center;gap:12px}.patientIcon{width:45px;height:45px;display:grid;place-items:center;flex:none;border-radius:50%;color:#08786c;background:#e2f3ee}.patientIcon svg{width:21px}.patientHeader h2{font-size:13px}.patientHeader p{margin-top:2px;color:#637888;font-size:9px}.updated{display:flex;align-items:center;gap:12px;margin-left:auto;color:#66798a;font-size:8px}.updated button{height:30px;display:flex;align-items:center;gap:6px;padding:0 12px;border:1px solid #d9e3df;border-radius:999px;color:#2d5360;background:#fff;font-size:9px;font-weight:700}.updated button svg{width:12px}.infoGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:9px}.infoTile{min-height:50px;display:flex;align-items:center;gap:11px;padding:8px 13px;border-radius:9px;background:linear-gradient(110deg,#fbfcfd,#f4f7f8)}.infoTile>svg{width:18px;color:#4d6981}.infoTile span{min-width:0;display:flex;flex-direction:column}.infoTile small{color:#647789;font-size:8px}.infoTile strong{margin-top:2px;color:#162235;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.capitalize{text-transform:capitalize}.healthBand{min-height:78px;display:grid;grid-template-columns:48px 255px minmax(0,1fr) auto;align-items:center;gap:12px;margin:0 26px 11px;padding:11px 18px;border:1px solid;border-radius:14px;overflow:hidden}.bandIcon{width:45px;height:45px;display:grid;place-items:center;border-radius:50%}.bandIcon svg{width:20px}.bandIntro h2{font-size:12px}.bandIntro p{margin-top:3px;color:#627687;font-size:9px}.bandContent{min-width:0;display:flex;align-items:center;gap:7px;overflow-x:auto}.bandContent em{color:#617188;font-size:9px}.record{min-width:max-content;display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;background:rgba(255,255,255,.72);font-size:8px}.record span{color:#677887}.badge{padding:3px 6px;border-radius:999px;font-size:6.5px;font-weight:750}.verified{color:#11694f;background:#dff5e9}.ai_extracted{color:#8b6519;background:#fff1c9}.reported{color:#176a8b;background:#e2f3fb}.bandAction{height:31px;display:flex;align-items:center;gap:6px;padding:0 13px;border:1px solid currentColor;border-radius:999px;background:rgba(255,255,255,.52);font-size:8px;font-weight:750}.bandAction svg{width:12px}.allergyBand{border-color:#f6d5d5;color:#cb3333;background:linear-gradient(105deg,#fffafa,#fff4f4)}.allergyBand .bandIcon{background:#feecec}.allergyBand .bandIntro h2{color:#a42020}.conditionBand{border-color:#d7e7fb;color:#1970c9;background:linear-gradient(105deg,#fbfdff,#f2f8ff)}.conditionBand .bandIcon{background:#e8f3ff}.conditionBand .bandIntro h2{color:#18253a}.medicationBand{border-color:#e2ddfa;color:#6435da;background:linear-gradient(105deg,#fdfcff,#f7f4ff)}.medicationBand .bandIcon{background:#f0ebff}.medicationBand .bandIntro h2{color:#18253a}.moreDetails{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:4px 26px 11px}.moreDetails article{min-width:0;display:flex;align-items:center;gap:9px;padding:12px;border:1px solid #e3e9e5;border-radius:11px;background:#fff;cursor:pointer}.moreDetails article>span{width:31px;height:31px;display:grid;place-items:center;flex:none;border-radius:8px;color:#167569;background:#eaf5f1}.moreDetails svg{width:14px}.moreDetails article>svg{margin-left:auto;color:#748681}.moreDetails div{min-width:0}.moreDetails h3{font-size:9px}.moreDetails p{margin-top:3px;color:#6f808a;font-size:7.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.secureNote{display:flex;align-items:center;gap:10px;margin:0 26px;padding:10px 14px;border-radius:10px;color:#2f6c62;background:#edf6f2;font-size:8px}.secureNote svg{width:16px}.secureNote svg:last-child{margin-left:auto}.secureNote span{display:flex;gap:5px}.state{min-height:65vh;display:grid;place-items:center;text-align:center;color:#315a54}.state>h3{font-size:14px}.state>svg{width:32px}.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.errorBox{max-width:430px;padding:24px;border:1px solid #f2cccc;border-radius:16px;color:#8c2929;background:#fff5f5}.errorBox>svg{width:28px}.errorBox h3{margin:8px 0 4px}.errorBox p{font-size:10px}.errorBox button{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:8px 14px;border-radius:8px;color:#fff;background:#b93838;font-size:9px}.errorBox button svg{width:12px}@media(max-width:1100px){.infoGrid{grid-template-columns:repeat(3,1fr)}.healthBand{grid-template-columns:48px 220px 1fr}.bandAction{grid-column:3;justify-self:end}.moreDetails{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.page{margin:-14px}.hero{height:165px;padding:24px 18px}.hero>img{opacity:.42;object-position:62% center}.heroCopy{max-width:85%}.hero blockquote{display:none}.patientCard,.healthBand,.moreDetails,.secureNote{margin-left:14px;margin-right:14px}.updated{width:100%;justify-content:space-between}.patientHeader{flex-wrap:wrap}.infoGrid{grid-template-columns:repeat(2,1fr)}.healthBand{grid-template-columns:42px 1fr;padding:13px}.bandContent,.bandAction{grid-column:2}.bandAction{justify-self:start}.moreDetails{grid-template-columns:1fr}.secureNote span{display:block}}@media(max-width:460px){.infoGrid{grid-template-columns:1fr}.hero h1{font-size:29px!important}}
+.page { max-width: 1700px; margin: -18px -20px -24px; padding-bottom: 24px !important; color: #142238; background: #fbfcfb; }
+.hero { height: 154px; position: relative; overflow: hidden; padding: 24px 30px; }
+.hero > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.hero:after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(251, 252, 251, 0.08), transparent 58%); pointer-events: none; }
+.heroCopy { position: relative; z-index: 1; max-width: 53%; }
+.heroCopy > span { color: #55736f; font-size: 8px; font-weight: 800; letter-spacing: 2.2px; }
+.hero h1 { margin: 8px 0 3px !important; color: #101f36 !important; font: 600 34px/1 'Playfair Display', serif !important; }
+.heroCopy p { color: #5c7181; font-size: 11px; }
+
+/* Combined Patient Information + QR Side Panel Card */
+.patientCard { position: relative; z-index: 2; margin: -9px 26px 16px; padding: 20px 24px; border: 1px solid #e0e8e3; border-radius: 16px; background: rgba(255, 255, 255, 0.98); box-shadow: 0 7px 24px rgba(30, 65, 58, 0.05); }
+.patientCardContent { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+
+.patientInfoLeft { display: flex; flex-direction: column; gap: 12px; }
+.patientHeader { display: flex; align-items: center; gap: 12px; }
+.patientIcon { width: 42px; height: 42px; display: grid; place-items: center; flex: none; border-radius: 50%; color: #08786c; background: #e2f3ee; }
+.patientIcon svg { width: 20px; }
+.patientHeader h2 { font-size: 15px; font-weight: 700; color: #0f172a; margin: 0; }
+.patientHeader p { margin-top: 2px; color: #637888; font-size: 11px; }
+.updated { display: flex; align-items: center; gap: 12px; margin-left: auto; color: #66798a; font-size: 10px; }
+.updated button { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid #d9e3df; border-radius: 999px; color: #2d5360; background: #fff; font-size: 10px; font-weight: 700; cursor: pointer; }
+.updated button svg { width: 12px; }
+.infoGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
+.infoTile { min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 999px; background: linear-gradient(110deg, #fbfcfd, #f4f7f8); border: 1px solid #f1f5f9; }
+.infoTile > svg { width: 16px; color: #4d6981; flex-shrink: 0; }
+.infoTile span { min-width: 0; display: flex; flex-direction: column; }
+.infoTile small { color: #647789; font-size: 9px; }
+.infoTile strong { margin-top: 2px; color: #162235; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.capitalize { text-transform: capitalize; }
+
+/* Right Side Medical ID / QR Panel */
+.qrSidePanel { border-left: 1px solid #e2e8f0; padding-left: 24px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; }
+.qrSideHeader { width: 100%; text-align: center; }
+.qrSideHeader h3 { font-size: 13px; font-weight: 700; color: #065f46; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.qrSideHeader p { font-size: 10px; color: #64748b; margin: 2px 0 0; line-height: 1.3; }
+
+.qrBox { background: #ffffff; padding: 10px; border-radius: 12px; border: 1.5px solid #cbd5e1; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04); display: flex; flex-direction: column; align-items: center; margin-top: 2px; }
+.pairingCodeTag { margin-top: 8px; font-size: 11px; font-weight: 600; color: #334155; background: #f8fafc; padding: 3px 10px; border-radius: 20px; border: 1px solid #e2e8f0; letter-spacing: 0.5px; }
+.pairingCodeTag strong { color: #059669; font-weight: 700; }
+
+.qrControls { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+.qrTimer { font-size: 11px; font-weight: 600; color: #047857; display: flex; align-items: center; gap: 5px; background: #f0fdf4; padding: 4px 10px; border-radius: 20px; border: 1px solid #a7f3d0; }
+.qrTimerWarning { color: #b45309; border-color: #fde68a; background: #fffbeb; }
+.qrRefreshBtn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 6px 12px; border-radius: 20px; border: none; background: #059669; color: #ffffff; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; width: 100%; max-width: 180px; }
+.qrRefreshBtn:hover { background: #047857; }
+.qrRefreshBtn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.qrSecurityNote { font-size: 10px; color: #047857; display: flex; align-items: center; gap: 6px; background: #ecfdf5; padding: 6px 10px; border-radius: 8px; border: 1px solid #a7f3d0; text-align: left; margin-top: 2px; width: 100%; }
+.qrSecurityNote svg { flex-shrink: 0; color: #059669; }
+
+/* Connected Care Providers Section */
+.connectedSection { margin: 0 26px 16px; padding: 18px 20px; border: 1px solid #e0e8e3; border-radius: 14px; background: #ffffff; box-shadow: 0 4px 16px rgba(30, 65, 58, 0.03); }
+.connectedDoctorsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 14px; }
+.connectedDoctorCard { padding: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; transition: border-color 0.2s ease; }
+.connectedDoctorCard:hover { border-color: #cbd5e1; }
+.docHeader { display: flex; align-items: center; gap: 12px; }
+.docAvatar { width: 38px; height: 38px; border-radius: 50%; background: #e0f2fe; color: #0284c7; display: grid; place-items: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.docInfo h4 { font-size: 13px; font-weight: 700; margin: 0; color: #0f172a; }
+.docInfo p { font-size: 11px; margin: 2px 0 0; color: #64748b; }
+.docInfo small { font-size: 10px; color: #94a3b8; display: block; margin-top: 4px; }
+.docActions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.statusBadge { font-size: 10px; font-weight: 700; color: #166534; background: #dcfce7; padding: 2px 8px; border-radius: 12px; }
+.revokeBtn { padding: 5px 10px; border-radius: 6px; border: 1px solid #fca5a5; background: #fef2f2; color: #dc2626; font-size: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+.revokeBtn:hover { background: #fee2e2; }
+.revokedTag { font-size: 10px; font-weight: 600; color: #94a3b8; background: #f1f5f9; padding: 3px 8px; border-radius: 6px; }
+
+/* Empty state for care providers */
+.emptyProviders { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; color: #64748b; }
+.emptyProvidersIcon { width: 40px; height: 40px; border-radius: 50%; background: #e2e8f0; color: #64748b; display: grid; place-items: center; margin-bottom: 8px; }
+.emptyProviders h4 { font-size: 13px; font-weight: 600; color: #334155; margin: 0; }
+.emptyProviders p { font-size: 11px; color: #64748b; margin: 4px 0 0; max-width: 360px; }
+
+.healthBand { min-height: 78px; display: grid; grid-template-columns: 48px 255px minmax(0, 1fr) auto; align-items: center; gap: 12px; margin: 0 26px 11px; padding: 11px 18px; border: 1px solid; border-radius: 14px; overflow: hidden; }
+.bandIcon { width: 45px; height: 45px; display: grid; place-items: center; border-radius: 50%; }
+.bandIcon svg { width: 20px; }
+.bandIntro h2 { font-size: 13px; font-weight: 700; }
+.bandIntro p { margin-top: 3px; color: #627687; font-size: 10px; }
+.bandContent { min-width: 0; display: flex; align-items: center; gap: 7px; overflow-x: auto; }
+.bandContent em { color: #617188; font-size: 10px; }
+.record { min-width: max-content; display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 8px; background: rgba(255, 255, 255, .72); font-size: 10px; }
+.record span { color: #677887; }
+.badge { padding: 3px 8px; border-radius: 999px; font-size: 8px; font-weight: 750; }
+.verified { color: #11694f; background: #dff5e9; }
+.ai_extracted { color: #8b6519; background: #fff1c9; }
+.reported { color: #176a8b; background: #e2f3fb; }
+.bandAction { height: 31px; display: flex; align-items: center; gap: 6px; padding: 0 13px; border: 1px solid currentColor; border-radius: 999px; background: rgba(255, 255, 255, .52); font-size: 9px; font-weight: 750; cursor: pointer; }
+.bandAction svg { width: 12px; }
+.allergyBand { border-color: #f6d5d5; color: #cb3333; background: linear-gradient(105deg, #fffafa, #fff4f4); }
+.allergyBand .bandIcon { background: #feecec; }
+.allergyBand .bandIntro h2 { color: #a42020; }
+.conditionBand { border-color: #d7e7fb; color: #1970c9; background: linear-gradient(105deg, #fbfdff, #f2f8ff); }
+.conditionBand .bandIcon { background: #e8f3ff; }
+.conditionBand .bandIntro h2 { color: #18253a; }
+.medicationBand { border-color: #e2ddfa; color: #6435da; background: linear-gradient(105deg, #fdfcff, #f7f4ff); }
+.medicationBand .bandIcon { background: #f0ebff; }
+.medicationBand .bandIntro h2 { color: #18253a; }
+
+.moreDetails { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; margin: 4px 26px 11px; }
+.moreDetails article { min-width: 0; display: flex; align-items: center; gap: 9px; padding: 12px; border: 1px solid #e3e9e5; border-radius: 11px; background: #fff; cursor: pointer; }
+.moreDetails article > span { width: 31px; height: 31px; display: grid; place-items: center; flex: none; border-radius: 8px; color: #167569; background: #eaf5f1; }
+.moreDetails svg { width: 14px; }
+.moreDetails article > svg { margin-left: auto; color: #748681; }
+.moreDetails div { min-width: 0; }
+.moreDetails h3 { font-size: 10px; font-weight: 700; }
+.moreDetails p { margin-top: 3px; color: #6f808a; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.secureNote { display: flex; align-items: center; gap: 10px; margin: 0 26px; padding: 10px 14px; border-radius: 10px; color: #2f6c62; background: #edf6f2; font-size: 10px; }
+.secureNote svg { width: 16px; }
+.secureNote svg:last-child { margin-left: auto; }
+.secureNote span { display: flex; gap: 5px; }
+
+.state { min-height: 65vh; display: grid; place-items: center; text-align: center; color: #315a54; }
+.state > h3 { font-size: 14px; }
+.state > svg { width: 32px; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.errorBox { max-width: 430px; padding: 24px; border: 1px solid #f2cccc; border-radius: 16px; color: #8c2929; background: #fff5f5; }
+.errorBox > svg { width: 28px; }
+.errorBox h3 { margin: 8px 0 4px; }
+.errorBox p { font-size: 11px; }
+.errorBox button { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 8px 14px; border-radius: 8px; color: #fff; background: #b93838; font-size: 10px; font-weight: 700; cursor: pointer; }
+.errorBox button svg { width: 12px; }
+
+@media(max-width: 1100px) {
+  .patientCardContent { grid-template-columns: 1fr 280px; gap: 18px; }
+  .infoGrid { grid-template-columns: repeat(2, 1fr); }
+  .healthBand { grid-template-columns: 48px 220px 1fr; }
+  .bandAction { grid-column: 3; justify-self: end; }
+  .moreDetails { grid-template-columns: repeat(2, 1fr); }
+}
+@media(max-width: 900px) {
+  .patientCardContent { grid-template-columns: 1fr; }
+  .qrSidePanel { border-left: none; border-top: 1px solid #e2e8f0; padding-left: 0; padding-top: 16px; margin-top: 8px; }
+}
+@media(max-width: 760px) {
+  .page { margin: -14px; }
+  .hero { height: 165px; padding: 24px 18px; }
+  .hero > img { opacity: .42; object-position: 62% center; }
+  .heroCopy { max-width: 85%; }
+  .patientCard, .connectedSection, .healthBand, .moreDetails, .secureNote { margin-left: 14px; margin-right: 14px; }
+  .updated { width: 100%; justify-content: space-between; }
+  .patientHeader { flex-wrap: wrap; }
+  .infoGrid { grid-template-columns: repeat(2, 1fr); }
+  .healthBand { grid-template-columns: 42px 1fr; padding: 13px; }
+  .bandContent, .bandAction { grid-column: 2; }
+  .bandAction { justify-self: start; }
+  .moreDetails { grid-template-columns: 1fr; }
+  .secureNote span { display: block; }
+}
+@media(max-width: 460px) {
+  .infoGrid { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 29px !important; }
+}

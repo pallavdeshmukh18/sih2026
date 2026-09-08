@@ -253,6 +253,25 @@
     "error": "Unable to load your Medical ID.",
     "retry": "Retry",
     "takeAssessment": "Take Clinical Assessment",
-    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile."
+    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile.",
+    "connectWithDoctor": "உங்கள் மருத்துவருடன் இணையுங்கள்",
+    "qrDescription": "உங்கள் பராமரிப்புப் பதிவை இணைக்க அங்கீகரிக்கப்பட்ட மருத்துவருடன் உங்கள் மருத்துவ ஐடியைப் பாதுகாப்பாகப் பகிருங்கள்.",
+    "expiresIn": "QR காலாவதியாகும் நேரம்",
+    "generateNewQr": "புதிய QR உருவாக்கவும்",
+    "generating": "உருவாக்கப்படுகிறது...",
+    "pairingCode": "இணைப்புக் குறியீடு",
+    "qrSecurityNotice": "இந்த QR-இல் உங்கள் மருத்துவத் தகவல்கள் இல்லை. இது அங்கீகரிக்கப்பட்ட மருத்துவருடன் தற்காலிக பாதுகாப்பான இணைப்பு கோரிக்கையை உருவாக்குகிறது.",
+    "connectedCareProviders": "இணைக்கப்பட்ட பராமரிப்பு வழங்குநர்கள்",
+    "connectedProvidersSubtitle": "உங்கள் MediKiosk மருத்துவ சுயவிவரத்திற்கு அங்கீகரிக்கப்பட்ட அணுகல் உள்ள மருத்துவர்கள்.",
+    "noConnectedProviders": "இன்னும் இணைக்கப்பட்ட பராமரிப்பு வழங்குநர்கள் இல்லை",
+    "noConnectedProvidersSub": "உங்கள் MediKiosk பதிவை இணைக்க மருத்துவருடன் உங்கள் பாதுகாப்பான QR-ஐப் பகிருங்கள்.",
+    "qrExpired": "QR காலாவதியானது",
+    "revokeAccess": "அணுகலை ரத்துசெய்",
+    "revoking": "ரத்து செய்யப்படுகிறது...",
+    "accessRevoked": "அணுகல் ரத்துசெய்யப்பட்டது",
+    "connectedAt": "இணைக்கப்பட்டது",
+    "statusActive": "செயலில்",
+    "viewDoctor": "பார்வை",
+    "qrAriaLabel": "மருத்துவருடன் இணைப்பதற்கான பாதுகாப்பான மருத்துவ ஐடி QR குறியீடு"
   }
 }

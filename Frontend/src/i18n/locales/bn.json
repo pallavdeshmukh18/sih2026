@@ -253,6 +253,25 @@
     "error": "Unable to load your Medical ID.",
     "retry": "Retry",
     "takeAssessment": "Take Clinical Assessment",
-    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile."
+    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile.",
+    "connectWithDoctor": "আপনার ডাক্তারের সাথে সংযুক্ত হন",
+    "qrDescription": "আপনার পরিচর্যার রেকর্ড সংযুক্ত করতে অনুমোদিত ডাক্তারের সাথে আপনার মেডিকেল আইডি নিরাপদে শেয়ার করুন।",
+    "expiresIn": "QR মেয়াদের সময়",
+    "generateNewQr": "নতুন QR তৈরি করুন",
+    "generating": "তৈরি করা হচ্ছে...",
+    "pairingCode": "পেয়ারিং কোড",
+    "qrSecurityNotice": "এই QR-এ আপনার কোনো চিকিৎসা সংক্রান্ত তথ্য নেই। এটি অনুমোদিত ডাক্তারের সাথে একটি অস্থায়ী সুরক্ষিত সংযোগের অনুরোধ তৈরি করে।",
+    "connectedCareProviders": "সংযুক্ত পরিচর্যা প্রদানকারী",
+    "connectedProvidersSubtitle": "যেসব ডাক্তারের আপনার মেদিকিয়স্ক ক্লিনিকাল প্রোফাইলে অনুমোদিত অ্যাক্সেস আছে।",
+    "noConnectedProviders": "এখনও কোনও সংযুক্ত পরিচর্যা প্রদানকারী নেই",
+    "noConnectedProvidersSub": "আপনার মেদিকিয়স্ক রেকর্ড সংযোগ করতে ডাক্তারের সাথে আপনার সুরক্ষিত QR শেয়ার করুন।",
+    "qrExpired": "QR এর মেয়াদ শেষ",
+    "revokeAccess": "অ্যাক্সেস বাতিল করুন",
+    "revoking": "বাতিল করা হচ্ছে...",
+    "accessRevoked": "অ্যাক্সেস বাতিল করা হয়েছে",
+    "connectedAt": "সংযুক্ত",
+    "statusActive": "সক্রিয়",
+    "viewDoctor": "দেখুন",
+    "qrAriaLabel": "ডাক্তারের সাথে সংযোগ করার জন্য সুরক্ষিত মেডিকেল আইডি QR কোড"
   }
 }

@@ -13,5 +13,8 @@ router.patch("/profile/onboarding", patientController.saveOnboardingPreferences)
 router.get("/profile/onboarding", patientController.getOnboardingPreferences);
 router.get("/history", patientController.getPatientMedicalHistory);
 router.get("/medical-id", patientController.getPatientMedicalId);
+router.post("/medical-id/qr", patientController.generatePatientQrToken);
+router.get("/connected-doctors", patientController.getConnectedDoctors);
+router.delete("/connected-doctors/:relationshipId", patientController.revokeDoctorAccess);
 
 module.exports = router;

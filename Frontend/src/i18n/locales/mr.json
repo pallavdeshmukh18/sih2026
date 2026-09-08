@@ -253,6 +253,25 @@
     "error": "Unable to load your Medical ID.",
     "retry": "Retry",
     "takeAssessment": "Take Clinical Assessment",
-    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile."
+    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile.",
+    "connectWithDoctor": "तुमच्या डॉक्टरांशी कनेक्ट व्हा",
+    "qrDescription": "तुमची आरोग्य नोंद जोडण्यासाठी अधिकृत डॉक्टरांसोबत तुमची मेडिकल आयडी सुरक्षितपणे शेअर करा.",
+    "expiresIn": "QR मुदत समाप्ती",
+    "generateNewQr": "नवीन QR तयार करा",
+    "generating": "तयार होत आहे...",
+    "pairingCode": "पेअरिंग कोड",
+    "qrSecurityNotice": "या QR मध्ये तुमची वैद्यकीय माहिती नसते. हे अधिकृत डॉक्टरांसोबत तात्पुरती सुरक्षित कनेक्शन विनंती तयार करते.",
+    "connectedCareProviders": "जोडलेले केअर प्रदाते",
+    "connectedProvidersSubtitle": "ज्या डॉक्टरांना तुमच्या मेडीकियोस्क क्लिनिकल प्रोफाईलवर अधिकृत प्रवेश आहे.",
+    "noConnectedProviders": "अद्याप कोणतेही जोडलेले केअर प्रदाते नाहीत",
+    "noConnectedProvidersSub": "तुमचा मेडीकियोस्क रेकॉर्ड जोडण्यासाठी डॉक्टरांसोबत तुमचा सुरक्षित QR शेअर करा.",
+    "qrExpired": "QR मुदत संपली",
+    "revokeAccess": "प्रवेश रद्द करा",
+    "revoking": "रद्द करत आहे...",
+    "accessRevoked": "प्रवेश रद्द केला",
+    "connectedAt": "जोडले गेले",
+    "statusActive": "सक्रिय",
+    "viewDoctor": "पहा",
+    "qrAriaLabel": "डॉक्टरांशी कनेक्ट होण्यासाठी सुरक्षित मेडिकल आयडी QR कोड"
   }
 }

@@ -125,7 +125,7 @@ const ClinicalSummary = ({ patient, onConsultationCompleted }) => {
                         </div>
                         <div className={styles.alertContent}>
                             <h3>Potential Red Flags Detected by AI</h3>
-                            <p>The patient reported symptoms consistent with high-priority conditions: <strong>{patient.redFlags.join(", ")}</strong>. Immediate clinical evaluation recommended.</p>
+                            <p>The patient reported symptoms consistent with high-priority conditions: <strong>{redFlags.map(f => typeof f === 'string' ? f : (f?.flag || f?.name || 'Red Flag')).join(", ")}</strong>. Immediate clinical evaluation recommended.</p>
                         </div>
                     </div>
                 )}

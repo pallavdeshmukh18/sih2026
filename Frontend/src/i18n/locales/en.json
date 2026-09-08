@@ -259,6 +259,25 @@
     "error": "Unable to load your Medical ID.",
     "retry": "Retry",
     "takeAssessment": "Take Clinical Assessment",
-    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile."
+    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile.",
+    "connectWithDoctor": "CONNECT WITH YOUR DOCTOR",
+    "qrDescription": "Securely share your Medical ID with an authorized doctor to connect your care record.",
+    "expiresIn": "QR expires in",
+    "generateNewQr": "Generate New QR",
+    "generating": "Generating...",
+    "pairingCode": "Pairing Code",
+    "qrSecurityNotice": "This QR does not contain your medical information. It creates a temporary secure connection request with an authorized doctor.",
+    "connectedCareProviders": "CONNECTED CARE PROVIDERS",
+    "connectedProvidersSubtitle": "Doctors who have authorized access to your MediKiosk clinical profile.",
+    "noConnectedProviders": "No connected care providers yet",
+    "noConnectedProvidersSub": "Share your secure QR with a doctor to connect your MediKiosk record.",
+    "qrExpired": "QR Expired",
+    "revokeAccess": "Revoke Access",
+    "revoking": "Revoking...",
+    "accessRevoked": "Access Revoked",
+    "connectedAt": "Connected",
+    "statusActive": "Active",
+    "viewDoctor": "View",
+    "qrAriaLabel": "Secure Medical ID QR code for connecting with a doctor"
   }
 }

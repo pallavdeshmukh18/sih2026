@@ -401,3 +401,42 @@ export async function synthesizeTTS(text, languageCode = "en", token = null) {
 }
 
 export const synthesizeSpeech = synthesizeTTS;
+
+// ==================================================
+// PATIENT ↔ DOCTOR QR PAIRING & CONSENT API CALLS
+// ==================================================
+
+/** Patient: Generate Short-Lived QR Pairing Token */
+export async function generatePatientQrToken(token) {
+    return apiRequest("/api/patient/medical-id/qr", "POST", null, token);
+}
+
+/** Patient: Get Connected Care Providers */
+export async function getConnectedDoctors(token) {
+    return apiRequest("/api/patient/connected-doctors", "GET", null, token);
+}
+
+/** Patient: Revoke Doctor Access */
+export async function revokeDoctorAccess(relationshipId, token) {
+    return apiRequest(`/api/patient/connected-doctors/${relationshipId}`, "DELETE", null, token);
+}
+
+/** Doctor: Redeem / Preview QR Pairing Token */
+export async function previewPatientPairing(payload, token) {
+    return apiRequest("/api/doctor/patients/pair/preview", "POST", payload, token);
+}
+
+/** Doctor: Confirm Patient Doctor Pairing */
+export async function confirmPatientPairing(payload, token) {
+    return apiRequest("/api/doctor/patients/pair/confirm", "POST", payload, token);
+}
+
+/** Doctor: Get Connected Patients List */
+export async function getDoctorPatients(token) {
+    return apiRequest("/api/doctor/patients", "GET", null, token);
+}
+
+/** Doctor: Revoke Patient Connection */
+export async function revokePatientConnection(patientId, token) {
+    return apiRequest(`/api/doctor/patients/${patientId}`, "DELETE", null, token);
+}

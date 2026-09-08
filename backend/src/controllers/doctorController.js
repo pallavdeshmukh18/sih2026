@@ -92,6 +92,22 @@ async function getPatientUnifiedHistory(req, res, next) {
             });
         }
 
+        if (req.user.role === "doctor") {
+            const accessCheck = await pool.query(
+                `SELECT 1 FROM patient_doctor_relationships WHERE doctor_id = $1 AND patient_id = $2 AND status = 'active'
+                 UNION
+                 SELECT 1 FROM appointments WHERE doctor_id = $1 AND patient_id = $2;`,
+                [req.user.id, patientId]
+            );
+
+            if (accessCheck.rows.length === 0) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Access Denied: Patient is not connected with your practice.",
+                });
+            }
+        }
+
         const patient = userRes.rows[0];
 
         // 2. Fetch Medical History (conditions, allergies, surgeries, family history)
@@ -351,6 +367,290 @@ async function getPublicDoctors(req, res, next) {
     }
 }
 
+/**
+ * 7. Preview QR Pairing Token for Doctor
+ * POST /api/doctor/patients/pair/preview
+ * Access: Authenticated doctor only
+ */
+async function previewPatientPairing(req, res, next) {
+    try {
+        const crypto = require("crypto");
+        const doctorId = req.user.id;
+        const { token, pairingCode } = req.body;
+
+        if (!token && !pairingCode) {
+            return res.status(400).json({
+                success: false,
+                message: "Pairing QR token or pairing code is required.",
+            });
+        }
+
+        let tokenQuery = "";
+        let queryParam = "";
+
+        if (token) {
+            tokenQuery = `SELECT * FROM patient_qr_pairing_tokens WHERE token_hash = $1;`;
+            queryParam = crypto.createHash("sha256").update(token).digest("hex");
+        } else {
+            tokenQuery = `SELECT * FROM patient_qr_pairing_tokens WHERE UPPER(token_display_code) = UPPER($1);`;
+            queryParam = pairingCode.trim();
+        }
+
+        const tokenRes = await pool.query(tokenQuery, [queryParam]);
+
+        if (tokenRes.rows.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid pairing code or QR token.",
+            });
+        }
+
+        const pairingTokenRow = tokenRes.rows[0];
+
+        if (pairingTokenRow.used_at) {
+            return res.status(400).json({
+                success: false,
+                message: "This pairing QR code has already been used.",
+            });
+        }
+
+        if (new Date(pairingTokenRow.expires_at) < new Date()) {
+            return res.status(400).json({
+                success: false,
+                message: "This pairing QR code has expired. Please ask the patient to generate a new QR.",
+            });
+        }
+
+        const patientId = pairingTokenRow.patient_id;
+
+        const relCheck = await pool.query(
+            `SELECT * FROM patient_doctor_relationships WHERE patient_id = $1 AND doctor_id = $2;`,
+            [patientId, doctorId]
+        );
+
+        const isAlreadyConnected = relCheck.rows.length > 0 && relCheck.rows[0].status === "active";
+
+        const userRes = await pool.query(
+            `SELECT u.id, u.first_name, u.last_name, u.email, u.phone,
+                    p.date_of_birth, p.gender, p.state, p.preferred_language, p.abha_id
+             FROM users u
+             LEFT JOIN patient_profiles p ON u.id = p.user_id
+             WHERE u.id = $1;`,
+            [patientId]
+        );
+
+        if (userRes.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Patient profile not found.",
+            });
+        }
+
+        const pt = userRes.rows[0];
+        let age = null;
+        if (pt.date_of_birth) {
+            const dob = new Date(pt.date_of_birth);
+            if (!isNaN(dob.getTime())) {
+                const today = new Date();
+                age = today.getFullYear() - dob.getFullYear();
+            }
+        }
+
+        return res.status(200).json({
+            success: true,
+            alreadyConnected: isAlreadyConnected,
+            patient: {
+                id: pt.id,
+                firstName: pt.first_name,
+                lastName: pt.last_name || "",
+                patientName: `${pt.first_name} ${pt.last_name || ""}`.trim(),
+                medicalId: `MK-${pt.id.slice(0, 6).toUpperCase()}`,
+                gender: pt.gender || "Not recorded",
+                age: age,
+                state: pt.state || "Not recorded",
+                preferredLanguage: pt.preferred_language || "en",
+                abhaIdMasked: pt.abha_id ? `******${pt.abha_id.slice(-4)}` : null,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * 8. Confirm Patient Doctor Pairing
+ * POST /api/doctor/patients/pair/confirm
+ * Access: Authenticated doctor only
+ */
+async function confirmPatientPairing(req, res, next) {
+    try {
+        const crypto = require("crypto");
+        const doctorId = req.user.id;
+        const { token, pairingCode } = req.body;
+
+        if (!token && !pairingCode) {
+            return res.status(400).json({
+                success: false,
+                message: "Pairing QR token or pairing code is required.",
+            });
+        }
+
+        let tokenQuery = "";
+        let queryParam = "";
+
+        if (token) {
+            tokenQuery = `SELECT * FROM patient_qr_pairing_tokens WHERE token_hash = $1;`;
+            queryParam = crypto.createHash("sha256").update(token).digest("hex");
+        } else {
+            tokenQuery = `SELECT * FROM patient_qr_pairing_tokens WHERE UPPER(token_display_code) = UPPER($1);`;
+            queryParam = pairingCode.trim();
+        }
+
+        const tokenRes = await pool.query(tokenQuery, [queryParam]);
+
+        if (tokenRes.rows.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid pairing code or QR token.",
+            });
+        }
+
+        const pairingTokenRow = tokenRes.rows[0];
+
+        if (pairingTokenRow.used_at) {
+            return res.status(400).json({
+                success: false,
+                message: "This pairing QR code has already been used.",
+            });
+        }
+
+        if (new Date(pairingTokenRow.expires_at) < new Date()) {
+            return res.status(400).json({
+                success: false,
+                message: "This pairing QR code has expired.",
+            });
+        }
+
+        const patientId = pairingTokenRow.patient_id;
+
+        // Mark token as used
+        await pool.query(
+            `UPDATE patient_qr_pairing_tokens
+             SET used_at = CURRENT_TIMESTAMP, used_by_doctor_id = $1
+             WHERE id = $2;`,
+            [doctorId, pairingTokenRow.id]
+        );
+
+        // Upsert relationship
+        const relRes = await pool.query(
+            `INSERT INTO patient_doctor_relationships (patient_id, doctor_id, status, consent_method)
+             VALUES ($1, $2, 'active', 'qr_scan')
+             ON CONFLICT (patient_id, doctor_id) DO UPDATE
+             SET status = 'active', updated_at = CURRENT_TIMESTAMP
+             RETURNING *;`,
+            [patientId, doctorId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Patient successfully connected to your patient list.",
+            patientId,
+            relationship: relRes.rows[0],
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * 9. Get Doctor's Connected Patient List
+ * GET /api/doctor/patients
+ * Access: Authenticated doctor only
+ */
+async function getDoctorPatients(req, res, next) {
+    try {
+        const doctorId = req.user.id;
+
+        const result = await pool.query(
+            `SELECT pdr.id AS relationship_id, pdr.status AS access_status, pdr.created_at AS connected_at,
+                    u.id AS patient_id, u.first_name, u.last_name, u.email, u.phone,
+                    p.date_of_birth, p.gender, p.state, p.abha_id,
+                    MAX(a.scheduled_at) AS last_visit,
+                    (SELECT cs.summary FROM clinical_sessions cs WHERE cs.patient_id = u.id ORDER BY cs.created_at DESC LIMIT 1) AS latest_intake_summary
+             FROM patient_doctor_relationships pdr
+             JOIN users u ON pdr.patient_id = u.id
+             LEFT JOIN patient_profiles p ON u.id = p.user_id
+             LEFT JOIN appointments a ON a.patient_id = u.id AND a.doctor_id = pdr.doctor_id
+             WHERE pdr.doctor_id = $1 AND pdr.status = 'active'
+             GROUP BY pdr.id, pdr.status, pdr.created_at, u.id, u.first_name, u.last_name, u.email, u.phone, p.date_of_birth, p.gender, p.state, p.abha_id
+             ORDER BY pdr.created_at DESC;`,
+            [doctorId]
+        );
+
+        const patients = result.rows.map((row) => {
+            let age = null;
+            if (row.date_of_birth) {
+                const dob = new Date(row.date_of_birth);
+                if (!isNaN(dob.getTime())) {
+                    const today = new Date();
+                    age = today.getFullYear() - dob.getFullYear();
+                }
+            }
+            return {
+                id: row.patient_id,
+                relationshipId: row.relationship_id,
+                firstName: row.first_name,
+                lastName: row.last_name || "",
+                patientName: `${row.first_name} ${row.last_name || ""}`.trim(),
+                medicalId: `MK-${row.patient_id.slice(0, 6).toUpperCase()}`,
+                email: row.email,
+                phone: row.phone,
+                gender: row.gender || "Not recorded",
+                age: age || 30,
+                state: row.state || "Not recorded",
+                lastVisit: row.last_visit ? new Date(row.last_visit).toLocaleDateString("en-IN") : "No visits recorded",
+                status: "Granted",
+                connectedAt: row.connected_at,
+                latestIntakeSummary: row.latest_intake_summary,
+            };
+        });
+
+        return res.status(200).json({
+            success: true,
+            patients,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * 10. Doctor Revokes Patient Connection
+ * DELETE /api/doctor/patients/:patientId
+ * Access: Authenticated doctor only
+ */
+async function revokePatientConnection(req, res, next) {
+    try {
+        const doctorId = req.user.id;
+        const { patientId } = req.params;
+
+        const result = await pool.query(
+            `UPDATE patient_doctor_relationships
+             SET status = 'revoked', updated_at = CURRENT_TIMESTAMP
+             WHERE doctor_id = $1 AND patient_id = $2
+             RETURNING *;`,
+            [doctorId, patientId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Patient relationship revoked.",
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     getDoctorQueue,
     getPatientUnifiedHistory,
@@ -358,4 +658,8 @@ module.exports = {
     getPendingDoctors,
     verifyDoctor,
     getPublicDoctors,
+    previewPatientPairing,
+    confirmPatientPairing,
+    getDoctorPatients,
+    revokePatientConnection,
 };
