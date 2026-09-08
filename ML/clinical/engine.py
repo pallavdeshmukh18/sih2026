@@ -10,8 +10,13 @@ from config import GROQ_API_KEY, GROQ_TEXT_MODEL
 from .ontology import ExtractionResult, get_ontology
 from .state import ClinicalSession
 from .safety import evaluate_red_flags
-
 logger = logging.getLogger("medikiosk.clinical.engine")
+
+try:
+    from .rag_engine import generate_rag_question, extract_entities_rag
+except ImportError:
+    generate_rag_question = None
+    extract_entities_rag = None
 
 groq_client = None
 if GROQ_API_KEY and Groq is not None:
@@ -600,17 +605,22 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
     # 1. Log conversation
     session.conversation_history.append({"role": "patient", "content": patient_text})
     
-    # 2. Extract entities via LLM
-    extraction = extract_entities_from_text(patient_text, session.missing_fields)
+    # 2. Extract entities via Primary RAG Pipeline
+    if extract_entities_rag:
+        extraction = extract_entities_rag(patient_text, session)
+    else:
+        extraction = extract_entities_from_text(patient_text, session.missing_fields)
     
-    # 3. Update state with extracted entities
+    # 3. Update state with valid extracted entities (ignore empty/unknown values)
     extracted_fields = set()
     for entity in extraction.entities:
-        if entity.field in session.missing_fields:
-            session.missing_fields.remove(entity.field)
-            extracted_fields.add(entity.field)
-        session.answered_fields[entity.field] = entity.value
-        session.clinical_entities.append(entity.model_dump())
+        val_clean = str(entity.value).strip().lower() if entity.value else ""
+        if val_clean and val_clean not in ["", "none", "unknown", "null", "n/a", "not mentioned", "not specified", "undefined"]:
+            if entity.field in session.missing_fields:
+                session.missing_fields.remove(entity.field)
+                extracted_fields.add(entity.field)
+            session.answered_fields[entity.field] = entity.value
+            session.clinical_entities.append(entity.model_dump())
 
     # 4. Mandatory progression rule: If target_field was not satisfied by entity extraction,
     # mark it as answered with patient_text so the assessment moves forward!
@@ -638,9 +648,14 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
         })
         return session, "", []
         
-    # 7. Generate next question for the new highest-priority missing field
+    # 7. Generate next question for the new highest-priority missing field via Primary RAG Pipeline
     next_field = session.get_highest_priority_missing_field()
-    next_q, options = generate_next_question(next_field, session.language)
+    if generate_rag_question:
+        next_q = generate_rag_question(session, next_field)
+        options = LOCALIZED_FALLBACK_OPTIONS.get(session.language, FALLBACK_OPTIONS).get(next_field, [])
+    else:
+        next_q, options = generate_next_question(next_field, session.language)
+
     session.conversation_history.append({"role": "system", "content": next_q})
     
     return session, next_q, options

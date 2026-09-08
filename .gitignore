@@ -60,3 +60,6 @@ ML/tts/test_response.json
 chatbot/whatsapp/.session/
 .session/
 
+# Local Vector Store
+chroma_store/
+

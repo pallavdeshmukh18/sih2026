@@ -5,7 +5,7 @@ import uuid
 
 from .state import ClinicalSession
 from .ontology import get_ontology
-from .engine import generate_next_question, process_patient_response
+from .engine import generate_next_question, process_patient_response, generate_rag_question, LOCALIZED_FALLBACK_OPTIONS, FALLBACK_OPTIONS
 from .summarizer import generate_summary
 
 router = APIRouter(prefix="/clinical", tags=["Clinical AI"])
@@ -42,10 +42,14 @@ async def start_session(req: StartSessionRequest):
     
     SESSIONS_DB[session.session_id] = session
     
-    # Generate the first question based on the highest priority missing field
+    # Generate the first question via RAG Primary Pipeline
     next_field = session.get_highest_priority_missing_field()
     if next_field:
-        next_q, options = generate_next_question(next_field, session.language)
+        if generate_rag_question:
+            next_q = generate_rag_question(session, next_field)
+            options = LOCALIZED_FALLBACK_OPTIONS.get(session.language, FALLBACK_OPTIONS).get(next_field, [])
+        else:
+            next_q, options = generate_next_question(next_field, session.language)
     else:
         next_q, options = "How can I help you?", []
     
