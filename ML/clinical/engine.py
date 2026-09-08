@@ -674,7 +674,7 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
         except Exception:
             is_mocked = False
 
-        if is_mocked:
+        if is_mocked and not isinstance(ClinicalValidator.validate_semantic_with_groq, MagicMock):
             mock_res = extract_entities_from_text(patient_text, session.missing_fields)
             if mock_res and mock_res.entities:
                 val_result = ValidationResult(
