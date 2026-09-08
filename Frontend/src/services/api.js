@@ -227,6 +227,11 @@ export async function searchMedicalDocuments(query, token) {
     return apiRequest("/api/documents/search", "POST", { query }, token);
 }
 
+/** Ask Grounded Question About Specific Medical Record */
+export async function askDocumentQuestion(documentId, question, language = "en", history = [], token) {
+    return apiRequest(`/api/documents/${documentId}/ask`, "POST", { question, language, history }, token);
+}
+
 /** Delete Medical Document */
 export async function deleteMedicalDocument(documentId, token) {
     return apiRequest(`/api/documents/${documentId}`, "DELETE", null, token);
@@ -265,6 +270,11 @@ export async function getPatientMedicalHistory(token) {
     return apiRequest("/api/patient/history", "GET", null, token);
 }
 
+/** Fetch Authenticated Patient Medical ID */
+export async function getMedicalId(token) {
+    return apiRequest("/api/patient/medical-id", "GET", null, token);
+}
+
 /** Get Document View / Download Signed URL */
 export async function getDocumentDownloadUrl(documentId, token) {
     return apiRequest(`/api/documents/${documentId}/url`, "GET", null, token);
@@ -279,3 +289,4 @@ export async function synthesizeTTS(text, languageCode = "en", token = null) {
     return apiRequest("/api/tts/synthesize", "POST", { text, languageCode }, token);
 }
 
+export const synthesizeSpeech = synthesizeTTS;

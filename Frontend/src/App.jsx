@@ -16,6 +16,7 @@ import ClinicalAssessment from "./pages/patient/ClinicalAssessment";
 import PatientDashboard from "./pages/PatientDashboard";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import MedicalHistory from "./pages/patient/MedicalHistory";
+import MedicalID from "./pages/patient/MedicalID";
 import Appointments from "./pages/patient/Appointments";
 import Documents from "./pages/patient/Documents";
 import DoctorAppointments from "./pages/doctor/DoctorAppointments";
@@ -53,16 +54,15 @@ function App() {
           <Route path="/patient" element={<ProtectedRoute role="patient"><DashboardLayout /></ProtectedRoute>}>
             <Route path="dashboard" element={<PatientDashboard />} />
             <Route path="assessment" element={<ClinicalAssessment />} />
+            <Route path="medical-id" element={<MedicalID />} />
             <Route path="history" element={<MedicalHistory />} />
             <Route path="appointments" element={<Appointments />} />
             <Route path="documents" element={<Documents />} />
             
-            {/* New Dummy Pages */}
+            {/* Patient Application Routes */}
             <Route path="account" element={<Account />} />
             <Route path="doctor" element={<DoctorDirectory />} />
-            <Route path="departments" element={<Departments />} />
             <Route path="schedule" element={<PatientSchedule />} />
-            <Route path="bed" element={<BedManager />} />
             <Route path="payment" element={<Payment />} />
             <Route path="mail" element={<Mail />} />
 

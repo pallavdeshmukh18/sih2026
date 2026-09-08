@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   Activity,
   ShieldAlert,
@@ -13,8 +14,18 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  Stethoscope,
+  Filter,
+  CheckCircle2,
+  BrainCircuit,
+  User,
+  PlusCircle,
+  Upload,
   Calendar,
-  Stethoscope
+  X
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
@@ -24,11 +35,18 @@ import DocumentDetailModal from "../../components/DocumentDetailModal";
 export default function MedicalHistory() {
   const { token } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [history, setHistory] = useState(null);
   const [selectedDoc, setSelectedDoc] = useState(null);
+  
+  // Interactive state
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [expandedId, setExpandedId] = useState(null);
+  const [showOverviewCard, setShowOverviewCard] = useState(true);
 
   const fetchHistory = async () => {
     if (!token) return;
@@ -64,6 +82,222 @@ export default function MedicalHistory() {
     }
   };
 
+  const timeline = useMemo(() => history?.timeline || [], [history]);
+  const conditions = useMemo(() => history?.conditions || [], [history]);
+  const allergies = useMemo(() => history?.allergies || [], [history]);
+  const currentMedications = useMemo(() => history?.currentMedications || [], [history]);
+  const prescriptions = useMemo(() => history?.prescriptions || [], [history]);
+  const investigations = useMemo(() => history?.investigations || [], [history]);
+  const procedures = useMemo(() => history?.procedures || [], [history]);
+  const consultations = useMemo(() => history?.consultations || [], [history]);
+  const documents = useMemo(() => history?.documents || [], [history]);
+  const assessments = useMemo(() => history?.assessments || [], [history]);
+
+  // Category counts
+  const categoryCounts = useMemo(() => {
+    const counts = {
+      all: timeline.length,
+      assessment: assessments.length,
+      consultation: consultations.length,
+      prescription: prescriptions.length,
+      lab_test: investigations.length,
+      document: documents.length,
+      diagnosis: conditions.length,
+      procedure: procedures.length,
+      allergy: allergies.length,
+    };
+    return counts;
+  }, [timeline, assessments, consultations, prescriptions, investigations, documents, conditions, procedures, allergies]);
+
+  // Filtered & Searched Timeline
+  const filteredTimeline = useMemo(() => {
+    return timeline.filter((event) => {
+      // Category filter
+      if (activeFilter !== "all") {
+        const cat = event.category || event.type?.toLowerCase();
+        if (cat !== activeFilter) {
+          // Special fallback mappings
+          if (activeFilter === "diagnosis" && event.type !== "Condition") return false;
+          if (activeFilter === "lab_test" && (event.type !== "Lab Test" && event.type !== "Lab Report")) return false;
+          if (activeFilter === "prescription" && event.type !== "Prescription") return false;
+          if (activeFilter === "consultation" && event.type !== "Consultation") return false;
+          if (activeFilter === "assessment" && event.type !== "Assessment") return false;
+          if (activeFilter === "allergy" && event.type !== "Allergy") return false;
+          if (activeFilter === "procedure" && event.type !== "Procedure") return false;
+          if (activeFilter === "document" && event.type !== "Document") return false;
+        }
+      }
+
+      // Search query filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const titleMatch = event.title?.toLowerCase().includes(query);
+        const subtitleMatch = event.subtitle?.toLowerCase().includes(query);
+        const detailsMatch = event.details?.toLowerCase().includes(query);
+        const doctorMatch = event.doctorName?.toLowerCase().includes(query);
+        const sourceMatch = event.source?.toLowerCase().includes(query);
+
+        return titleMatch || subtitleMatch || detailsMatch || doctorMatch || sourceMatch;
+      }
+
+      return true;
+    });
+  }, [timeline, activeFilter, searchQuery]);
+
+  // Helper for Category Colors & Icons
+  const getCategoryConfig = (type, category) => {
+    const key = (category || type || "").toLowerCase();
+    switch (key) {
+      case "consultation":
+        return {
+          icon: <Stethoscope size={18} />,
+          bg: "#e0f2fe",
+          color: "#0284c7",
+          border: "#bae6fd",
+          badgeBg: "#e0f2fe",
+          badgeText: "#0369a1",
+          label: t("history.filterConsultations")
+        };
+      case "prescription":
+        return {
+          icon: <FileText size={18} />,
+          bg: "#fef3c7",
+          color: "#d97706",
+          border: "#fde68a",
+          badgeBg: "#fef3c7",
+          badgeText: "#b45309",
+          label: t("history.filterPrescriptions")
+        };
+      case "lab_test":
+      case "lab test":
+        return {
+          icon: <FlaskConical size={18} />,
+          bg: "#ccfbf1",
+          color: "#0d9488",
+          border: "#99f6e4",
+          badgeBg: "#ccfbf1",
+          badgeText: "#0f766e",
+          label: t("history.filterTests")
+        };
+      case "assessment":
+        return {
+          icon: <Sparkles size={18} />,
+          bg: "#f3e8ff",
+          color: "#9333ea",
+          border: "#e9d5ff",
+          badgeBg: "#f3e8ff",
+          badgeText: "#7e22ce",
+          label: t("history.filterAssessments")
+        };
+      case "diagnosis":
+      case "condition":
+        return {
+          icon: <Activity size={18} />,
+          bg: "#dbeafe",
+          color: "#2563eb",
+          border: "#bfdbfe",
+          badgeBg: "#dbeafe",
+          badgeText: "#1d4ed8",
+          label: t("history.filterDiagnoses")
+        };
+      case "allergy":
+        return {
+          icon: <ShieldAlert size={18} />,
+          bg: "#fee2e2",
+          color: "#dc2626",
+          border: "#fecaca",
+          badgeBg: "#fee2e2",
+          badgeText: "#b91c1c",
+          label: t("history.filterAllergies")
+        };
+      case "procedure":
+        return {
+          icon: <Activity size={18} />,
+          bg: "#dcfce7",
+          color: "#16a34a",
+          border: "#bbf7d0",
+          badgeBg: "#dcfce7",
+          badgeText: "#15803d",
+          label: t("history.filterProcedures")
+        };
+      default:
+        return {
+          icon: <FileText size={18} />,
+          bg: "#f1f5f9",
+          color: "#475569",
+          border: "#e2e8f0",
+          badgeBg: "#f1f5f9",
+          badgeText: "#334155",
+          label: t("history.filterDocuments")
+        };
+    }
+  };
+
+  // Provenance Badge Generator
+  const renderProvenanceBadge = (event) => {
+    if (event.verificationStatus === "verified" || event.type === "Consultation") {
+      return (
+        <span
+          title="Verified by a registered medical doctor"
+          data-speak="Verified by doctor"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "4px",
+            background: "#dcfce7",
+            color: "#15803d",
+            padding: "3px 10px",
+            borderRadius: "20px",
+            fontSize: "11px",
+            fontWeight: "600"
+          }}
+        >
+          <CheckCircle2 size={12} /> {t("history.provenanceVerified")}
+        </span>
+      );
+    }
+    if (event.verificationStatus === "ai_extracted" || event.type === "Assessment" || event.ocrStatus === "completed") {
+      return (
+        <span
+          title="Extracted automatically using MediKiosk AI OCR / Clinical Intake"
+          data-speak="AI Extracted record"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "4px",
+            background: "#f3e8ff",
+            color: "#7e22ce",
+            padding: "3px 10px",
+            borderRadius: "20px",
+            fontSize: "11px",
+            fontWeight: "600"
+          }}
+        >
+          <BrainCircuit size={12} /> {t("history.provenanceAi")}
+        </span>
+      );
+    }
+    return (
+      <span
+        title="Recorded during patient onboarding"
+        data-speak="Patient reported record"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          background: "#e2e8f0",
+          color: "#475569",
+          padding: "3px 10px",
+          borderRadius: "20px",
+          fontSize: "11px",
+          fontWeight: "600"
+        }}
+      >
+        <User size={12} /> {t("history.provenancePatient")}
+      </span>
+    );
+  };
+
   if (loading) {
     return (
       <div className="workspacePage" style={{ padding: "40px 24px", textAlign: "center" }}>
@@ -84,6 +318,7 @@ export default function MedicalHistory() {
           <p style={{ fontSize: "13px", color: "#7f1d1d", marginBottom: "16px" }}>{error}</p>
           <button
             onClick={fetchHistory}
+            data-speak="Retry loading medical history"
             style={{
               background: "#dc2626",
               color: "#ffffff",
@@ -105,19 +340,8 @@ export default function MedicalHistory() {
     );
   }
 
-  const conditions = history?.conditions || [];
-  const allergies = history?.allergies || [];
-  const currentMedications = history?.currentMedications || [];
-  const prescriptions = history?.prescriptions || [];
-  const investigations = history?.investigations || [];
-  const procedures = history?.procedures || [];
-  const consultations = history?.consultations || [];
-  const documents = history?.documents || [];
-  const assessments = history?.assessments || [];
-  const timeline = history?.timeline || [];
-
   return (
-    <div className="workspacePage" style={{ paddingBottom: "32px" }}>
+    <div className="workspacePage" style={{ paddingBottom: "40px" }}>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -125,19 +349,569 @@ export default function MedicalHistory() {
         style={{ display: "flex", flexDirection: "column", gap: "28px" }}
       >
         {/* Page Header */}
-        <div>
-          <h1 style={{ fontSize: "28px", fontFamily: "var(--font-sans)", fontWeight: "700", color: "var(--color-dark)" }}>
-            {t("history.title")}
-          </h1>
-          <p style={{ color: "var(--color-text-muted)", marginTop: "6px", fontSize: "14px" }}>
-            {t("history.subtitle")}
-          </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
+          <div>
+            <h1
+              data-speak="Longitudinal Medical History"
+              style={{ fontSize: "28px", fontFamily: "var(--font-sans)", fontWeight: "700", color: "var(--color-dark)" }}
+            >
+              {t("history.title")}
+            </h1>
+            <p style={{ color: "var(--color-text-muted)", marginTop: "6px", fontSize: "14px", maxWidth: "680px" }}>
+              {t("history.subtitle")}
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button
+              onClick={() => navigate("/patient/dashboard")}
+              data-speak="Upload Document"
+              style={{
+                background: "#0d9488",
+                color: "#ffffff",
+                padding: "10px 16px",
+                borderRadius: "12px",
+                border: "none",
+                fontSize: "13px",
+                fontWeight: "600",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px"
+              }}
+            >
+              <Upload size={15} /> {t("history.uploadRecord")}
+            </button>
+
+            <button
+              onClick={fetchHistory}
+              data-speak="Refresh medical history"
+              style={{
+                background: "#ffffff",
+                color: "var(--color-dark)",
+                border: "1px solid var(--color-border)",
+                padding: "10px 14px",
+                borderRadius: "12px",
+                fontSize: "13px",
+                fontWeight: "600",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px"
+              }}
+            >
+              <RefreshCw size={14} /> Refresh
+            </button>
+          </div>
         </div>
 
-        {/* 1. Allergies & Conditions + Current Medications (2-Column Grid) */}
+        {/* Health Metrics & Quick Overview Strip */}
+        {showOverviewCard && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            style={{
+              background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+              color: "#ffffff",
+              padding: "24px",
+              borderRadius: "20px",
+              boxShadow: "0 10px 30px rgba(15, 23, 42, 0.15)",
+              position: "relative"
+            }}
+          >
+            <button
+              onClick={() => setShowOverviewCard(false)}
+              aria-label="Dismiss overview summary"
+              style={{
+                position: "absolute",
+                top: "16px",
+                right: "16px",
+                background: "rgba(255,255,255,0.1)",
+                border: "none",
+                color: "#94a3b8",
+                width: "28px",
+                height: "28px",
+                borderRadius: "50%",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              <X size={14} />
+            </button>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
+              <div>
+                <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Timeline Records
+                </span>
+                <h3 style={{ fontSize: "24px", fontWeight: "700", color: "#ffffff", marginTop: "4px" }}>
+                  {timeline.length} <span style={{ fontSize: "14px", fontWeight: "400", color: "#cbd5e1" }}>events</span>
+                </h3>
+              </div>
+
+              <div>
+                <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Active Medications
+                </span>
+                <h3 style={{ fontSize: "24px", fontWeight: "700", color: "#38bdf8", marginTop: "4px" }}>
+                  {currentMedications.length} <span style={{ fontSize: "14px", fontWeight: "400", color: "#cbd5e1" }}>prescribed</span>
+                </h3>
+              </div>
+
+              <div>
+                <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Doctor Consultations
+                </span>
+                <h3 style={{ fontSize: "24px", fontWeight: "700", color: "#a7f3d0", marginTop: "4px" }}>
+                  {consultations.length} <span style={{ fontSize: "14px", fontWeight: "400", color: "#cbd5e1" }}>sessions</span>
+                </h3>
+              </div>
+
+              <div>
+                <span style={{ fontSize: "12px", color: "#94a3b8", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Allergies & Conditions
+                </span>
+                <h3 style={{ fontSize: "24px", fontWeight: "700", color: "#fca5a5", marginTop: "4px" }}>
+                  {allergies.length + conditions.length} <span style={{ fontSize: "14px", fontWeight: "400", color: "#cbd5e1" }}>recorded</span>
+                </h3>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Search & Category Filter Controls */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          
+          {/* Search Box */}
+          <div style={{ position: "relative", width: "100%" }}>
+            <Search
+              size={18}
+              color="var(--color-text-muted)"
+              style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)" }}
+            />
+            <input
+              type="text"
+              placeholder={t("history.searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              data-speak="Search medical timeline by keyword"
+              style={{
+                width: "100%",
+                padding: "12px 16px 12px 46px",
+                borderRadius: "14px",
+                border: "1px solid var(--color-border)",
+                background: "#ffffff",
+                fontSize: "14px",
+                color: "var(--color-dark)",
+                outline: "none",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
+              }}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                style={{
+                  position: "absolute",
+                  right: "14px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  color: "#94a3b8",
+                  cursor: "pointer"
+                }}
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+
+          {/* Category Pill Filters */}
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              overflowX: "auto",
+              paddingBottom: "6px",
+              scrollbarWidth: "none"
+            }}
+          >
+            {[
+              { id: "all", label: t("history.filterAll"), count: categoryCounts.all },
+              { id: "consultation", label: t("history.filterConsultations"), count: categoryCounts.consultation },
+              { id: "prescription", label: t("history.filterPrescriptions"), count: categoryCounts.prescription },
+              { id: "lab_test", label: t("history.filterTests"), count: categoryCounts.lab_test },
+              { id: "assessment", label: t("history.filterAssessments"), count: categoryCounts.assessment },
+              { id: "diagnosis", label: t("history.filterDiagnoses"), count: categoryCounts.diagnosis },
+              { id: "procedure", label: t("history.filterProcedures"), count: categoryCounts.procedure },
+              { id: "allergy", label: t("history.filterAllergies"), count: categoryCounts.allergy },
+              { id: "document", label: t("history.filterDocuments"), count: categoryCounts.document },
+            ].map((filter) => {
+              const isActive = activeFilter === filter.id;
+              return (
+                <button
+                  key={filter.id}
+                  onClick={() => setActiveFilter(filter.id)}
+                  data-speak={`Filter by ${filter.label}`}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "20px",
+                    fontSize: "13px",
+                    fontWeight: isActive ? "700" : "500",
+                    background: isActive ? "#0d9488" : "#ffffff",
+                    color: isActive ? "#ffffff" : "var(--color-dark)",
+                    border: isActive ? "1px solid #0d9488" : "1px solid var(--color-border)",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.2s ease"
+                  }}
+                >
+                  {filter.label}
+                  <span
+                    style={{
+                      background: isActive ? "rgba(255,255,255,0.25)" : "#f1f5f9",
+                      color: isActive ? "#ffffff" : "#64748b",
+                      padding: "2px 7px",
+                      borderRadius: "10px",
+                      fontSize: "11px",
+                      fontWeight: "700"
+                    }}
+                  >
+                    {filter.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 2. Longitudinal Vertical Timeline */}
+        <div
+          className="workspaceCard"
+          style={{
+            background: "#ffffff",
+            padding: "28px",
+            borderRadius: "20px",
+            border: "1px solid var(--color-border)",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.03)"
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{ background: "#ccfbf1", padding: "10px", borderRadius: "12px", color: "#0d9488" }}>
+                <Clock size={20} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: "18px", fontWeight: "700", color: "var(--color-dark)" }}>
+                  {t("history.timeline")}
+                </h3>
+                <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                  Showing {filteredTimeline.length} of {timeline.length} health records (newest first)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Timeline List or Empty State */}
+          {filteredTimeline.length === 0 ? (
+            <div style={{ padding: "48px 24px", textAlign: "center" }}>
+              <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "#f1f5f9", color: "#94a3b8", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <Calendar size={32} />
+              </div>
+              <h4 style={{ fontSize: "16px", fontWeight: "700", color: "var(--color-dark)", marginBottom: "6px" }}>
+                {t("history.emptyTitle")}
+              </h4>
+              <p style={{ fontSize: "13px", color: "var(--color-text-muted)", maxWidth: "400px", margin: "0 auto 24px" }}>
+                {t("history.emptyDesc")}
+              </p>
+              <div style={{ display: "flex", justifyContent: "center", gap: "12px", flexWrap: "wrap" }}>
+                {(activeFilter !== "all" || searchQuery) && (
+                  <button
+                    onClick={() => { setActiveFilter("all"); setSearchQuery(""); }}
+                    data-speak="Reset filters"
+                    style={{
+                      background: "#f1f5f9",
+                      color: "var(--color-dark)",
+                      border: "none",
+                      padding: "10px 18px",
+                      borderRadius: "10px",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {t("history.clearSearch")}
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate("/patient/dashboard")}
+                  data-speak="Start clinical intake"
+                  style={{
+                    background: "#0d9488",
+                    color: "#ffffff",
+                    border: "none",
+                    padding: "10px 18px",
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}
+                >
+                  <PlusCircle size={15} /> {t("history.startIntake")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", position: "relative" }}>
+              
+              {/* Vertical Connector Line */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: "23px",
+                  top: "24px",
+                  bottom: "24px",
+                  width: "2px",
+                  background: "#e2e8f0",
+                  zIndex: 0
+                }}
+              />
+
+              {filteredTimeline.map((event, idx) => {
+                const config = getCategoryConfig(event.type, event.category);
+                const isExpanded = expandedId === event.id;
+
+                return (
+                  <div
+                    key={event.id || idx}
+                    style={{
+                      display: "flex",
+                      gap: "20px",
+                      position: "relative",
+                      zIndex: 1,
+                      paddingBottom: idx === filteredTimeline.length - 1 ? "0" : "28px"
+                    }}
+                  >
+                    {/* Icon Node */}
+                    <div
+                      style={{
+                        width: "48px",
+                        height: "48px",
+                        borderRadius: "14px",
+                        background: config.bg,
+                        color: config.color,
+                        border: `1px solid ${config.border}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
+                      }}
+                    >
+                      {config.icon}
+                    </div>
+
+                    {/* Timeline Card */}
+                    <div
+                      style={{
+                        flex: 1,
+                        background: "#fafafa",
+                        borderRadius: "16px",
+                        border: "1px solid #f1f5f9",
+                        padding: "18px 20px",
+                        transition: "all 0.2s ease"
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                            <span
+                              style={{
+                                background: config.badgeBg,
+                                color: config.badgeText,
+                                padding: "2px 8px",
+                                borderRadius: "6px",
+                                fontSize: "11px",
+                                fontWeight: "700"
+                              }}
+                            >
+                              {event.type || config.label}
+                            </span>
+                            {renderProvenanceBadge(event)}
+                          </div>
+
+                          <h4
+                            data-speak={event.title}
+                            style={{ fontSize: "16px", fontWeight: "700", color: "var(--color-dark)", marginTop: "4px" }}
+                          >
+                            {event.title}
+                          </h4>
+                          {event.subtitle && (
+                            <p style={{ fontSize: "13px", color: config.color, fontWeight: "600", marginTop: "2px" }}>
+                              {event.subtitle}
+                            </p>
+                          )}
+                        </div>
+
+                        <span style={{ fontSize: "12px", color: "#64748b", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          <Calendar size={13} />
+                          {new Date(event.date).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric"
+                          })}
+                        </span>
+                      </div>
+
+                      {/* Brief Details */}
+                      {event.details && (
+                        <p style={{ fontSize: "13px", color: "#334155", marginTop: "8px", lineHeight: "1.5" }}>
+                          {event.details}
+                        </p>
+                      )}
+
+                      {/* Document Action Button */}
+                      {event.documentId && (
+                        <div style={{ marginTop: "12px" }}>
+                          <button
+                            onClick={() => handleOpenDocument(event.documentId)}
+                            data-speak={`View document for ${event.title}`}
+                            style={{
+                              background: "#ffffff",
+                              color: "#0d9488",
+                              border: "1px solid #ccfbf1",
+                              padding: "6px 12px",
+                              borderRadius: "8px",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px"
+                            }}
+                          >
+                            <ExternalLink size={12} /> {t("history.viewDocument")}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Expand / Collapse Control for Detailed Provenance */}
+                      <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+                          Source: {event.source || "MediKiosk Health System"}
+                        </span>
+
+                        <button
+                          onClick={() => setExpandedId(isExpanded ? null : event.id)}
+                          data-speak={isExpanded ? "Collapse details" : "Expand details"}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "var(--color-dark)",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px"
+                          }}
+                        >
+                          {isExpanded ? (
+                            <>
+                              {t("history.collapseDetails")} <ChevronUp size={14} />
+                            </>
+                          ) : (
+                            <>
+                              {t("history.expandDetails")} <ChevronDown size={14} />
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Accordion Detailed View */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #e2e8f0" }}
+                          >
+                            {/* Consultation Details */}
+                            {event.type === "Consultation" && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "13px" }}>
+                                <div><strong>Doctor:</strong> {event.doctorName} ({event.specialization})</div>
+                                {event.clinicalNotes && (
+                                  <div style={{ background: "#ffffff", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                                    <strong>Clinical Notes:</strong> {event.clinicalNotes}
+                                  </div>
+                                )}
+                                {event.treatmentNotes && (
+                                  <div style={{ background: "#ffffff", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                                    <strong>Treatment Plan:</strong> {event.treatmentNotes}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Assessment Details */}
+                            {event.type === "Assessment" && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "13px" }}>
+                                {event.redFlags && event.redFlags.length > 0 && (
+                                  <div style={{ background: "#fef2f2", color: "#991b1b", padding: "8px 12px", borderRadius: "8px", border: "1px solid #fecaca" }}>
+                                    <strong>Clinical Red Flags:</strong> {event.redFlags.join(", ")}
+                                  </div>
+                                )}
+                                <div style={{ background: "#ffffff", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                                  <strong>AI Summary:</strong> {event.details}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Document / OCR Details */}
+                            {(event.type === "Document" || event.type === "Prescription" || event.type === "Lab Test") && (
+                              <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "13px" }}>
+                                {event.ocrStatus && (
+                                  <div><strong>OCR Processing Status:</strong> <span style={{ textTransform: "capitalize" }}>{event.ocrStatus}</span></div>
+                                )}
+                                {event.details && (
+                                  <div style={{ background: "#ffffff", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                                    <strong>AI Extracted Summary:</strong> {event.details}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Generic fallback */}
+                            {!["Consultation", "Assessment", "Document", "Prescription", "Lab Test"].includes(event.type) && (
+                              <div style={{ fontSize: "13px", color: "var(--color-dark)" }}>
+                                <strong>Recorded Details:</strong> {event.details || "No additional parameters recorded."}
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* 3. Detailed Summary Cards Grid (Allergies, Medications, Prescriptions) */}
         <div className="workspaceGrid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "24px" }}>
           
-          {/* Card 1: Allergies & Conditions */}
+          {/* Active Allergies & Diagnosed Conditions */}
           <div className="workspaceCard" style={{ background: "#ffffff", padding: "24px", borderRadius: "18px", border: "1px solid var(--color-border)", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
               <div style={{ background: "#fee2e2", padding: "10px", borderRadius: "12px", color: "#ef4444" }}>
@@ -149,7 +923,6 @@ export default function MedicalHistory() {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {/* Allergies Section */}
               <div>
                 <span style={{ fontSize: "11px", fontWeight: "700", color: "#ef4444", letterSpacing: "1px", textTransform: "uppercase" }}>
                   {t("history.allergies")}
@@ -177,7 +950,6 @@ export default function MedicalHistory() {
 
               <hr style={{ border: "none", borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />
 
-              {/* Conditions Section */}
               <div>
                 <span style={{ fontSize: "11px", fontWeight: "700", color: "#0369a1", letterSpacing: "1px", textTransform: "uppercase" }}>
                   {t("history.conditions")}
@@ -207,7 +979,7 @@ export default function MedicalHistory() {
             </div>
           </div>
 
-          {/* Card 2: Current Medications */}
+          {/* Current Active Medications */}
           <div className="workspaceCard" style={{ background: "#ffffff", padding: "24px", borderRadius: "18px", border: "1px solid var(--color-border)", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
               <div style={{ background: "#e0e7ff", padding: "10px", borderRadius: "12px", color: "#4f46e5" }}>
@@ -238,239 +1010,6 @@ export default function MedicalHistory() {
             )}
           </div>
 
-        </div>
-
-        {/* Card 3: Prescriptions & OCR Extracted Records */}
-        <div className="workspaceCard" style={{ background: "#ffffff", padding: "24px", borderRadius: "18px", border: "1px solid var(--color-border)", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
-            <div style={{ background: "#fef3c7", padding: "10px", borderRadius: "12px", color: "#d97706" }}>
-              <FileText size={20} />
-            </div>
-            <h3 style={{ fontSize: "17px", fontWeight: "700", color: "var(--color-dark)" }}>
-              {t("history.prescriptions")}
-            </h3>
-          </div>
-
-          {prescriptions.length === 0 ? (
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", fontStyle: "italic" }}>
-              {t("history.noPrescriptions")}
-            </p>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
-              {prescriptions.map((rx) => (
-                <div key={rx.id} style={{ border: "1px solid #fde68a", borderRadius: "14px", padding: "16px", background: "#fffbeb", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <h4 style={{ fontSize: "14px", fontWeight: "700", color: "#92400e" }}>{rx.title}</h4>
-                      <span style={{ fontSize: "11px", background: "#fef3c7", color: "#b45309", padding: "2px 8px", borderRadius: "10px", fontWeight: "600" }}>
-                        {rx.ocrStatus === "completed" ? "OCR Processed" : rx.ocrStatus}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: "12px", color: "#b45309", marginBottom: "10px" }}>{rx.summary}</p>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "10px", borderTop: "1px dashed #fde68a" }}>
-                    <span style={{ fontSize: "11px", color: "#d97706" }}>{new Date(rx.date).toLocaleDateString()}</span>
-                    <button
-                      onClick={() => handleOpenDocument(rx.documentId)}
-                      style={{ background: "none", border: "none", color: "#b45309", fontSize: "12px", fontWeight: "700", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                    >
-                      View Document <ExternalLink size={12} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Card 4: Tests & Investigations */}
-        <div className="workspaceCard" style={{ background: "#ffffff", padding: "24px", borderRadius: "18px", border: "1px solid var(--color-border)", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
-            <div style={{ background: "#ccfbf1", padding: "10px", borderRadius: "12px", color: "#0d9488" }}>
-              <FlaskConical size={20} />
-            </div>
-            <h3 style={{ fontSize: "17px", fontWeight: "700", color: "var(--color-dark)" }}>
-              {t("history.investigations")}
-            </h3>
-          </div>
-
-          {investigations.length === 0 ? (
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", fontStyle: "italic" }}>
-              {t("history.noInvestigations")}
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {investigations.map((inv) => (
-                <div key={inv.id} style={{ border: "1px solid #ccfbf1", borderRadius: "12px", padding: "16px", background: "#f0fdf4" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                    <h4 style={{ fontSize: "15px", fontWeight: "600", color: "#0f766e" }}>{inv.name}</h4>
-                    <span style={{ fontSize: "12px", color: "#14b8a6" }}>{new Date(inv.date).toLocaleDateString()}</span>
-                  </div>
-                  <p style={{ fontSize: "13px", color: "#0f766e", marginBottom: "10px" }}>{inv.summary}</p>
-                  {inv.documentId && (
-                    <button
-                      onClick={() => handleOpenDocument(inv.documentId)}
-                      style={{ background: "#0d9488", color: "#ffffff", border: "none", padding: "6px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: "600", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                    >
-                      View Report <ExternalLink size={12} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Card 5: Past Surgeries & Procedures */}
-        <div className="workspaceCard" style={{ background: "#ffffff", padding: "24px", borderRadius: "18px", border: "1px solid var(--color-border)", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
-            <div style={{ background: "#dcfce7", padding: "10px", borderRadius: "12px", color: "#16a34a" }}>
-              <Activity size={20} />
-            </div>
-            <h3 style={{ fontSize: "17px", fontWeight: "700", color: "var(--color-dark)" }}>
-              {t("history.procedures")}
-            </h3>
-          </div>
-
-          {procedures.length === 0 ? (
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", fontStyle: "italic" }}>
-              {t("history.noProcedures")}
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {procedures.map((proc) => (
-                <div key={proc.id} style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
-                  <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#16a34a", marginTop: "6px", flexShrink: 0 }} />
-                  <div>
-                    <h4 style={{ fontSize: "15px", fontWeight: "600", color: "var(--color-dark)" }}>{proc.name}</h4>
-                    <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "2px" }}>
-                      Date: {new Date(proc.date).toLocaleDateString()} • Status: {proc.status || "Resolved"}
-                    </p>
-                    {proc.description && <p style={{ fontSize: "13px", color: "var(--color-dark)", marginTop: "4px" }}>{proc.description}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Card 6: Doctor Consultations */}
-        <div className="workspaceCard" style={{ background: "#ffffff", padding: "24px", borderRadius: "18px", border: "1px solid var(--color-border)", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
-            <div style={{ background: "#e0f2fe", padding: "10px", borderRadius: "12px", color: "#0284c7" }}>
-              <UserCheck size={20} />
-            </div>
-            <h3 style={{ fontSize: "17px", fontWeight: "700", color: "var(--color-dark)" }}>
-              {t("history.consultations")}
-            </h3>
-          </div>
-
-          {consultations.length === 0 ? (
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", fontStyle: "italic" }}>
-              {t("history.noConsultations")}
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {consultations.map((c) => (
-                <div key={c.id} style={{ padding: "16px", borderRadius: "12px", border: "1px solid #bae6fd", background: "#f0f9ff" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                    <h4 style={{ fontSize: "15px", fontWeight: "700", color: "#0369a1" }}>{c.doctorName}</h4>
-                    <span style={{ fontSize: "12px", color: "#0284c7" }}>{new Date(c.date).toLocaleDateString()}</span>
-                  </div>
-                  <p style={{ fontSize: "13px", color: "#0369a1" }}>
-                    <strong>Specialization:</strong> {c.specialization}
-                  </p>
-                  {c.diagnosis && (
-                    <p style={{ fontSize: "13px", color: "#0284c7", marginTop: "4px" }}>
-                      <strong>Diagnosis:</strong> {c.diagnosis}
-                    </p>
-                  )}
-                  {c.clinicalNotes && (
-                    <p style={{ fontSize: "12px", color: "#334155", marginTop: "6px", background: "#ffffff", padding: "8px 12px", borderRadius: "8px" }}>
-                      {c.clinicalNotes}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Card 7: MediKiosk Clinical Assessments */}
-        <div className="workspaceCard" style={{ background: "#ffffff", padding: "24px", borderRadius: "18px", border: "1px solid var(--color-border)", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px" }}>
-            <div style={{ background: "#f3e8ff", padding: "10px", borderRadius: "12px", color: "#9333ea" }}>
-              <Sparkles size={20} />
-            </div>
-            <h3 style={{ fontSize: "17px", fontWeight: "700", color: "var(--color-dark)" }}>
-              {t("history.assessments")}
-            </h3>
-          </div>
-
-          {assessments.length === 0 ? (
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", fontStyle: "italic" }}>
-              {t("history.noAssessments")}
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {assessments.map((a) => (
-                <div key={a.id} style={{ padding: "16px", borderRadius: "12px", border: "1px solid #e9d5ff", background: "#faf5ff" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                    <h4 style={{ fontSize: "15px", fontWeight: "700", color: "#7e22ce" }}>
-                      Chief Concern: {a.chiefComplaint || "General Intake"}
-                    </h4>
-                    <span style={{ fontSize: "11px", background: "#f3e8ff", color: "#6b21a8", padding: "2px 8px", borderRadius: "10px", fontWeight: "600" }}>
-                      {a.status === "completed" ? "Completed" : "In Progress"}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: "13px", color: "#6b21a8", marginTop: "4px" }}>{a.summary}</p>
-                  <span style={{ fontSize: "11px", color: "#9333ea", marginTop: "8px", display: "inline-block" }}>
-                    Date: {new Date(a.date).toLocaleDateString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Card 8: Longitudinal Medical Timeline */}
-        <div className="workspaceCard" style={{ background: "#ffffff", padding: "24px", borderRadius: "18px", border: "1px solid var(--color-border)", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
-            <div style={{ background: "#e0f2fe", padding: "10px", borderRadius: "12px", color: "#0284c7" }}>
-              <Clock size={20} />
-            </div>
-            <h3 style={{ fontSize: "17px", fontWeight: "700", color: "var(--color-dark)" }}>
-              {t("history.timeline")}
-            </h3>
-          </div>
-
-          {timeline.length === 0 ? (
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", fontStyle: "italic" }}>
-              {t("history.noRecords")}
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
-              {timeline.map((event, idx) => (
-                <div key={event.id || idx} style={{ display: "flex", gap: "20px" }}>
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                    <div style={{ width: "12px", height: "12px", borderRadius: "50%", background: "#0d9488", flexShrink: 0 }} />
-                    {idx < timeline.length - 1 && <div style={{ width: "2px", height: "100%", background: "#e2e8f0", margin: "4px 0" }} />}
-                  </div>
-                  <div style={{ paddingBottom: "24px", flex: 1 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <h4 style={{ fontSize: "15px", fontWeight: "700", color: "var(--color-dark)" }}>{event.title}</h4>
-                      <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "600" }}>
-                        {new Date(event.date).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: "12px", color: "#0d9488", fontWeight: "600", marginTop: "2px" }}>{event.subtitle}</p>
-                    {event.details && <p style={{ fontSize: "13px", color: "#334155", marginTop: "4px" }}>{event.details}</p>}
-                    <span style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px", display: "inline-block" }}>Source: {event.source}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
       </motion.div>

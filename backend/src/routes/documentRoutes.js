@@ -9,8 +9,10 @@ router.use(authenticateToken);
 
 router.post("/upload", uploadDocument.single("file"), documentController.uploadDocument);
 router.post("/search", documentController.searchDocuments);
+router.post("/:documentId/ask", documentController.askDocumentQuestion);
 router.get("/patient/:patientId", documentController.getPatientDocuments);
 router.get("/:id/url", documentController.getDocumentDownloadUrl);
+router.get("/:id", documentController.getDocumentById);
 router.delete("/:id", documentController.deleteDocument);
 
 module.exports = router;

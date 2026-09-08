@@ -15,6 +15,9 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 
+from typing import Optional, List
+from pydantic import BaseModel
+
 from stt.router import router as stt_router
 from tts.router import router as tts_router
 from stt.schemas import HealthResponse
@@ -26,10 +29,11 @@ from clinical.router import router as clinical_router
 try:
     from ocr.ocr_engine import run_ocr
     from ocr.entity_extraction import extract_entities
-
+    from ocr.doc_qa import answer_document_question
 except ImportError:
     run_ocr = None
     extract_entities = None
+    answer_document_question = None
 
 
 try:
@@ -232,11 +236,67 @@ async def search_documents(
     return {
 
         "patient_id": patient_id,
-
         "query": query,
-
         "results": results
     }
+
+
+class DocumentQARequest(BaseModel):
+    patient_id: str
+    document_id: str
+    filename: Optional[str] = "document.pdf"
+    question: str
+    ocr_text: Optional[str] = ""
+    extracted_entities: Optional[dict] = None
+    ai_summary: Optional[str] = None
+    language: Optional[str] = "en"
+    history: Optional[List[dict]] = None
+
+
+@app.post(
+    "/documents/ask",
+    tags=["Document Intelligence"]
+)
+async def ask_document_question_endpoint(req: DocumentQARequest):
+    if not req.question or not req.question.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Question cannot be empty."
+        )
+
+    try:
+        if answer_document_question is not None:
+            res = answer_document_question(
+                patient_id=req.patient_id,
+                document_id=req.document_id,
+                filename=req.filename,
+                question=req.question.strip(),
+                ocr_text=req.ocr_text,
+                extracted_entities=req.extracted_entities,
+                ai_summary=req.ai_summary,
+                language=req.language or "en",
+                history=req.history
+            )
+            return res
+        else:
+            from ocr.doc_qa import answer_document_question as doc_qa_func
+            return doc_qa_func(
+                patient_id=req.patient_id,
+                document_id=req.document_id,
+                filename=req.filename,
+                question=req.question.strip(),
+                ocr_text=req.ocr_text,
+                extracted_entities=req.extracted_entities,
+                ai_summary=req.ai_summary,
+                language=req.language or "en",
+                history=req.history
+            )
+    except Exception as e:
+        logger.exception(f"Document QA endpoint error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process document Q&A: {str(e)}"
+        )
 
 
 if __name__ == "__main__":

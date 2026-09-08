@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
     LayoutDashboard, User, Stethoscope, Users, Building, Calendar, 
-    FileText, ClipboardList, Bed, CreditCard, Mail, Layout, LogOut, MoreVertical, UserCog
+    FileText, ClipboardList, Bed, CreditCard, Mail, Layout, LogOut, MoreVertical, UserCog, ShieldCheck
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../context/AuthContext';
@@ -41,10 +41,16 @@ const Sidebar = () => {
                             <span>Patients</span>
                         </NavLink>
                     ) : (
-                        <NavLink to="/patient/history" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                            <FileText size={20} />
-                            <span>{t('navigation.history')}</span>
-                        </NavLink>
+                        <>
+                            <NavLink to="/patient/medical-id" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                                <ShieldCheck size={20} />
+                                <span>{t('medicalId.title') || 'Medical ID'}</span>
+                            </NavLink>
+                            <NavLink to="/patient/history" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                                <FileText size={20} />
+                                <span>{t('navigation.history')}</span>
+                            </NavLink>
+                        </>
                     )}
 
                     {role === 'doctor' && (
@@ -54,10 +60,12 @@ const Sidebar = () => {
                         </NavLink>
                     )}
 
-                    <NavLink to={`${basePath}/departments`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                        <Building size={20} />
-                        <span>Departments</span>
-                    </NavLink>
+                    {role === 'doctor' && (
+                        <NavLink to={`${basePath}/departments`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                            <Building size={20} />
+                            <span>Departments</span>
+                        </NavLink>
+                    )}
                     
                     {role === 'doctor' ? (
                         <NavLink to="/doctor/schedule" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
@@ -82,10 +90,12 @@ const Sidebar = () => {
                             <span>{t('navigation.documents')}</span>
                         </NavLink>
                     )}
-                    <NavLink to={`${basePath}/bed`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                        <Bed size={20} />
-                        <span>{t('navigation.bedManager')}</span>
-                    </NavLink>
+                    {role === 'doctor' && (
+                        <NavLink to={`${basePath}/bed`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                            <Bed size={20} />
+                            <span>{t('navigation.bedManager')}</span>
+                        </NavLink>
+                    )}
                 </div>
 
                 <div className={styles.sectionTitle}>{t('navigation.others')}</div>
