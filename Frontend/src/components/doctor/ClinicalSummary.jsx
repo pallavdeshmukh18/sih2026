@@ -1,23 +1,68 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './ClinicalSummary.module.css';
-import { FileText, AlertTriangle, Activity, Pill, Clock, Edit3, Save } from 'lucide-react';
+import { FileText, AlertTriangle, Activity, Pill, Clock, Edit3, Save, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { confirmConsultation } from '../../services/api';
 import toast from 'react-hot-toast';
 
-const ClinicalSummary = ({ patient }) => {
+const ClinicalSummary = ({ patient, onConsultationCompleted }) => {
+    const { token } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [diagnosis, setDiagnosis] = useState('');
     
-    // Mock Data based on selection
-    const [summary, setSummary] = useState(
-        patient?.id === 1 
-        ? "Patient reports intermittent central chest pain for 3 days, worse with exertion and partially relieved by rest. Associated with sweating and mild breathlessness. No history of recent trauma."
-        : patient?.id === 2
-        ? "Sudden onset severe headache starting 2 hours ago. Accompanied by blurry vision in the right eye. Patient states it's the 'worst headache of my life'."
-        : "Patient presents with a 5-day history of low-grade fever and dry cough. No breathlessness or chest pain reported."
-    );
+    const initialSummary = patient?.intake?.aiSummary || 
+                           patient?.aiSummary || 
+                           patient?.intake?.chiefComplaint || 
+                           patient?.chiefComplaint || 
+                           patient?.reason || 
+                           "Patient presents for clinical evaluation.";
+
+    const [summary, setSummary] = useState(initialSummary);
+
+    useEffect(() => {
+        setSummary(
+            patient?.intake?.aiSummary || 
+            patient?.aiSummary || 
+            patient?.intake?.chiefComplaint || 
+            patient?.chiefComplaint || 
+            patient?.reason || 
+            "Patient presents for clinical evaluation."
+        );
+        setDiagnosis('');
+        setIsEditing(false);
+    }, [patient]);
 
     const handleSave = () => {
         setIsEditing(false);
-        toast.success("Clinical summary saved successfully.");
+        toast.success("Clinical summary updated.");
+    };
+
+    const handleEndConsultation = async () => {
+        const appointmentId = patient?.appointmentId || patient?.id;
+        if (!appointmentId) {
+            toast.error("No valid appointment ID found.");
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            await confirmConsultation(
+                appointmentId, 
+                {
+                    clinicalNotes: summary,
+                    diagnosis: diagnosis.trim() || "Clinical consultation completed",
+                    chiefComplaint: patient?.chiefComplaint || patient?.intake?.chiefComplaint || patient?.reason || "Consultation"
+                }, 
+                token
+            );
+            toast.success("Consultation confirmed and recorded successfully!");
+            if (onConsultationCompleted) onConsultationCompleted();
+        } catch (err) {
+            toast.error(err.message || "Failed to confirm consultation.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (!patient) {
@@ -32,36 +77,48 @@ const ClinicalSummary = ({ patient }) => {
         );
     }
 
+    const patientName = patient.name || `${patient.patient?.firstName || ''} ${patient.patient?.lastName || ''}`.trim() || 'Patient';
+    const patientAge = patient.age || (patient.patient?.dateOfBirth ? Math.floor((new Date() - new Date(patient.patient.dateOfBirth)) / 31557600000) : '--');
+    const patientGender = patient.gender || patient.patient?.gender || 'N/A';
+    const abhaId = patient.patient?.abhaId || patient.abhaId || `P-${patient.appointmentId ? patient.appointmentId.slice(0, 8) : '1001'}`;
+    const redFlags = patient.redFlags || patient.intake?.redFlags || [];
+
     return (
         <div className={styles.summaryContainer}>
             {/* Header */}
             <div className={styles.header}>
                 <div className={styles.patientIdentity}>
                     <div className={styles.avatarLg}>
-                        {patient.name.charAt(0)}
+                        {patientName.charAt(0)}
                     </div>
                     <div className={styles.identityDetails}>
-                        <h2>{patient.name}</h2>
-                        <p>{patient.age} years • {patient.gender} • UID: P-{1000 + patient.id}</p>
+                        <h2>{patientName}</h2>
+                        <p>{patientAge} years • {patientGender} • ABHA: {abhaId}</p>
                     </div>
                 </div>
                 <div className={styles.actions}>
                     {isEditing ? (
                         <button className={styles.btnPrimary} onClick={handleSave}>
-                            <Save size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }}/> Save Summary
+                            <Save size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }}/> Save Notes
                         </button>
                     ) : (
                         <button className={styles.btnSecondary} onClick={() => setIsEditing(true)}>
                             <Edit3 size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }}/> Edit
                         </button>
                     )}
-                    <button className={styles.btnPrimary}>Confirm & End Consult</button>
+                    <button 
+                        className={styles.btnPrimary} 
+                        onClick={handleEndConsultation}
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? "Saving..." : "Confirm & End Consult"}
+                    </button>
                 </div>
             </div>
 
             <div className={styles.content}>
                 {/* Red Flags Alert */}
-                {patient.redFlags && patient.redFlags.length > 0 && (
+                {redFlags && redFlags.length > 0 && (
                     <div className={styles.alertBox}>
                         <div className={styles.alertIcon}>
                             <AlertTriangle size={24} />

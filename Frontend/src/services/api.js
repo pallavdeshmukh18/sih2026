@@ -182,6 +182,21 @@ export async function deleteStaffAccount(staffId, token) {
     return apiRequest(`/api/doctor/staff/${staffId}`, "DELETE", null, token);
 }
 
+/** Fetch Doctor's Live Patient & Triage Queue */
+export async function fetchDoctorQueue(token) {
+    return apiRequest("/api/doctor/queue", "GET", null, token);
+}
+
+/** Fetch Unified Patient History for Doctor Consultation */
+export async function fetchPatientUnifiedHistory(patientId, token) {
+    return apiRequest(`/api/doctor/patient/${patientId}/unified-history`, "GET", null, token);
+}
+
+/** Confirm & Record Doctor Consultation Diagnosis & Notes */
+export async function confirmConsultation(appointmentId, consultationData, token) {
+    return apiRequest(`/api/doctor/consultations/${appointmentId}/confirm`, "POST", consultationData, token);
+}
+
 // ==================================================
 // PATIENT PROFILE & PHONE LINKING API CALLS
 // ==================================================
