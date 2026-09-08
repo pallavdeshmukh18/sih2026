@@ -1,0 +1,256 @@
+.assessmentContainer {
+  max-width: 800px;
+  margin: 30px auto;
+  padding: 32px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(13, 148, 136, 0.08);
+  border: 1px solid #e2e8f0;
+  font-family: 'Inter', sans-serif;
+  color: #1e293b;
+}
+
+.header {
+  margin-bottom: 28px;
+  text-align: center;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 20px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #ccfbf1;
+  color: #0d9488;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 20px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.header h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.header p {
+  font-size: 14px;
+  color: #64748b;
+  max-width: 550px;
+  margin: 0 auto;
+}
+
+.startCard {
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+}
+
+.label {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+  color: #334155;
+  margin-bottom: 8px;
+}
+
+.complaintChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.chip {
+  padding: 8px 16px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chip:hover {
+  border-color: #0d9488;
+  color: #0d9488;
+}
+
+.chipActive {
+  background: #0d9488;
+  color: #ffffff;
+  border-color: #0d9488;
+}
+
+.inputField {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  font-size: 14px;
+  margin-bottom: 20px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.inputField:focus {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+
+.primaryBtn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #0d9488, #0f766e);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.primaryBtn:hover {
+  box-shadow: 0 6px 20px rgba(13, 148, 136, 0.3);
+  transform: translateY(-1px);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.chatWindow {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.questionCard {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.questionText {
+  font-size: 18px;
+  font-weight: 600;
+  color: #14532d;
+  margin-bottom: 20px;
+}
+
+.optionsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.optionBtn {
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1.5px solid #86efac;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #166534;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.optionBtn:hover {
+  background: #dcfce7;
+  border-color: #22c55e;
+}
+
+.customAnswerSection {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 16px;
+  margin-top: 10px;
+}
+
+.customAnswerLabel {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.inputGroup {
+  display: flex;
+  gap: 10px;
+}
+
+.historySection {
+  margin-top: 24px;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.historyTitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.chatTurn {
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.systemMsg {
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.patientMsg {
+  color: #334155;
+  padding-left: 12px;
+  border-left: 2px solid #cbd5e1;
+}
+
+.completionCard {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 16px;
+  padding: 32px;
+  text-align: center;
+}
+
+.completionCard h2 {
+  font-family: 'Playfair Display', serif;
+  color: #166534;
+  margin-bottom: 12px;
+}
+
+.summaryBox {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: left;
+  margin: 20px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  border: 1px solid #cbd5e1;
+}

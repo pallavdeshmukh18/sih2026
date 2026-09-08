@@ -1,17 +1,21 @@
 import logging
 import time
 from typing import Optional, Union, IO
-from sarvamai import SarvamAI
-from sarvamai.errors import (
-    UnauthorizedError,
-    ForbiddenError,
-    TooManyRequestsError,
-    BadRequestError,
-    UnprocessableEntityError,
-    ServiceUnavailableError,
-    InternalServerError,
-)
-from sarvamai.core import ApiError
+try:
+    from sarvamai import SarvamAI
+    from sarvamai.errors import (
+        UnauthorizedError,
+        ForbiddenError,
+        TooManyRequestsError,
+        BadRequestError,
+        UnprocessableEntityError,
+        ServiceUnavailableError,
+        InternalServerError,
+    )
+    from sarvamai.core import ApiError
+except ImportError:
+    SarvamAI = None
+    UnauthorizedError = ForbiddenError = TooManyRequestsError = BadRequestError = UnprocessableEntityError = ServiceUnavailableError = InternalServerError = ApiError = Exception
 
 from .config import get_sarvam_api_key, get_sarvam_stt_model
 from .schemas import STTSuccessResponse
@@ -73,8 +77,8 @@ class SarvamSTTService:
         self._client: Optional[SarvamAI] = None
         self._last_api_key: Optional[str] = None
 
-    def _get_client(self) -> SarvamAI:
-        """Initializes and returns the SarvamAI client, validating the API key."""
+    def _get_client(self):
+        """Initializes and returns the SarvamAI client if available, or None for REST API fallback."""
         api_key = self._api_key or get_sarvam_api_key()
         if not api_key:
             logger.error("Sarvam API key is missing or contains placeholder in environment/config")
@@ -82,11 +86,13 @@ class SarvamSTTService:
                 message="Sarvam API key is not configured or contains placeholder text. Please set SARVAM_API_KEY in your .env file."
             )
 
-        if self._client is None or self._last_api_key != api_key:
-            self._client = SarvamAI(api_subscription_key=api_key)
-            self._last_api_key = api_key
+        if SarvamAI is not None:
+            if self._client is None or self._last_api_key != api_key:
+                self._client = SarvamAI(api_subscription_key=api_key)
+                self._last_api_key = api_key
+            return self._client
 
-        return self._client
+        return None
 
     def transcribe_audio(
         self,
@@ -108,13 +114,16 @@ class SarvamSTTService:
         Returns:
             STTSuccessResponse with transcript, language_code, and request_id.
         """
+        api_key = self._api_key or get_sarvam_api_key()
+        if not api_key:
+            raise STTConfigurationError()
+
         client = self._get_client()
         model_name = self._model or get_sarvam_stt_model()
 
         # Prepare language_code parameter
         target_lang = language_code.strip() if language_code and language_code.strip() else "unknown"
 
-        # Log safe operational metrics (never log API keys, raw audio content, or clinical text)
         logger.info(
             "Sarvam STT request started: filename=%s, content_type=%s, requested_language=%s, model=%s",
             filename,
@@ -126,15 +135,41 @@ class SarvamSTTService:
         start_time = time.perf_counter()
 
         try:
-            # Pass as tuple (filename, content, content_type) to the SDK
-            file_tuple = (filename, file_content, content_type) if content_type else (filename, file_content)
+            if client is not None:
+                file_tuple = (filename, file_content, content_type) if content_type else (filename, file_content)
+                response = client.speech_to_text.transcribe(
+                    file=file_tuple,
+                    model=model_name,
+                    mode="transcribe",
+                    language_code=target_lang,
+                )
+                detected_lang = getattr(response, "language_code", None) or target_lang
+                request_id = getattr(response, "request_id", None)
+                lang_prob = getattr(response, "language_probability", None)
+                transcript = getattr(response, "transcript", "")
+            else:
+                import requests
+                url = "https://api.sarvam.ai/speech-to-text"
+                headers = {"api-subscription-key": api_key}
+                mime = content_type or "audio/wav"
+                files = {"file": (filename, file_content, mime)}
+                data = {"model": model_name}
+                if target_lang != "unknown":
+                    data["language_code"] = target_lang
 
-            response = client.speech_to_text.transcribe(
-                file=file_tuple,
-                model=model_name,
-                mode="transcribe",
-                language_code=target_lang,
-            )
+                res = requests.post(url, headers=headers, files=files, data=data, timeout=30)
+                if res.status_code == 401 or res.status_code == 403:
+                    raise STTAuthenticationError()
+                if res.status_code == 429:
+                    raise STTRateLimitError()
+                if res.status_code >= 400:
+                    raise STTServiceError(f"Sarvam STT API returned status {res.status_code}: {res.text}")
+
+                res_data = res.json()
+                transcript = res_data.get("transcript", "")
+                detected_lang = res_data.get("language_code") or target_lang
+                request_id = res_data.get("request_id")
+                lang_prob = res_data.get("language_probability")
 
             duration = time.perf_counter() - start_time
             detected_lang = getattr(response, "language_code", None) or target_lang

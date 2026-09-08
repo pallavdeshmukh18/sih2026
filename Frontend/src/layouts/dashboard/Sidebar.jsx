@@ -6,9 +6,11 @@ import {
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../i18n';
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
+    const { t } = useLanguage();
     const role = user?.role || 'patient';
     const basePath = `/${role}`;
 
@@ -18,19 +20,19 @@ const Sidebar = () => {
                 <div className={styles.menuSection}>
                     <NavLink to={`${basePath}/dashboard`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem} end>
                         <LayoutDashboard size={20} />
-                        <span>Dashboard</span>
+                        <span>{t('navigation.dashboard')}</span>
                     </NavLink>
                     <NavLink to={`${basePath}/account`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                         <User size={20} />
-                        <span>Your Account</span>
+                        <span>{t('navigation.account')}</span>
                     </NavLink>
                 </div>
 
-                <div className={styles.sectionTitle}>APPLICATIONS</div>
+                <div className={styles.sectionTitle}>{t('navigation.applications')}</div>
                 <div className={styles.menuSection}>
                     <NavLink to={`${basePath}/doctor`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                         <Stethoscope size={20} />
-                        <span>Doctor</span>
+                        <span>{t('navigation.doctors')}</span>
                     </NavLink>
                     
                     {role === 'doctor' ? (
@@ -41,7 +43,7 @@ const Sidebar = () => {
                     ) : (
                         <NavLink to="/patient/history" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                             <FileText size={20} />
-                            <span>Medical History</span>
+                            <span>{t('navigation.history')}</span>
                         </NavLink>
                     )}
 
@@ -60,41 +62,41 @@ const Sidebar = () => {
                     {role === 'doctor' ? (
                         <NavLink to="/doctor/schedule" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                             <Calendar size={20} />
-                            <span>Schedule</span>
+                            <span>{t('navigation.schedule')}</span>
                         </NavLink>
                     ) : (
                         <NavLink to="/patient/schedule" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                             <Calendar size={20} />
-                            <span>Schedule</span>
+                            <span>{t('navigation.schedule')}</span>
                         </NavLink>
                     )}
                     
                     <NavLink to={`${basePath}/appointments`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                         <ClipboardList size={20} />
-                        <span>Appointment</span>
+                        <span>{t('navigation.appointments')}</span>
                     </NavLink>
                     
                     {role === 'patient' && (
                         <NavLink to="/patient/documents" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                             <FileText size={20} />
-                            <span>Documents</span>
+                            <span>{t('navigation.documents')}</span>
                         </NavLink>
                     )}
                     <NavLink to={`${basePath}/bed`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                         <Bed size={20} />
-                        <span>Bed Manager</span>
+                        <span>{t('navigation.bedManager')}</span>
                     </NavLink>
                 </div>
 
-                <div className={styles.sectionTitle}>OTHERS</div>
+                <div className={styles.sectionTitle}>{t('navigation.others')}</div>
                 <div className={styles.menuSection}>
                     <NavLink to={`${basePath}/payment`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                         <CreditCard size={20} />
-                        <span>Payment</span>
+                        <span>{t('navigation.payment')}</span>
                     </NavLink>
                     <NavLink to={`${basePath}/mail`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                         <Mail size={20} />
-                        <span>Mail</span>
+                        <span>{t('navigation.mail')}</span>
                     </NavLink>
                 </div>
             </nav>

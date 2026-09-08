@@ -8,7 +8,9 @@ const { uploadDocument } = require("../middleware/uploadMiddleware");
 router.use(authenticateToken);
 
 router.post("/upload", uploadDocument.single("file"), documentController.uploadDocument);
+router.post("/search", documentController.searchDocuments);
 router.get("/patient/:patientId", documentController.getPatientDocuments);
 router.get("/:id/url", documentController.getDocumentDownloadUrl);
+router.delete("/:id", documentController.deleteDocument);
 
 module.exports = router;

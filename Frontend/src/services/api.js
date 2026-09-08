@@ -136,3 +136,142 @@ export async function getStaffList(token) {
 export async function deleteStaffAccount(staffId, token) {
     return apiRequest(`/api/doctor/staff/${staffId}`, "DELETE", null, token);
 }
+
+// ==================================================
+// PATIENT PROFILE & PHONE LINKING API CALLS
+// ==================================================
+
+/** Request OTP to Link / Change Phone Number */
+export async function requestPhoneLink(phone, token) {
+    return apiRequest("/api/auth/patient/link-phone/request", "POST", { phone }, token);
+}
+
+/** Verify OTP to Link / Change Phone Number */
+export async function verifyPhoneLink(verificationId, otp, token) {
+    return apiRequest("/api/auth/patient/link-phone/verify", "POST", { verificationId, otp }, token);
+}
+
+/** Update Patient Personal Profile & Onboarding Preferences */
+export async function updatePatientProfile(profileData, token) {
+    return apiRequest("/api/patient/profile", "PATCH", profileData, token);
+}
+
+/** Save / Update Patient Onboarding Preferences */
+export async function savePatientOnboarding(onboardingData, token) {
+    return apiRequest("/api/patient/profile/onboarding", "PATCH", onboardingData, token);
+}
+
+/** Get Patient Onboarding Preferences */
+export async function getPatientOnboarding(token) {
+    return apiRequest("/api/patient/profile/onboarding", "GET", null, token);
+}
+
+// ==================================================
+// PATIENT APPOINTMENTS & DOCTOR DIRECTORY API CALLS
+// ==================================================
+
+/** Fetch Public Verified Doctor Directory */
+export async function fetchPublicDoctors(token) {
+    return apiRequest("/api/doctor/directory", "GET", null, token);
+}
+
+/** Create / Book a New Appointment */
+export async function createAppointment(appointmentData, token) {
+    return apiRequest("/api/appointments", "POST", appointmentData, token);
+}
+
+/** Get Authenticated Patient's Appointments */
+export async function getPatientAppointments(token) {
+    return apiRequest("/api/appointments/patient", "GET", null, token);
+}
+
+// ==================================================
+// MEDICAL DOCUMENTS & OCR API CALLS
+// ==================================================
+
+/** Upload Medical Document (Multipart / FormData) */
+export async function uploadMedicalDocument(formData, token) {
+    const headers = {};
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/documents/upload`, {
+        method: "POST",
+        headers,
+        body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const error = new Error(data.message || `Document upload failed with status ${response.status}`);
+        error.status = response.status;
+        error.data = data;
+        throw error;
+    }
+    return data;
+}
+
+/** Get All Documents for a Patient */
+export async function getPatientDocuments(patientId, token) {
+    return apiRequest(`/api/documents/patient/${patientId}`, "GET", null, token);
+}
+
+/** Search Patient Medical Documents / Ask History Question */
+export async function searchMedicalDocuments(query, token) {
+    return apiRequest("/api/documents/search", "POST", { query }, token);
+}
+
+/** Delete Medical Document */
+export async function deleteMedicalDocument(documentId, token) {
+    return apiRequest(`/api/documents/${documentId}`, "DELETE", null, token);
+}
+
+// ==================================================
+// CLINICAL ASSESSMENT API CALLS
+// ==================================================
+
+/** Start Clinical Assessment Session */
+export async function startClinicalSession(sessionData, token) {
+    return apiRequest("/api/sessions/start", "POST", sessionData, token);
+}
+
+/** Submit Text / Touch Turn in Clinical Session */
+export async function sendClinicalTextTurn(sessionId, patientText, token) {
+    return apiRequest(`/api/sessions/${sessionId}/text-turn`, "POST", { patientText }, token);
+}
+
+/** Fetch Clinical Session Details */
+export async function getClinicalSession(sessionId, token) {
+    return apiRequest(`/api/sessions/${sessionId}`, "GET", null, token);
+}
+
+/** Finalize Clinical Intake Session */
+export async function finalizeClinicalSession(sessionId, documentData = null, token) {
+    return apiRequest(`/api/sessions/${sessionId}/finalize`, "POST", { documentData }, token);
+}
+
+// ==================================================
+// LONGITUDINAL MEDICAL HISTORY & DOCUMENT ACCESS
+// ==================================================
+
+/** Fetch Authenticated Patient Longitudinal Medical History */
+export async function getPatientMedicalHistory(token) {
+    return apiRequest("/api/patient/history", "GET", null, token);
+}
+
+/** Get Document View / Download Signed URL */
+export async function getDocumentDownloadUrl(documentId, token) {
+    return apiRequest(`/api/documents/${documentId}/url`, "GET", null, token);
+}
+
+// ==================================================
+// TEXT-TO-SPEECH (TTS) ACCESSIBILITY API CALL
+// ==================================================
+
+/** Synthesize Speech Audio via Sarvam TTS */
+export async function synthesizeTTS(text, languageCode = "en", token = null) {
+    return apiRequest("/api/tts/synthesize", "POST", { text, languageCode }, token);
+}
+
+

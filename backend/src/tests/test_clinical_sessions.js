@@ -97,16 +97,25 @@ async function runClinicalSessionTests() {
         const appointmentId = apptRes.rows[0].id;
         createdIds.appointments.push(appointmentId);
 
-        // TEST 1: Start Session without appointmentId should fail
-        console.log("\n[TEST 1] Starting session without appointmentId (expected failure)...");
+        // TEST 1: Start Session without chiefComplaint (expected failure)
+        console.log("\n[TEST 1] Starting session without chiefComplaint (expected failure)...");
         const failStart = await request("POST", "/api/sessions/start", {
-            chiefComplaint: "chest_pain",
+            appointmentId: appointmentId,
         }, patientToken);
         console.log(`Status: ${failStart.status}`);
         if (failStart.status !== 400) {
-            throw new Error(`Expected 400 when missing appointmentId, got ${failStart.status}`);
+            throw new Error(`Expected 400 when missing chiefComplaint, got ${failStart.status}`);
         }
-        console.log("✅ [TEST 1 PASSED] Rejected session without appointmentId.");
+
+        // Test invalid appointmentId format
+        const failInvalidAppt = await request("POST", "/api/sessions/start", {
+            appointmentId: "general_intake",
+            chiefComplaint: "chest_pain",
+        }, patientToken);
+        if (failInvalidAppt.status !== 400) {
+            throw new Error(`Expected 400 for invalid appointmentId format, got ${failInvalidAppt.status}`);
+        }
+        console.log("✅ [TEST 1 PASSED] Rejected session without chiefComplaint and invalid appointmentId.");
 
         // TEST 2: Start Valid Clinical Intake Session
         console.log("\n[TEST 2] Starting clinical session with valid appointmentId...");

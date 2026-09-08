@@ -7,7 +7,7 @@ import styles from "./AuthPage.module.css";
 function GoogleCallback() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login, refreshUser } = useAuth();
     const [error, setError] = useState(null);
     const hasAttempted = useRef(false);
 
@@ -29,8 +29,11 @@ function GoogleCallback() {
                 login(res.token, res.user);
                 // Clean up URL parameter
                 window.history.replaceState({}, document.title, window.location.pathname);
-                // Navigate to patient dashboard
-                navigate("/patient/dashboard", { replace: true });
+                
+                // Fetch latest user profile from DB to get onboarding completion status
+                const fullUser = await refreshUser(res.token);
+                const isCompleted = fullUser?.onboarding?.completed || !!localStorage.getItem(`medikiosk_patient_preferences_${res.user.id}`);
+                navigate(isCompleted ? "/patient/dashboard" : "/patient/onboarding", { replace: true });
             } catch (err) {
                 // Clean up URL parameter even on failure
                 window.history.replaceState({}, document.title, window.location.pathname);

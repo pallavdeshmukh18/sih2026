@@ -9,6 +9,10 @@ import AuthPage from "./pages/AuthPage";
 import GoogleCallback from "./pages/GoogleCallback";
 import DashboardLayout from "./layouts/dashboard/DashboardLayout";
 
+// Core Patient Onboarding Page
+import PatientOnboarding from "./pages/patient/PatientOnboarding";
+import ClinicalAssessment from "./pages/patient/ClinicalAssessment";
+
 // Original Core Pages
 import PatientDashboard from "./pages/PatientDashboard";
 import DoctorDashboard from "./pages/DoctorDashboard";
@@ -42,9 +46,13 @@ function App() {
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/auth/google/callback" element={<GoogleCallback />} />
 
+          {/* Dedicated Patient Onboarding Route */}
+          <Route path="/patient/onboarding" element={<ProtectedRoute role="patient" allowIncompleteOnboarding={true}><PatientOnboarding /></ProtectedRoute>} />
+
           {/* Protected Patient Routes */}
           <Route path="/patient" element={<ProtectedRoute role="patient"><DashboardLayout /></ProtectedRoute>}>
             <Route path="dashboard" element={<PatientDashboard />} />
+            <Route path="assessment" element={<ClinicalAssessment />} />
             <Route path="history" element={<MedicalHistory />} />
             <Route path="appointments" element={<Appointments />} />
             <Route path="documents" element={<Documents />} />

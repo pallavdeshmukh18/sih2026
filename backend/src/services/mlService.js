@@ -78,14 +78,17 @@ async function startClinicalSession(patientId, language = "en", consultationType
 /**
  * 4. Process Patient Response in Adaptive Session
  */
-async function respondClinicalSession(sessionId, patientText) {
+async function respondClinicalSession(sessionId, patientText, state = null) {
     try {
+        const payload = {
+            session_id: sessionId,
+            patient_text: patientText,
+        };
+        if (state) payload.state = state;
+
         const response = await axios.post(
             `${ML_BASE_URL}/clinical/session/respond`,
-            {
-                session_id: sessionId,
-                patient_text: patientText,
-            },
+            payload,
             {
                 timeout: 30000,
             }

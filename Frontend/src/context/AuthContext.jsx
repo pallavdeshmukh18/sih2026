@@ -10,6 +10,25 @@ export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    const refreshUser = async (authToken = token) => {
+        if (!authToken) return null;
+        try {
+            const res = await fetchMe(authToken);
+            if (res && res.user) {
+                const fullUser = {
+                    ...res.user,
+                    profile: res.profile || {},
+                    onboarding: res.onboarding || null
+                };
+                setUser(fullUser);
+                return fullUser;
+            }
+        } catch (err) {
+            console.error("Failed to refresh user profile:", err.message);
+        }
+        return null;
+    };
+
     useEffect(() => {
         const restoreSession = async () => {
             const storedToken = localStorage.getItem(TOKEN_KEY);
@@ -17,7 +36,12 @@ export const AuthProvider = ({ children }) => {
                 try {
                     const res = await fetchMe(storedToken);
                     if (res && res.user) {
-                        setUser(res.user);
+                        const fullUser = {
+                            ...res.user,
+                            profile: res.profile || {},
+                            onboarding: res.onboarding || null
+                        };
+                        setUser(fullUser);
                         setToken(storedToken);
                     } else {
                         logout();
@@ -56,6 +80,7 @@ export const AuthProvider = ({ children }) => {
         isLoading,
         login,
         logout,
+        refreshUser,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

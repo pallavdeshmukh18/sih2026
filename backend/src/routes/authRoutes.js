@@ -13,6 +13,10 @@ router.post("/patient/verify-phone", authController.verifyPhone);
 router.post("/patient/login/phone", authController.loginPhone);
 router.post("/patient/login/phone/verify", authController.verifyLoginPhone);
 
+// Patient Authenticated Phone Linking Flow
+router.post("/patient/link-phone/request", authenticateToken, authController.requestPhoneLink);
+router.post("/patient/link-phone/verify", authenticateToken, authController.verifyPhoneLink);
+
 // Patient Email Registration Flow
 router.post("/patient/register/email", authController.registerEmail);
 router.post("/patient/verify-email", authController.verifyEmail);

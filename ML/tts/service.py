@@ -1,17 +1,23 @@
 import logging
 import time
+import requests
 from typing import Optional
-from sarvamai import SarvamAI
-from sarvamai.errors import (
-    UnauthorizedError,
-    ForbiddenError,
-    TooManyRequestsError,
-    BadRequestError,
-    UnprocessableEntityError,
-    ServiceUnavailableError,
-    InternalServerError,
-)
-from sarvamai.core import ApiError
+
+try:
+    from sarvamai import SarvamAI
+    from sarvamai.errors import (
+        UnauthorizedError,
+        ForbiddenError,
+        TooManyRequestsError,
+        BadRequestError,
+        UnprocessableEntityError,
+        ServiceUnavailableError,
+        InternalServerError,
+    )
+    from sarvamai.core import ApiError
+except ImportError:
+    SarvamAI = None
+    UnauthorizedError = ForbiddenError = TooManyRequestsError = BadRequestError = UnprocessableEntityError = ServiceUnavailableError = InternalServerError = ApiError = Exception
 
 from .config import (
     get_sarvam_api_key,
@@ -77,22 +83,23 @@ class SarvamTTSService:
     ):
         self._api_key = api_key
         self._model = model
-        self._client: Optional[SarvamAI] = None
+        self._client = None
         self._last_api_key: Optional[str] = None
 
-    def _get_client(self) -> SarvamAI:
-        """Initializes and returns the SarvamAI client, validating the API key."""
+    def _get_client(self):
+        """Initializes and returns the SarvamAI client if available, or None for REST API fallback."""
         api_key = self._api_key or get_sarvam_api_key()
         if not api_key:
             logger.error("Sarvam API key is missing or contains placeholder in environment/config")
             raise TTSConfigurationError()
 
-        # Re-initialize client if key has changed or client not created yet
-        if self._client is None or self._last_api_key != api_key:
-            self._client = SarvamAI(api_subscription_key=api_key)
-            self._last_api_key = api_key
+        if SarvamAI is not None:
+            if self._client is None or self._last_api_key != api_key:
+                self._client = SarvamAI(api_subscription_key=api_key)
+                self._last_api_key = api_key
+            return self._client
 
-        return self._client
+        return None
 
     def synthesize(
         self,
@@ -113,12 +120,15 @@ class SarvamTTSService:
         Returns:
             TTSSuccessResponse containing base64 audio and metadata.
         """
+        api_key = self._api_key or get_sarvam_api_key()
+        if not api_key:
+            raise TTSConfigurationError()
+
         client = self._get_client()
         model_name = self._model or get_sarvam_tts_model()
         target_speaker = speaker or DEFAULT_SPEAKER
         target_pace = pace if pace is not None else DEFAULT_PACE
 
-        # Log safe operational metrics (never log API keys or raw patient text)
         logger.info(
             "Sarvam TTS synthesis request started: lang=%s, speaker=%s, pace=%.2f, text_len=%d, model=%s",
             language_code,
@@ -131,20 +141,52 @@ class SarvamTTSService:
         start_time = time.perf_counter()
 
         try:
-            response = client.text_to_speech.convert(
-                text=text,
-                language_code=language_code,
-                speaker=target_speaker,
-                pace=target_pace,
-                model=model_name,
-                output_audio_codec=OUTPUT_AUDIO_CODEC,
-                speech_sample_rate=SPEECH_SAMPLE_RATE,
-            )
+            if client is not None:
+                # Use SarvamAI SDK
+                response = client.text_to_speech.convert(
+                    text=text,
+                    language_code=language_code,
+                    speaker=target_speaker,
+                    pace=target_pace,
+                    model=model_name,
+                    output_audio_codec=OUTPUT_AUDIO_CODEC,
+                    speech_sample_rate=SPEECH_SAMPLE_RATE,
+                )
+                request_id = getattr(response, "request_id", None)
+                audios = getattr(response, "audios", [])
+                audio_base64 = audios[0] if audios else ""
+            else:
+                # Fallback to direct Sarvam REST API HTTP request
+                url = "https://api.sarvam.ai/text-to-speech"
+                headers = {
+                    "api-subscription-key": api_key,
+                    "Content-Type": "application/json",
+                }
+                payload = {
+                    "inputs": [text],
+                    "target_language_code": language_code,
+                    "speaker": target_speaker,
+                    "pitch": 0,
+                    "pace": target_pace,
+                    "loudness": 1.5,
+                    "speech_sample_rate": SPEECH_SAMPLE_RATE,
+                    "enable_preprocessing": True,
+                    "model": model_name,
+                }
+                res = requests.post(url, json=payload, headers=headers, timeout=30)
+                if res.status_code == 401 or res.status_code == 403:
+                    raise TTSAuthenticationError()
+                if res.status_code == 429:
+                    raise TTSRateLimitError()
+                if res.status_code >= 400:
+                    raise TTSServiceError(f"Sarvam API returned error code {res.status_code}: {res.text}")
+
+                res_data = res.json()
+                audios = res_data.get("audios", [])
+                audio_base64 = audios[0] if audios else ""
+                request_id = res_data.get("request_id")
 
             duration = time.perf_counter() - start_time
-            request_id = getattr(response, "request_id", None)
-            audios = getattr(response, "audios", [])
-            audio_base64 = audios[0] if audios else ""
 
             if not audio_base64:
                 logger.error("Sarvam TTS returned empty audio payload")
@@ -184,7 +226,7 @@ class SarvamTTSService:
 
         except ApiError as exc:
             logger.error("Sarvam API error: status_code=%s", getattr(exc, "status_code", None))
-            if getattr(exc, "status_code", None) == 401:
+            if getattr(exc, "status_code", None) in (401, 403):
                 raise TTSAuthenticationError() from exc
             if getattr(exc, "status_code", None) == 429:
                 raise TTSRateLimitError() from exc
@@ -193,9 +235,14 @@ class SarvamTTSService:
         except TTSException:
             raise
 
+        except requests.exceptions.RequestException as exc:
+            logger.error("Sarvam HTTP connection error: %s", str(exc))
+            raise TTSServiceError(message="Speech service network error or API host unreachable.") from exc
+
         except Exception as exc:
             logger.exception("Unexpected error during Sarvam TTS conversion")
-            raise TTSServiceError(message="An unexpected error occurred while generating speech.") from exc
+            raise TTSServiceError(message=f"An unexpected error occurred while generating speech: {str(exc)}") from exc
+
 
 
 # Default singleton instance

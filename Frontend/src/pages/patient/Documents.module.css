@@ -1,0 +1,12 @@
+/* Responsive layout for Patient Documents Page */
+.workspaceGrid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+}
+
+@media (max-width: 960px) {
+  .workspaceGrid {
+    grid-template-columns: 1fr;
+  }
+}

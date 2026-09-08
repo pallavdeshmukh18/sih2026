@@ -10,6 +10,8 @@ const sessionRoutes = require("./routes/sessionRoutes");
 const documentRoutes = require("./routes/documentRoutes");
 const doctorRoutes = require("./routes/doctorRoutes");
 const staffRoutes = require("./routes/staffRoutes");
+const patientRoutes = require("./routes/patientRoutes");
+const ttsRoutes = require("./routes/ttsRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -20,11 +22,13 @@ app.use(cookieParser());
 
 // Mount API Routers
 app.use("/api/auth", authRoutes);
+app.use("/api/patient", patientRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/doctor", doctorRoutes);
 app.use("/api/doctor/staff", staffRoutes);
+app.use("/api/tts", ttsRoutes);
 
 app.get("/", (req, res) => {
     res.json({

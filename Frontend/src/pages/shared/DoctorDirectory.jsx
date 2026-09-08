@@ -1,61 +1,347 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Stethoscope, Star, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Stethoscope, Calendar, Search, CheckCircle, AlertCircle, X, Building2, Award } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../i18n";
+import { fetchPublicDoctors, createAppointment } from "../../services/api";
+import styles from "./DoctorDirectory.module.css";
 
-const doctors = [
-    { name: 'Dr. Sarah Jenkins', spec: 'Cardiology', rating: '4.9', exp: '12 Years', img: 'SJ' },
-    { name: 'Dr. Robert Miles', spec: 'Dentistry', rating: '4.7', exp: '8 Years', img: 'RM' },
-    { name: 'Dr. Emily Chen', spec: 'General Practice', rating: '4.8', exp: '15 Years', img: 'EC' },
-    { name: 'Dr. Marcus Webb', spec: 'Neurology', rating: '4.9', exp: '20 Years', img: 'MW' },
-    { name: 'Dr. Priya Patel', spec: 'Pediatrics', rating: '5.0', exp: '10 Years', img: 'PP' },
-    { name: 'Dr. James Wilson', spec: 'Orthopedics', rating: '4.6', exp: '14 Years', img: 'JW' },
-];
+export default function DoctorDirectory() {
+  const { token, user } = useAuth();
+  const { t } = useLanguage();
 
-const DoctorDirectory = () => {
-    return (
-        <div className="workspacePage" style={{ paddingBottom: "24px" }}>
-            <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4 }}
-                style={{ display: "flex", flexDirection: "column", gap: "24px" }}
-            >
-                <div>
-                    <h1 style={{ fontSize: "28px", fontFamily: "var(--font-sans)", fontWeight: "700", color: "var(--color-dark)" }}>Medical Professionals</h1>
-                    <p style={{ color: "var(--color-text-muted)", marginTop: "8px" }}>Browse our directory of specialized doctors.</p>
-                </div>
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
-                <div className="workspaceGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '24px' }}>
-                    {doctors.map((doc, idx) => (
-                        <div className="workspaceCard" key={idx} style={{ background: "white", padding: "24px", borderRadius: "16px", border: "1px solid var(--color-border)", display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--color-light-grey)', color: 'var(--color-teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: '700', marginBottom: '16px' }}>
-                                {doc.img}
-                            </div>
-                            <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--color-dark)' }}>{doc.name}</h3>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-teal)', marginTop: '6px', marginBottom: '12px' }}>
-                                <Stethoscope size={14} />
-                                <span style={{ fontSize: '13px', fontWeight: '500' }}>{doc.spec}</span>
-                            </div>
-                            
-                            <div style={{ display: 'flex', gap: '16px', marginBottom: '20px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                                    <Star size={14} color="#f59e0b" fill="#f59e0b" /> {doc.rating}
-                                </div>
-                                <div style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                                    Exp: {doc.exp}
-                                </div>
-                            </div>
-                            
-                            <button style={{ width: '100%', background: '#f1f5f9', color: 'var(--color-dark)', padding: '10px', borderRadius: '8px', fontWeight: '600', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                                <Calendar size={16} />
-                                Book Visit
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            </motion.div>
-        </div>
+  // Booking Modal State
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [appointmentType, setAppointmentType] = useState("in_person");
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [isBooking, setIsBooking] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const [bookingSuccess, setBookingSuccess] = useState(null);
+
+  // Fetch real verified doctors on mount
+  useEffect(() => {
+    const loadDoctors = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await fetchPublicDoctors(token);
+        if (res && res.doctors) {
+          setDoctors(res.doctors);
+        }
+      } catch (err) {
+        console.error("Failed to load doctor directory:", err);
+        setError("Unable to load medical professionals. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDoctors();
+  }, [token]);
+
+  // Client-side filtering by name, specialty, or department
+  const filteredDoctors = useMemo(() => {
+    if (!searchQuery.trim()) return doctors;
+    const q = searchQuery.toLowerCase();
+    return doctors.filter(
+      (doc) =>
+        doc.name.toLowerCase().includes(q) ||
+        (doc.specialization && doc.specialization.toLowerCase().includes(q)) ||
+        (doc.department && doc.department.toLowerCase().includes(q))
     );
-};
+  }, [doctors, searchQuery]);
 
-export default DoctorDirectory;
+  // Open Booking Modal for selected doctor
+  const handleOpenBooking = (doc) => {
+    setSelectedDoctor(doc);
+    setBookingError("");
+    setBookingSuccess(null);
+    
+    // Default to tomorrow at 10:00 AM
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0);
+    // Format YYYY-MM-DDTHH:mm for datetime-local input
+    const localIso = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
+    setScheduledAt(localIso);
+    setAppointmentType("in_person");
+    setReason("General Clinical Consultation");
+    setNotes("");
+  };
+
+  // Submit Booking
+  const handleConfirmBooking = async (e) => {
+    e.preventDefault();
+    if (!selectedDoctor || !scheduledAt) return;
+
+    setIsBooking(true);
+    setBookingError("");
+
+    try {
+      const payload = {
+        doctorId: selectedDoctor.id,
+        scheduledAt: new Date(scheduledAt).toISOString(),
+        durationMinutes: 30,
+        appointmentType,
+        reason,
+        notes,
+      };
+
+      const res = await createAppointment(payload, token);
+      if (res && res.success) {
+        setBookingSuccess({
+          doctorName: selectedDoctor.name,
+          date: new Date(scheduledAt).toLocaleString(),
+          appointmentId: res.appointment?.id,
+        });
+        setSelectedDoctor(null);
+      }
+    } catch (err) {
+      console.error("Booking error:", err);
+      setBookingError(err.message || "Failed to book appointment. Please try again.");
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
+  return (
+    <div className={styles.pageContainer}>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className={styles.headerRow}>
+          <div>
+            <h1 className={styles.headerTitle}>{t("doctors.title")}</h1>
+            <p className={styles.headerSubtitle}>
+              {t("doctors.subtitle")}
+            </p>
+          </div>
+
+          <div className={styles.searchWrapper}>
+            <Search size={16} className={styles.searchIcon} />
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder={t("doctors.searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Booking Success Banner */}
+        {bookingSuccess && (
+          <div className={styles.bannerSuccess} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <CheckCircle size={20} color="#166534" />
+              <div>
+                <strong>Appointment Booked Successfully!</strong>
+                <div style={{ fontSize: "12px", marginTop: "2px" }}>
+                  Scheduled with <strong>{bookingSuccess.doctorName}</strong> on {bookingSuccess.date}. It will appear on your Dashboard.
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setBookingSuccess(null)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#166534" }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
+        {/* Main Directory States */}
+        {loading ? (
+          <div className={styles.grid}>
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} className={styles.doctorCard} style={{ opacity: 0.6 }}>
+                <div className={styles.avatar} style={{ background: "#e2e8f0", border: "none" }} />
+                <div style={{ width: "120px", height: "16px", background: "#cbd5e1", borderRadius: "4px", marginBottom: "8px" }} />
+                <div style={{ width: "90px", height: "12px", background: "#e2e8f0", borderRadius: "4px", marginBottom: "16px" }} />
+                <div style={{ width: "100%", height: "36px", background: "#f1f5f9", borderRadius: "10px" }} />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className={styles.emptyState}>
+            <AlertCircle size={32} color="#dc2626" style={{ marginBottom: "12px" }} />
+            <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>{error}</div>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ marginTop: "14px", background: "#0d9488", color: "white", border: "none", padding: "8px 16px", borderRadius: "8px", cursor: "pointer" }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : filteredDoctors.length === 0 ? (
+          <div className={styles.emptyState}>
+            <Stethoscope size={36} color="#94a3b8" style={{ marginBottom: "12px" }} />
+            <div style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>
+              {searchQuery ? "No doctors match your search query." : "No verified doctors are currently available."}
+            </div>
+            <p style={{ fontSize: "13px", marginTop: "4px" }}>
+              Please check back later or refine your search terms.
+            </p>
+          </div>
+        ) : (
+          <div className={styles.grid}>
+            {filteredDoctors.map((doc) => {
+              const docInitials = doc.firstName
+                ? `${doc.firstName.charAt(0)}${doc.lastName ? doc.lastName.charAt(0) : ""}`.toUpperCase()
+                : "DR";
+
+              return (
+                <div key={doc.id} className={styles.doctorCard}>
+                  <div className={styles.avatar}>{docInitials}</div>
+                  <h3 className={styles.docName}>{doc.name}</h3>
+
+                  <div className={styles.specialtyBadge}>
+                    <Stethoscope size={14} />
+                    <span>{doc.specialization}</span>
+                  </div>
+
+                  <div className={styles.metaRow}>
+                    {doc.department && (
+                      <div style={{ display: "flex", alignItems: "center", justifyCenter: "center", gap: "4px" }}>
+                        <Building2 size={13} /> {doc.department}
+                      </div>
+                    )}
+                    {doc.registrationNumber && (
+                      <div style={{ display: "flex", alignItems: "center", justifyCenter: "center", gap: "4px" }}>
+                        <Award size={13} /> Reg: {doc.registrationNumber}
+                      </div>
+                    )}
+                    <div className={styles.verifiedChip}>
+                      <CheckCircle size={12} /> Verified Practitioner
+                    </div>
+                  </div>
+
+                  <button
+                    className={styles.bookBtn}
+                    onClick={() => handleOpenBooking(doc)}
+                  >
+                    <Calendar size={16} />
+                    Book Visit
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
+
+      {/* Appointment Booking Modal */}
+      <AnimatePresence>
+        {selectedDoctor && (
+          <div className={styles.modalBackdrop} onClick={() => setSelectedDoctor(null)}>
+            <motion.div
+              className={styles.modalContent}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "20px", fontWeight: "700", fontFamily: "Playfair Display, serif" }}>
+                    Book Appointment
+                  </h3>
+                  <div style={{ fontSize: "13px", color: "#0d9488", fontWeight: "600", marginTop: "2px" }}>
+                    {selectedDoctor.name} ({selectedDoctor.specialization})
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedDoctor(null)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {bookingError && (
+                <div className={styles.bannerError} style={{ marginBottom: "14px" }}>
+                  {bookingError}
+                </div>
+              )}
+
+              <form onSubmit={handleConfirmBooking} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <div>
+                  <label className={styles.label}>Scheduled Date & Time</label>
+                  <input
+                    type="datetime-local"
+                    className={styles.input}
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className={styles.label}>Consultation Type</label>
+                  <select
+                    className={styles.select}
+                    value={appointmentType}
+                    onChange={(e) => setAppointmentType(e.target.value)}
+                  >
+                    <option value="in_person">In-Person Consultation</option>
+                    <option value="teleconsultation">Teleconsultation / Virtual</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={styles.label}>Reason for Visit</label>
+                  <input
+                    type="text"
+                    className={styles.input}
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="e.g. Fever, cough, general checkup"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className={styles.label}>Additional Notes (Optional)</label>
+                  <textarea
+                    className={styles.textarea}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Describe any symptoms or relevant medical context for the doctor..."
+                  />
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDoctor(null)}
+                    style={{ background: "#e2e8f0", border: "none", padding: "10px 18px", borderRadius: "10px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={styles.confirmBtn}
+                    disabled={isBooking}
+                  >
+                    {isBooking ? "Booking..." : "Confirm & Book"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

@@ -22,4 +22,6 @@ class ExtractedDocument(BaseModel):
     medications: List[Medication] = []
     lab_results: List[LabResult] = []
     procedures: List[str] = []
+    summary: Optional[str] = None
+    alerts: List[str] = []
     raw_text: str

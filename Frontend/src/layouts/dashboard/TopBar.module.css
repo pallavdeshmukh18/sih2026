@@ -25,3 +25,28 @@
 .portal i{color:inherit}
 .avatar{border:0;border-radius:50%;background:#f1f5f9;color:#475569}
 @media(max-width:760px){.topbar{height:72px}}
+
+.langSelectorWrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: #0f766e;
+}
+.globeIcon {
+  color: #0f766e;
+  flex-shrink: 0;
+}
+.langSelect {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  outline: none;
+}
+

@@ -20,7 +20,7 @@ import {
 import styles from "./AuthPage.module.css";
 
 const AuthPage = () => {
-    const { login } = useAuth();
+    const { login, refreshUser } = useAuth();
     const navigate = useNavigate();
 
     // Primary Auth States
@@ -134,7 +134,9 @@ const AuthPage = () => {
             }
             login(res.token, res.user);
             toast.success("Successfully logged in!");
-            navigate("/patient/dashboard");
+            const fullUser = await refreshUser(res.token);
+            const isCompleted = fullUser?.onboarding?.completed || !!localStorage.getItem(`medikiosk_patient_preferences_${res.user.id}`);
+            navigate(isCompleted ? "/patient/dashboard" : "/patient/onboarding");
         } catch (err) {
             toast.error(err.message || "Invalid OTP verification code.");
         } finally {
@@ -187,7 +189,9 @@ const AuthPage = () => {
             }
             login(res.token, res.user);
             toast.success("Successfully logged in!");
-            navigate("/patient/dashboard");
+            const fullUser = await refreshUser(res.token);
+            const isCompleted = fullUser?.onboarding?.completed || !!localStorage.getItem(`medikiosk_patient_preferences_${res.user.id}`);
+            navigate(isCompleted ? "/patient/dashboard" : "/patient/onboarding");
         } catch (err) {
             toast.error(err.message || "Invalid OTP verification code.");
         } finally {

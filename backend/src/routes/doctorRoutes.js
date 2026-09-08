@@ -8,6 +8,7 @@ const authorizeRoles = require("../middleware/rbacMiddleware");
 router.use(authenticateToken);
 
 // Queue and consultation confirmation require 'doctor' role
+router.get("/directory", doctorController.getPublicDoctors);
 router.get("/queue", authorizeRoles("doctor"), doctorController.getDoctorQueue);
 router.get("/patient/:id/unified-history", authorizeRoles("doctor", "receptionist"), doctorController.getPatientUnifiedHistory);
 router.post("/consultations/:appointmentId/confirm", authorizeRoles("doctor"), doctorController.confirmConsultation);

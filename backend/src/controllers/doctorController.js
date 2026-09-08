@@ -311,10 +311,51 @@ async function verifyDoctor(req, res) {
     }
 }
 
+/**
+ * 6. Get Public Verified Doctors Directory for Patients
+ * GET /api/doctor/directory
+ * Access: Authenticated users
+ */
+async function getPublicDoctors(req, res, next) {
+    try {
+        const result = await pool.query(
+            `SELECT u.id, u.first_name, u.last_name, u.email, u.phone,
+                    d.registration_number, d.specialization, d.department, d.verification_status
+             FROM users u
+             JOIN doctor_profiles d ON u.id = d.user_id
+             WHERE u.role = 'doctor'
+               AND u.is_active = true
+               AND d.verification_status = 'verified'
+             ORDER BY u.first_name ASC;`
+        );
+
+        const doctors = result.rows.map(r => ({
+            id: r.id,
+            name: `Dr. ${r.first_name} ${r.last_name || ''}`.trim(),
+            firstName: r.first_name,
+            lastName: r.last_name,
+            email: r.email,
+            phone: r.phone,
+            registrationNumber: r.registration_number,
+            specialization: r.specialization || "General Medicine",
+            department: r.department || "Clinical Care",
+            verificationStatus: r.verification_status,
+        }));
+
+        return res.status(200).json({
+            success: true,
+            doctors,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     getDoctorQueue,
     getPatientUnifiedHistory,
     confirmConsultation,
     getPendingDoctors,
     verifyDoctor,
+    getPublicDoctors,
 };

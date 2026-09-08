@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
+import AccessibilityVoiceGuide from '../../components/accessibility/AccessibilityVoiceGuide';
 import styles from './DashboardLayout.module.css';
 import { useAuth } from '../../context/AuthContext';
 
@@ -15,8 +16,10 @@ const DashboardLayout = () => {
                     <Outlet />
                 </main>
             </div>
+            {user?.role === 'patient' && <AccessibilityVoiceGuide />}
         </div>
     );
 };
 
 export default DashboardLayout;
+
