@@ -78,6 +78,7 @@ async function startSession(req, res, next) {
                     success: true,
                     message: "Active session already exists.",
                     sessionId: currentSession.id,
+                    session: currentSession,
                     state: currentState,
                     nextQuestion: currentState.current_question || currentState.conversation_history?.slice(-1)[0]?.content || "How can I help you today?",
                     options: currentState.current_options || currentState.options || [],
@@ -99,7 +100,7 @@ async function startSession(req, res, next) {
             
             const fallbackQuestions = {
                 hi: `मेडीकियोस्क में आपका स्वागत है। आपको ${chiefComplaint} की समस्या कितने समय से हो रही है?`,
-                mr: `मेडीकियोस्कमध्ये आपले स्वागत आहे. तुम्हाला ${chiefComplaint} चा त्रास किती दिवसांपासून होत आहे?`,
+                mr: `मेडीकियोस्कंमध्ये आपले स्वागत आहे. तुम्हाला ${chiefComplaint} चा त्रास किती दिवसांपासून होत आहे?`,
                 gu: `મેડીકિયોસ્કમાં તમારું સ્વાગત છે. તમને ${chiefComplaint} ની તકલીફ કેટલા સમયથી થઈ રહી છે?`,
                 bn: `মেডিকিয়োস্কে আপনাকে স্বাগতম। আপনি কত দিন ধরে ${chiefComplaint} অনুভব করছেন?`,
                 ta: `மெடிகியோஸ்கிற்கு நல்வரவு. எவ்வளவு காலமாக ${chiefComplaint} பிரச்சினை இருக்கிறது?`,
@@ -108,7 +109,7 @@ async function startSession(req, res, next) {
                 ml: `മെഡികിയോസ്കിലേക്ക് സ്വാഗതം. എത്ര നാളായി ${chiefComplaint} പ്രശ്നം അനുഭവപ്പെടുന്നു?`,
                 pa: `ਮੈਡੀਕਿਓਸਕ ਵਿੱਚ ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ। ਤੁਹਾਨੂੰ ${chiefComplaint} ਦੀ ਸਮੱਸਿਆ ਕਿੰਨੇ ਸਮੇਂ ਤੋਂ ਹੋ ਰਹੀ ਹੈ?`,
                 or: `ମେଡିକିଓସ୍କକୁ ସ୍ୱାଗତ। କେତେ ଦିନ ହେବ ${chiefComplaint} ସମସ୍ୟା ଅଛି?`,
-                as: `মেডিকিয়স্কলৈ স্বাগতম। কিমান দিনৰ পৰা ${chiefComplaint} সমস্যা হৈছে?`
+                as: `মেডিকিয়স্কলৈ স্বাগতম। কিমান দিনৰ পৰা ${chiefComplaint} समस्या হৈছে?`
             };
             const fallbackOptionsMap = {
                 hi: [
@@ -185,6 +186,7 @@ async function startSession(req, res, next) {
         return res.status(201).json({
             success: true,
             sessionId: result.rows[0].id,
+            session: result.rows[0],
             nextQuestion: mlSessionResponse.next_question,
             options: mlSessionResponse.options || [],
             state: result.rows[0].current_state,

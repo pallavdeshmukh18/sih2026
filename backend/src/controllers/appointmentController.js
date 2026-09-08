@@ -227,8 +227,14 @@ async function getAvailableSlots(req, res, next) {
             const isBooked = bookedSet.has(timeStr);
             const available = !isPast && !isBooked;
 
+            const period = h >= 12 ? "PM" : "AM";
+            const displayH = h % 12 === 0 ? 12 : h % 12;
+            const time12 = `${String(displayH).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
+
             return {
                 time: timeStr,
+                time24: timeStr,
+                time12,
                 scheduledAt: slotDateTime.toISOString(),
                 available,
             };
@@ -254,7 +260,7 @@ async function getPatientAppointments(req, res, next) {
         const patientId = req.user.id;
 
         const result = await pool.query(
-            `SELECT a.*, 
+            `SELECT a.id, a.patient_id, a.doctor_id, a.scheduled_at, a.duration_minutes, a.appointment_type, a.status, a.reason, a.notes,
                     u.first_name AS doctor_first_name, u.last_name AS doctor_last_name,
                     d.specialization, d.department,
                     cs.id AS clinical_session_id, cs.status AS clinical_session_status
@@ -267,9 +273,33 @@ async function getPatientAppointments(req, res, next) {
             [patientId]
         );
 
+        const appointments = result.rows.map(row => ({
+            id: row.id,
+            patientId: row.patient_id,
+            doctorId: row.doctor_id,
+            scheduledAt: row.scheduled_at,
+            durationMinutes: row.duration_minutes,
+            appointmentType: row.appointment_type,
+            status: row.status,
+            reason: row.reason,
+            notes: row.notes,
+            doctor: {
+                id: row.doctor_id,
+                firstName: row.doctor_first_name,
+                lastName: row.doctor_last_name,
+                name: `Dr. ${row.doctor_first_name || ''} ${row.doctor_last_name || ''}`.trim(),
+                specialization: row.specialization,
+                department: row.department,
+            },
+            clinicalSession: {
+                id: row.clinical_session_id,
+                status: row.clinical_session_status,
+            }
+        }));
+
         return res.status(200).json({
             success: true,
-            appointments: result.rows,
+            appointments,
         });
     } catch (error) {
         next(error);

@@ -39,6 +39,20 @@ const PRESET_CONCERNS = [
   "General Wellness Checkup",
 ];
 
+const formatSlotTime12 = (slot) => {
+  if (!slot) return "";
+  if (slot.time12) return slot.time12;
+  const timeStr = slot.time24 || slot.time;
+  if (!timeStr) return "";
+  const parts = timeStr.split(":");
+  if (parts.length < 2) return timeStr;
+  const h = parseInt(parts[0], 10);
+  const m = parts[1];
+  const period = h >= 12 ? "PM" : "AM";
+  const displayH = h % 12 === 0 ? 12 : h % 12;
+  return `${String(displayH).padStart(2, "0")}:${m} ${period}`;
+};
+
 export default function DoctorDirectory() {
   const { token, user } = useAuth();
   const { t, currentLanguage } = useLanguage();
@@ -178,12 +192,26 @@ export default function DoctorDirectory() {
         token
       );
 
-      if (res && res.success && res.session) {
-        setSessionId(res.session.id);
-        setClinicalSession(res.session);
+      const activeId = res?.sessionId || res?.session?.id;
+      if (res && res.success && activeId) {
+        setSessionId(activeId);
+        
+        const qText = res.nextQuestion || res.session?.current_state?.current_question || res.session?.current_question || `How long have you been experiencing ${reason.trim()}?`;
+        const rawOpts = res.options || res.session?.current_state?.current_options || res.session?.current_options || [];
+        const formattedOpts = Array.isArray(rawOpts)
+          ? rawOpts.map(o => typeof o === 'string' ? o : o.label || o.id)
+          : [];
+
+        setClinicalSession({
+          id: activeId,
+          chief_complaint: reason.trim(),
+          current_question: qText,
+          current_options: formattedOpts,
+          ...res.session,
+        });
         setBookingStep(2);
       } else {
-        setBookingError("Failed to initialize AI clinical assessment. Please try again.");
+        setBookingError(res?.message || "Failed to initialize AI clinical assessment. Please try again.");
       }
     } catch (err) {
       console.error("Failed to start clinical session:", err);
@@ -203,13 +231,25 @@ export default function DoctorDirectory() {
 
     try {
       const res = await sendClinicalTextTurn(sessionId, text, token);
-      if (res && res.success && res.session) {
-        setClinicalSession(res.session);
+      if (res && res.success) {
+        const nextQ = res.nextQuestion || res.session?.current_question;
+        const rawOpts = res.options || res.session?.current_options || [];
+        const formattedOpts = Array.isArray(rawOpts)
+          ? rawOpts.map(o => typeof o === 'string' ? o : o.label || o.id)
+          : [];
+        const isComp = res.isComplete || res.is_complete || res.session?.is_complete;
+
+        setClinicalSession((prev) => ({
+          ...prev,
+          current_question: nextQ || prev?.current_question,
+          current_options: formattedOpts.length > 0 ? formattedOpts : prev?.current_options,
+          is_complete: isComp,
+        }));
         setSelectedOption("");
         setCustomTurnText("");
 
-        if (res.session.is_complete) {
-          await handleFinalizeAssessment(res.session.id);
+        if (isComp) {
+          await handleFinalizeAssessment(sessionId);
         }
       }
     } catch (err) {
@@ -257,7 +297,8 @@ export default function DoctorDirectory() {
     setBookingError("");
 
     try {
-      const scheduledAt = `${selectedDate}T${selectedSlot.time24}:00.000Z`;
+      const timeVal = selectedSlot.time24 || selectedSlot.time;
+      const scheduledAt = selectedSlot.scheduledAt || `${selectedDate}T${timeVal}:00.000Z`;
 
       const payload = {
         doctorId: selectedDoctor.id,
@@ -273,7 +314,7 @@ export default function DoctorDirectory() {
       if (res && res.success) {
         setBookingSuccess({
           doctorName: selectedDoctor.name,
-          date: `${selectedDate} at ${selectedSlot.time12}`,
+          date: `${selectedDate} at ${formatSlotTime12(selectedSlot)}`,
           appointmentId: res.appointment?.id,
         });
         setBookingStep(5);
@@ -697,11 +738,13 @@ export default function DoctorDirectory() {
                       </div>
                     ) : (
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", maxHeight: "200px", overflowY: "auto", paddingRight: "4px" }}>
-                        {availableSlots.map((slot) => {
-                          const isSelected = selectedSlot?.time24 === slot.time24;
+                        {availableSlots.map((slot, index) => {
+                          const slotKey = slot.time24 || slot.time || index;
+                          const timeDisplay = formatSlotTime12(slot);
+                          const isSelected = selectedSlot && (selectedSlot.time24 || selectedSlot.time) === (slot.time24 || slot.time);
                           return (
                             <button
-                              key={slot.time24}
+                              key={slotKey}
                               type="button"
                               disabled={!slot.available}
                               onClick={() => setSelectedSlot(slot)}
@@ -710,7 +753,7 @@ export default function DoctorDirectory() {
                                 borderRadius: "10px",
                                 fontSize: "13px",
                                 fontWeight: "600",
-                                border: isSelected ? "2px solid #0d9488" : "1px solid #e2e8f0",
+                                border: isSelected ? "2px solid #0d9488" : "1px solid #cbd5e1",
                                 background: !slot.available
                                   ? "#f1f5f9"
                                   : isSelected
@@ -728,7 +771,9 @@ export default function DoctorDirectory() {
                                 gap: "2px",
                               }}
                             >
-                              <span>{slot.time12}</span>
+                              <span style={{ fontSize: "13px", fontWeight: "700", color: isSelected ? "#0d9488" : "#0f172a" }}>
+                                {timeDisplay}
+                              </span>
                               <span style={{ fontSize: "10px", color: !slot.available ? "#94a3b8" : isSelected ? "#0d9488" : "#64748b", fontWeight: "400" }}>
                                 {slot.available ? "Available" : "Booked"}
                               </span>
