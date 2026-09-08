@@ -1,8 +1,7 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
     LayoutDashboard, User, Stethoscope, Users, Building, Calendar, 
-    FileText, ClipboardList, Bed, CreditCard, Mail, Layout, LogOut, MoreVertical, UserCog, ShieldCheck
+    FileText, ClipboardList, Bed, CreditCard, Mail, LogOut, UserCog, ShieldCheck
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../context/AuthContext';
@@ -15,7 +14,7 @@ const Sidebar = () => {
     const basePath = `/${role}`;
 
     return (
-        <aside className={styles.sidebar}>
+        <aside className={`${styles.sidebar} ${role === 'patient' ? styles.patientSidebar : ''}`}>
             <nav className={styles.nav}>
                 <div className={styles.menuSection}>
                     <NavLink to={`${basePath}/dashboard`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem} end>

@@ -29,3 +29,9 @@
 .navItem:hover{background:rgba(255,255,255,.08);color:#fff}
 .active{background:#0d9488;color:#fff;border-radius:12px;box-shadow:0 5px 14px rgba(13,148,136,.22)}
 @media(max-width:760px){.sidebar{inset:72px 0 auto 0;border-bottom:0}}
+
+/* Expanded patient navigation */
+.patientSidebar{width:238px;inset:72px auto 0 0;padding:22px 16px;background:#fff;border-right:1px solid #e7ebe8;overflow-x:hidden}
+.patientSidebar .nav{gap:17px}.patientSidebar .menuSection{gap:5px}.patientSidebar .navItem{width:100%;height:43px;margin:0;padding:0 15px;justify-content:flex-start;gap:14px;border-radius:11px;color:#617976;font-size:12px}.patientSidebar .navItem span{display:block}.patientSidebar .navItem:hover{background:#f3f7f5;color:#12685b}.patientSidebar .active{color:#14695d;background:#eaf4f0;box-shadow:none}.patientSidebar .logoutButton{justify-content:flex-start;gap:14px;color:#71827e;border-top-color:#edf0ee}.patientSidebar .logoutButton span{display:block}
+@media(max-width:1100px){.patientSidebar{width:210px}.patientSidebar .navItem{padding-inline:12px}}
+@media(max-width:760px){.patientSidebar{inset:72px 0 auto;width:100%;height:55px;padding:7px 12px;border-right:0}.patientSidebar .navItem{width:44px;padding:0;justify-content:center}.patientSidebar .navItem span{display:none}}

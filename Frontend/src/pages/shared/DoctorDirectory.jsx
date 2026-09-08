@@ -918,8 +918,13 @@ export default function DoctorDirectory() {
         onClose={() => setScheduleDoctor(null)}
         onBookSlot={(doc, slotTime) => {
           setScheduleDoctor(null);
-          setSelectedDoctor(doc);
-          setScheduledAt(slotTime);
+          handleOpenBooking(doc);
+          setSelectedDate(slotTime.slice(0, 10));
+          setSelectedSlot({
+            time24: slotTime.slice(11, 16),
+            time: slotTime.slice(11, 16),
+            available: true,
+          });
         }}
       />
     </div>

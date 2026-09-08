@@ -19,7 +19,7 @@
 .patientLayout{--color-teal:#287c5b;--color-primary:#287c5b;--color-secondary:#d9954b;background:#f7f3e9}
 .patientLayout .mainContent{background-image:radial-gradient(circle at 96% 4%,rgba(224,160,84,.08),transparent 180px)}
 .patientLayout>header{border-bottom-color:#dfe8df}
-.patientLayout>header:after{content:"";position:absolute;left:22px;bottom:-1px;width:58px;height:2px;background:linear-gradient(90deg,#287c5b 0 44%,#fff 44% 58%,#dc9748 58%);border-radius:2px}
+.patientLayout>header:after{content:none}
 .patientLayout .mainContent :global(.workspacePage)>div>:first-child h1:after{content:" ✦";color:#d99a52;font-size:.65em}
 .patientLayout .mainContent :global(.workspaceCard){border-top-color:#dbe7dc!important}
 .patientLayout .mainContent :global(.workspaceCard):nth-child(2n){box-shadow:inset 0 2px rgba(222,151,72,.08),0 2px 5px rgba(30,66,35,.025)!important}
@@ -115,3 +115,9 @@
 }
 .mainWrapper{padding-top:72px}
 @media(max-width:760px){.mainWrapper{padding-top:127px}}
+
+/* Patient dashboard uses the expanded navigation shell. */
+.patientLayout .mainWrapper{margin-left:238px;background:#f7f9f8}
+.patientLayout .mainContent{padding:18px 20px 24px;background:#f7f9f8}
+@media(max-width:1100px){.patientLayout .mainWrapper{margin-left:210px}}
+@media(max-width:760px){.patientLayout .mainWrapper{margin-left:0}}
