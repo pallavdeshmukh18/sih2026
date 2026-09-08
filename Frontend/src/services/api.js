@@ -336,6 +336,32 @@ export async function sendClinicalTextTurn(sessionId, patientText, token) {
     return apiRequest(`/api/sessions/${sessionId}/text-turn`, "POST", { patientText }, token);
 }
 
+/** Submit Voice Turn in Clinical Session (Multipart / FormData) */
+export async function sendClinicalVoiceTurn(sessionId, audioBlob, filename = "voice.webm", token = null) {
+    const formData = new FormData();
+    formData.append("file", audioBlob, filename);
+
+    const headers = {};
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/voice-turn`, {
+        method: "POST",
+        headers,
+        body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const error = new Error(data.message || `Voice turn failed with status ${response.status}`);
+        error.status = response.status;
+        error.data = data;
+        throw error;
+    }
+    return data;
+}
+
 /** Fetch Clinical Session Details */
 export async function getClinicalSession(sessionId, token) {
     return apiRequest(`/api/sessions/${sessionId}`, "GET", null, token);

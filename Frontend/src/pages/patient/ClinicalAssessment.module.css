@@ -195,6 +195,117 @@
   gap: 10px;
 }
 
+.voiceSection {
+  margin-top: 14px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.voiceBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 20px;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.voiceBtn:hover:not(:disabled) {
+  background: #dcfce7;
+  border-color: #22c55e;
+  transform: translateY(-1px);
+}
+
+.voiceBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.recordingActiveContainer {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: #fef2f2;
+  border: 1.5px solid #fca5a5;
+  border-radius: 20px;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.recordingPulseDot {
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  animation: pulse 1.2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.stopRecordingBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.stopRecordingBtn:hover {
+  background: #b91c1c;
+}
+
+.transcriptionCard {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.transcriptionHeader {
+  font-weight: 700;
+  color: #0d9488;
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.transcriptionBody {
+  margin: 0;
+  color: #1e293b;
+  font-style: italic;
+}
+
 .historySection {
   margin-top: 24px;
   background: #f8fafc;

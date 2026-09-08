@@ -4,10 +4,11 @@ import { useAuth } from "../../context/AuthContext";
 import {
   startClinicalSession,
   sendClinicalTextTurn,
+  sendClinicalVoiceTurn,
   finalizeClinicalSession,
   getPatientAppointments,
 } from "../../services/api";
-import { ArrowLeft, Send, CheckCircle2, AlertCircle, Sparkles, Stethoscope } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, AlertCircle, Sparkles, Stethoscope, Mic, Square, Loader2 } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import styles from "./ClinicalAssessment.module.css";
 
@@ -81,6 +82,35 @@ export default function ClinicalAssessment() {
   const [summary, setSummary] = useState("");
   const [error, setError] = useState(null);
 
+  // Voice Input States
+  const [sessionLanguage, setSessionLanguage] = useState(currentLanguage || "en");
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [lastTranscript, setLastTranscript] = useState("");
+  const [micError, setMicError] = useState(null);
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
+
+  useEffect(() => {
+    let interval = null;
+    if (isRecording) {
+      interval = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setRecordingDuration(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isRecording]);
+
+  const formatDuration = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
   useEffect(() => {
     async function loadAppointments() {
       if (!token) return;
@@ -110,10 +140,13 @@ export default function ClinicalAssessment() {
     setLoading(true);
 
     try {
+      const activeLang = currentLanguage || "en";
+      setSessionLanguage(activeLang);
+
       const payload = {
         chiefComplaint: activeComplaint,
         appointmentId: selectedAppointmentId || undefined,
-        language: currentLanguage || "en",
+        language: activeLang,
       };
 
       const res = await startClinicalSession(payload, token);
@@ -136,9 +169,131 @@ export default function ClinicalAssessment() {
     }
   };
 
+  const handleStartRecording = async () => {
+    setMicError(null);
+    setError(null);
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setMicError(t("assessment.micDenied") || "Voice recording is not supported in this browser. Please use text or options.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      let mimeType = "";
+      const candidateTypes = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/mp4",
+        "audio/wav",
+      ];
+      for (const type of candidateTypes) {
+        if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
+          mimeType = type;
+          break;
+        }
+      }
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const audioChunks = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+
+        if (audioChunks.length === 0) {
+          setMicError("No audio recorded. Please try speaking again.");
+          return;
+        }
+
+        const actualMime = recorder.mimeType || mimeType || "audio/webm";
+        const audioBlob = new Blob(audioChunks, { type: actualMime });
+
+        let ext = ".webm";
+        if (actualMime.includes("ogg")) ext = ".ogg";
+        else if (actualMime.includes("wav")) ext = ".wav";
+        else if (actualMime.includes("mp4") || actualMime.includes("m4a")) ext = ".m4a";
+
+        const filename = `patient_voice${ext}`;
+        await handleSendVoiceTurn(audioBlob, filename);
+      };
+
+      recorder.start(100);
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Microphone access error:", err);
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        setMicError(t("assessment.micDenied") || "Microphone access is required for voice input. Please grant permission or use text input.");
+      } else {
+        setMicError(err.message || "Failed to access microphone. Please try text input.");
+      }
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const handleSendVoiceTurn = async (audioBlob, filename) => {
+    if (!sessionId || loading) return;
+
+    setLoading(true);
+    setIsProcessingVoice(true);
+    setError(null);
+    setMicError(null);
+
+    try {
+      const res = await sendClinicalVoiceTurn(sessionId, audioBlob, filename, token);
+      if (res.success) {
+        const transcriptText = res.transcript || "";
+        if (transcriptText) {
+          setLastTranscript(transcriptText);
+        }
+
+        const userContent = transcriptText || "[Voice Response]";
+        const newHistory = [
+          ...conversationHistory,
+          { role: "user", content: userContent },
+        ];
+
+        if (res.isComplete) {
+          setIsCompleted(true);
+          setSummary(res.summary || "");
+          setConversationHistory(newHistory);
+        } else if (res.nextQuestion) {
+          setCurrentQuestion(res.nextQuestion);
+          setOptions(res.options || []);
+          setConversationHistory([
+            ...newHistory,
+            { role: "system", content: res.nextQuestion },
+          ]);
+        }
+      } else {
+        throw new Error(res.message || "Voice turn processing failed.");
+      }
+    } catch (err) {
+      console.error("Voice turn error:", err);
+      setError(err.message || "Could not process speech. Please try speaking again or use text input.");
+    } finally {
+      setLoading(false);
+      setIsProcessingVoice(false);
+    }
+  };
+
   const handleSendResponse = async (answerText) => {
     const textToSend = answerText || customAnswerText;
-    if (!textToSend.trim() || !sessionId || loading) return;
+    if (!textToSend.trim() || !sessionId || loading || isRecording || isProcessingVoice) return;
 
     setLoading(true);
     setError(null);
@@ -309,7 +464,7 @@ export default function ClinicalAssessment() {
                     type="button"
                     className={styles.optionBtn}
                     onClick={() => handleSendResponse(label)}
-                    disabled={loading}
+                    disabled={loading || isRecording || isProcessingVoice}
                   >
                     {label}
                   </button>
@@ -317,7 +472,7 @@ export default function ClinicalAssessment() {
               })}
             </div>
 
-            {/* Custom typed response option */}
+            {/* Custom typed / spoken response option */}
             <div className={styles.customAnswerSection}>
               <span className={styles.customAnswerLabel}>Or type a specific response:</span>
               <div className={styles.inputGroup}>
@@ -325,7 +480,7 @@ export default function ClinicalAssessment() {
                   type="text"
                   className={styles.inputField}
                   style={{ marginBottom: 0 }}
-                  placeholder="Type your answer here..."
+                  placeholder={t("assessment.typeAnswerPlaceholder") || "Type your answer here..."}
                   value={customAnswerText}
                   onChange={(e) => setCustomAnswerText(e.target.value)}
                   onKeyDown={(e) => {
@@ -334,18 +489,66 @@ export default function ClinicalAssessment() {
                       handleSendResponse();
                     }
                   }}
-                  disabled={loading}
+                  disabled={loading || isRecording || isProcessingVoice}
                 />
                 <button
                   type="button"
                   className={styles.primaryBtn}
                   style={{ width: "auto", padding: "0 20px" }}
                   onClick={() => handleSendResponse()}
-                  disabled={loading || !customAnswerText.trim()}
+                  disabled={loading || isRecording || isProcessingVoice || !customAnswerText.trim()}
                 >
                   <Send size={16} />
                 </button>
               </div>
+
+              {/* Voice Recording Control */}
+              <div className={styles.voiceSection}>
+                {!isRecording ? (
+                  <button
+                    type="button"
+                    className={styles.voiceBtn}
+                    onClick={handleStartRecording}
+                    disabled={loading || isProcessingVoice}
+                    aria-label="Speak your answer using microphone"
+                  >
+                    <Mic size={16} />
+                    <span>🎙️ {t("assessment.speakAnswer") || "Speak your answer"}</span>
+                  </button>
+                ) : (
+                  <div className={styles.recordingActiveContainer}>
+                    <div className={styles.recordingPulseDot}></div>
+                    <span>{t("assessment.recording") || "Recording..."} ({formatDuration(recordingDuration)})</span>
+                    <button
+                      type="button"
+                      className={styles.stopRecordingBtn}
+                      onClick={handleStopRecording}
+                      aria-label="Stop recording"
+                    >
+                      <Square size={12} fill="currentColor" /> {t("assessment.stopRecording") || "Stop"}
+                    </button>
+                  </div>
+                )}
+
+                {isProcessingVoice && (
+                  <span style={{ fontSize: "13px", color: "#0d9488", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> {t("assessment.processingVoice") || "Transcribing speech..."}
+                  </span>
+                )}
+              </div>
+
+              {micError && (
+                <div style={{ color: "#b91c1c", fontSize: "12px", marginTop: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <AlertCircle size={14} /> {micError}
+                </div>
+              )}
+
+              {lastTranscript && !isRecording && (
+                <div className={styles.transcriptionCard}>
+                  <span className={styles.transcriptionHeader}>{t("assessment.youSaid") || "You said:"}</span>
+                  <p className={styles.transcriptionBody}>"{lastTranscript}"</p>
+                </div>
+              )}
             </div>
           </div>
 
