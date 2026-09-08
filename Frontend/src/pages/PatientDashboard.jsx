@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Activity, ArrowRight, CalendarDays, Download, Droplets, FileImage,
-  FileText, FlaskConical, Heart, MoreVertical, Pill, Share2, ShieldCheck,
-  Sparkles, Thermometer,
+  Activity, ArrowRight, CalendarDays, Download, FileText, MoreVertical,
+  Pill, Share2, ShieldCheck, Sparkles,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../i18n";
-import { deleteMedicalDocument, getPatientAppointments, getPatientDocuments, uploadMedicalDocument } from "../services/api";
-import DocumentDetailModal from "../components/DocumentDetailModal";
+import { getPatientAppointments, uploadMedicalDocument } from "../services/api";
 import careImage from "../assets/indian-care-dashboard.png";
 import gatewayBanner from "../assets/patient-gateway-banner.png";
 import styles from "./PatientDashboard.module.css";
@@ -19,13 +17,6 @@ const actionCards = [
   { label: "Upload Records", copy: "Keep all your reports in one place", icon: FileText, action: "upload", tone: "sand" },
   { label: "View Prescriptions", copy: "Access your past prescriptions", icon: Pill, to: "/patient/history", tone: "rose" },
   { label: "AI Health Assistant", copy: "Get quick health insights", icon: Sparkles, to: "/patient/assessment", tone: "lilac" },
-];
-
-const vitals = [
-  { label: "Heart Rate", value: "72 bpm", icon: Heart, tone: "heart" },
-  { label: "Weight", value: "68 kg", icon: Activity, tone: "weight" },
-  { label: "SpO₂", value: "98%", icon: Droplets, tone: "oxygen" },
-  { label: "Temperature", value: "36.6 °C", icon: Thermometer, tone: "temperature" },
 ];
 
 const fallbackAppointments = [
@@ -40,8 +31,6 @@ export default function PatientDashboard() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [appointments, setAppointments] = useState([]);
-  const [documents, setDocuments] = useState([]);
-  const [selectedDoc, setSelectedDoc] = useState(null);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -54,12 +43,7 @@ export default function PatientDashboard() {
     getPatientAppointments(token).then((res) => {
       if (res.success && Array.isArray(res.appointments)) setAppointments(res.appointments);
     }).catch(() => {});
-    if (user?.id) {
-      getPatientDocuments(user.id, token).then((res) => {
-        if (res.success && Array.isArray(res.documents)) setDocuments(res.documents.slice(0, 5));
-      }).catch(() => {});
-    }
-  }, [token, user?.id]);
+  }, [token]);
 
   const uploadRecord = async (event) => {
     const file = event.target.files?.[0];
@@ -75,8 +59,6 @@ export default function PatientDashboard() {
     setUploading(true);
     try {
       await uploadMedicalDocument(data, token);
-      const res = await getPatientDocuments(user.id, token);
-      if (res.success) setDocuments(res.documents.slice(0, 5));
       toast.success("Medical record uploaded.");
     } catch (error) {
       toast.error(error.message || "Upload failed.");
@@ -84,12 +66,6 @@ export default function PatientDashboard() {
       setUploading(false);
       event.target.value = "";
     }
-  };
-
-  const deleteRecord = async (id) => {
-    await deleteMedicalDocument(id, token);
-    setDocuments((current) => current.filter((document) => document.id !== id));
-    setSelectedDoc(null);
   };
 
   const displayedAppointments = appointments.length ? appointments.slice(0, 3) : fallbackAppointments;
@@ -126,27 +102,6 @@ export default function PatientDashboard() {
             <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={uploadRecord} hidden />
           </section>
 
-          <div className={styles.lowerGrid}>
-            <section className={styles.card}>
-              <div className={styles.cardHeader}><h2>Your Health Overview</h2><Link to="/patient/history">View Detailed Reports <ArrowRight /></Link></div>
-              <div className={styles.vitals}>
-                {vitals.map(({ label, value, icon: Icon, tone }) => <article key={label}><Icon className={styles[tone]} /><strong>{value}</strong><small>{label}</small><span className={styles.sparkline}>⌁</span></article>)}
-              </div>
-              <div className={styles.stable}><span>❧</span><div><strong>Your vitals look stable!</strong><small>Keep maintaining a healthy lifestyle.</small></div><small>Last updated<br />Sep 10, 2026</small></div>
-            </section>
-
-            <section className={styles.card}>
-              <div className={styles.cardHeader}><h2>Recent Reports</h2><Link to="/patient/documents">View All <ArrowRight /></Link></div>
-              <div className={styles.reports}>
-                {documents.length ? documents.slice(0, 4).map((doc) => (
-                  <button key={doc.id} onClick={() => setSelectedDoc(doc)}><span><FileText /></span><div><strong>{doc.file_name}</strong><small>{new Date(doc.created_at).toLocaleDateString()} · {doc.document_type || "Medical record"}</small></div><MoreVertical /></button>
-                )) : ["Blood Test Report", "Chest X-Ray", "Prescription - Dr. Mehta", "Discharge Summary"].map((name, index) => (
-                  <button key={name}><span>{index === 1 ? <FileImage /> : index === 0 ? <FlaskConical /> : <FileText />}</span><div><strong>{name}</strong><small>{["12 Sep 2026 · PDF", "28 Aug 2026 · PNG", "15 Aug 2026 · PDF", "10 Jul 2026 · PDF"][index]}</small></div><MoreVertical /></button>
-                ))}
-              </div>
-            </section>
-          </div>
-
           <section className={styles.explore}><span>Healthcare that understands you.<br /><strong>For a healthier India.</strong></span><button onClick={() => navigate("/patient/assessment")}>Explore Features <ArrowRight /></button></section>
         </div>
 
@@ -174,7 +129,6 @@ export default function PatientDashboard() {
           </section>
         </aside>
       </section>
-      {selectedDoc && <DocumentDetailModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} onDelete={deleteRecord} />}
     </div>
   );
 }

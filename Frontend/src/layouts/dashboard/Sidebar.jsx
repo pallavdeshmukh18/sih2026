@@ -1,20 +1,24 @@
 import { NavLink } from 'react-router-dom';
 import { 
     LayoutDashboard, User, Stethoscope, Users, Building, Calendar, 
-    FileText, ClipboardList, Bed, CreditCard, Mail, LogOut, UserCog, ShieldCheck
+    FileText, ClipboardList, Mail, LogOut, UserCog, ShieldCheck
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n';
 
-const Sidebar = () => {
+const Sidebar = ({ onHoverChange }) => {
     const { user, logout } = useAuth();
     const { t } = useLanguage();
     const role = user?.role || 'patient';
     const basePath = `/${role}`;
 
     return (
-        <aside className={`${styles.sidebar} ${role === 'patient' ? styles.patientSidebar : ''}`}>
+        <aside
+            className={`${styles.sidebar} ${role === 'patient' ? styles.patientSidebar : role === 'doctor' ? styles.doctorSidebar : ''}`}
+            onMouseEnter={() => onHoverChange?.(true)}
+            onMouseLeave={() => onHoverChange?.(false)}
+        >
             <nav className={styles.nav}>
                 <div className={styles.menuSection}>
                     <NavLink to={`${basePath}/dashboard`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem} end>
@@ -103,18 +107,10 @@ const Sidebar = () => {
                         </NavLink>
                     )}
 
-                    <NavLink to={`${basePath}/bed`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                        <Bed size={20} />
-                        <span>{t('navigation.bedManager')}</span>
-                    </NavLink>
                 </div>
 
                 <div className={styles.sectionTitle}>{t('navigation.others')}</div>
                 <div className={styles.menuSection}>
-                    <NavLink to={`${basePath}/payment`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                        <CreditCard size={20} />
-                        <span>{role === 'receptionist' ? 'Billing Counter' : t('navigation.payment')}</span>
-                    </NavLink>
                     <NavLink to={`${basePath}/mail`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                         <Mail size={20} />
                         <span>{t('navigation.mail')}</span>

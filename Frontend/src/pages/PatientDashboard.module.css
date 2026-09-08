@@ -28,8 +28,8 @@
 @media(min-width:1101px){
   .page{height:calc(100svh - 114px);min-height:620px;overflow:hidden}
   .contentGrid{height:100%;align-items:stretch}
-  .primaryColumn{display:grid;grid-template-rows:82px 170px 110px minmax(185px,1fr) 58px;gap:12px;height:100%}
-  .sideColumn{display:grid;grid-template-rows:minmax(280px,1.6fr) minmax(145px,.82fr) minmax(130px,.72fr);gap:12px;height:100%}
+  .primaryColumn{display:grid;grid-template-rows:82px 170px 110px 58px;align-content:start;gap:12px;height:100%}
+  .sideColumn{display:grid;grid-template-rows:250px 124px minmax(130px,1fr);gap:12px;height:100%}
   .welcome{height:82px}
   .profileBanner{height:170px}
   .profileContent{padding:20px 27px}
@@ -65,8 +65,9 @@
 
 @media(min-width:1101px) and (max-height:760px){
   .page{min-height:0}
-  .primaryColumn{grid-template-rows:68px 150px 96px minmax(160px,1fr) 48px;gap:8px}
+  .primaryColumn{grid-template-rows:68px 150px 96px 48px;gap:8px}
   .sideColumn{gap:8px}
+  .sideColumn{grid-template-rows:215px 107px minmax(116px,1fr)}
   .welcome{height:68px}
   .welcome p{font-size:11px}
   .welcome blockquote{top:17px}

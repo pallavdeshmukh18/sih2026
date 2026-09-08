@@ -30,8 +30,6 @@ import Account from "./pages/shared/Account";
 import DoctorDirectory from "./pages/shared/DoctorDirectory";
 import Departments from "./pages/shared/Departments";
 import PatientSchedule from "./pages/shared/PatientSchedule";
-import BedManager from "./pages/shared/BedManager";
-import Payment from "./pages/shared/Payment";
 import Mail from "./pages/shared/Mail";
 
 // Receptionist Pages
@@ -72,7 +70,6 @@ function App() {
             <Route path="account/whatsapp" element={<Account />} />
             <Route path="doctor" element={<DoctorDirectory />} />
             <Route path="schedule" element={<PatientSchedule />} />
-            <Route path="payment" element={<Payment />} />
             <Route path="mail" element={<Mail />} />
 
             <Route path="" element={<Navigate to="/patient/dashboard" replace />} />
@@ -93,8 +90,6 @@ function App() {
             <Route path="doctor" element={<DoctorDirectory />} />
             <Route path="departments" element={<Departments />} />
             <Route path="schedule" element={<DoctorAppointments />} />
-            <Route path="bed" element={<BedManager />} />
-            <Route path="payment" element={<Payment />} />
             <Route path="mail" element={<Mail />} />
 
             <Route path="" element={<Navigate to="/doctor/dashboard" replace />} />
@@ -111,8 +106,6 @@ function App() {
             <Route path="doctor" element={<DoctorDirectory />} />
             <Route path="departments" element={<Departments />} />
             <Route path="schedule" element={<ReceptionistAppointments />} />
-            <Route path="bed" element={<BedManager />} />
-            <Route path="payment" element={<Payment />} />
             <Route path="account" element={<Account />} />
             <Route path="mail" element={<Mail />} />
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
@@ -7,19 +8,21 @@ import { useAuth } from '../../context/AuthContext';
 
 const DashboardLayout = () => {
     const { user } = useAuth();
+    const isPatient = user?.role === 'patient';
+    const [sidebarHovered, setSidebarHovered] = useState(false);
+
     return (
-        <div className={`${styles.layout} ${user?.role === 'patient' ? styles.patientLayout : styles.doctorLayout}`}>
+        <div className={`${styles.layout} ${isPatient ? styles.patientLayout : styles.doctorLayout}`}>
             <TopBar />
-            <Sidebar />
-            <div className={styles.mainWrapper}>
+            <Sidebar onHoverChange={isPatient ? setSidebarHovered : undefined} />
+            <div className={`${styles.mainWrapper} ${isPatient && sidebarHovered ? styles.patientSidebarOpen : ''}`}>
                 <main className={styles.mainContent}>
                     <Outlet />
                 </main>
             </div>
-            {user?.role === 'patient' && <AccessibilityVoiceGuide />}
+            {isPatient && <AccessibilityVoiceGuide />}
         </div>
     );
 };
 
 export default DashboardLayout;
-

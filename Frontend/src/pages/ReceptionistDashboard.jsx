@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
     Users, CalendarDays, Clock3, CheckCircle2, Stethoscope, Search, 
-    UserPlus, ArrowRight, Activity, Bed, Plus, RefreshCw, AlertCircle
+    UserPlus, ArrowRight, Activity, Plus, RefreshCw, AlertCircle
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { 
@@ -27,7 +27,6 @@ export default function ReceptionistDashboard() {
         completed: 0,
         availableDoctors: 0,
         totalPatients: 0,
-        bedOccupancyRate: 72,
     });
     const [appointments, setAppointments] = useState([]);
     const [doctors, setDoctors] = useState([]);
@@ -349,13 +348,6 @@ export default function ReceptionistDashboard() {
                                 <div>
                                     <strong>All Appointments</strong>
                                     <small>Reschedule & manage</small>
-                                </div>
-                            </Link>
-                            <Link to="/receptionist/bed" className={styles.quickActionCard}>
-                                <Bed size={20} color="#e11d48" />
-                                <div>
-                                    <strong>Bed Manager</strong>
-                                    <small>Ward allocations</small>
                                 </div>
                             </Link>
                         </div>
