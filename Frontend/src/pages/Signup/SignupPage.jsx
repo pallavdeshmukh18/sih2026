@@ -101,7 +101,7 @@ export default function SignupPage() {
           const response = await loginStaff(form.email, form.password);
           login(response.token, response.user);
           toast.success("Welcome back!");
-          navigate("/");
+          navigate("/receptionist/dashboard");
           return;
         }
         const response = patientMethod === "email"

@@ -763,7 +763,20 @@ const AuthPage = () => {
                             >
                                 <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '14px 16px', marginBottom: '20px', fontSize: '13px', color: '#166534', lineHeight: '1.5' }}>
                                     <strong>Front-Desk & Staff Portal:</strong><br />
-                                    Sign in using the staff credentials provided by your supervising Doctor or clinic administrator.
+                                    Sign in using the staff credentials created by your supervising Doctor or clinic administrator.
+                                    <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #a7f3d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                        <span><strong>Demo Account:</strong> <code>receptionist.demo@medikiosk.com</code> / <code>Password123!</code></span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setEmail("receptionist.demo@medikiosk.com");
+                                                setPassword("Password123!");
+                                            }}
+                                            style={{ background: "#166534", color: "#ffffff", border: "none", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}
+                                        >
+                                            Auto-Fill Demo Credentials
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <form className={styles.form} onSubmit={handleReceptionistLogin}>
