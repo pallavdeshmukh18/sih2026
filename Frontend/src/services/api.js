@@ -42,7 +42,7 @@ async function apiRequest(endpoint, method = "GET", body = null, token = null) {
         if (err.status) {
             throw err;
         }
-        throw new Error(err.message || "Network error. Unable to connect to backend server.");
+        throw new Error(err.message || "Network error. Unable to connect to backend server.", { cause: err });
     }
 }
 

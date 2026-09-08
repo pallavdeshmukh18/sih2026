@@ -10,6 +10,12 @@ export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    const logout = () => {
+        localStorage.removeItem(TOKEN_KEY);
+        setToken(null);
+        setUser(null);
+    };
+
     const refreshUser = async (authToken = token) => {
         if (!authToken) return null;
         try {
@@ -65,12 +71,6 @@ export const AuthProvider = ({ children }) => {
         if (newUser) {
             setUser(newUser);
         }
-    };
-
-    const logout = () => {
-        localStorage.removeItem(TOKEN_KEY);
-        setToken(null);
-        setUser(null);
     };
 
     const value = {

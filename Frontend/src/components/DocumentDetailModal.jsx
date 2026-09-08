@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Trash2, Pill, Activity, FileText, Calendar, ExternalLink, ShieldAlert, Sparkles, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { X, Trash2, Pill, Activity, FileText, Calendar, ExternalLink, ShieldAlert, Sparkles, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { getDocumentDownloadUrl } from "../services/api";
 import styles from "./DocumentDetailModal.module.css";
@@ -16,13 +16,13 @@ export default function DocumentDetailModal({ doc, onClose, onDelete }) {
   if (typeof entities === "string") {
     try {
       entities = JSON.parse(entities);
-    } catch (e) {
+    } catch {
       entities = null;
     }
   }
 
   const rawText = doc.extracted_text || entities?.raw_text || "";
-  const docDate = entities?.document_date || new Date(doc.created_at || Date.now()).toLocaleDateString();
+  const docDate = entities?.document_date || (doc.created_at ? new Date(doc.created_at).toLocaleDateString() : "Date unavailable");
 
   const summary = doc.ai_summary || entities?.summary || (
     entities?.document_type === "lab_report"

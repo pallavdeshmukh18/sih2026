@@ -57,12 +57,7 @@ const LanguageContext = createContext(null);
 
 export const LanguageProvider = ({ children }) => {
   const { t, i18n: i18nInstance } = useTranslation();
-  let auth = null;
-  try {
-    auth = useAuth();
-  } catch (e) {
-    auth = null;
-  }
+  const auth = useAuth();
   const user = auth?.user;
   const token = auth?.token;
 

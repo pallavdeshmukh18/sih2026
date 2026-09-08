@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { LanguageProvider } from "./i18n";
 import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./layouts/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
@@ -43,10 +44,11 @@ import "./App.css";
 function App() {
   return (
     <AuthProvider>
-      <Toaster position="top-right" toastOptions={{ style: { background: '#fff', color: '#111', borderRadius: '12px' } }} />
-      <Router>
-        <ScrollToTop />
-        <Routes>
+      <LanguageProvider>
+        <Toaster position="top-right" toastOptions={{ style: { background: '#fff', color: '#111', borderRadius: '12px' } }} />
+        <Router>
+          <ScrollToTop />
+          <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<SignupPage />} />
           <Route path="/signup" element={<Navigate to="/auth" replace />} />
@@ -122,8 +124,9 @@ function App() {
           <Route path="/account" element={<ProtectedRoute><Navigate to="/patient/account" replace /></ProtectedRoute>} />
           <Route path="/account/link-whatsapp" element={<ProtectedRoute><Navigate to="/patient/account/link-whatsapp" replace /></ProtectedRoute>} />
           <Route path="/account/whatsapp" element={<ProtectedRoute><Navigate to="/patient/account/whatsapp" replace /></ProtectedRoute>} />
-        </Routes>
-      </Router>
+          </Routes>
+        </Router>
+      </LanguageProvider>
     </AuthProvider>
   );
 }
