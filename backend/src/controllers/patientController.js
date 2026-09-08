@@ -904,11 +904,142 @@ async function getPatientMedicalId(req, res, next) {
     }
 }
 
+/**
+ * 6. Generate Short-Lived QR Pairing Token for Patient
+ * POST /api/patient/medical-id/qr
+ * Access: Authenticated patient only
+ */
+async function generatePatientQrToken(req, res, next) {
+    try {
+        const crypto = require("crypto");
+        const patientId = req.user.id;
+
+        // 1. Generate 32-byte random hex token
+        const rawToken = crypto.randomBytes(32).toString("hex");
+
+        // 2. Compute SHA-256 hash of the token
+        const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+        // 3. Generate 6-digit display code (e.g. MK-748291)
+        const displayCode = `MK-${Math.floor(100000 + Math.random() * 900000)}`;
+
+        // 4. Set expiration to 5 minutes from now
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+        // 5. Store in patient_qr_pairing_tokens
+        await pool.query(
+            `INSERT INTO patient_qr_pairing_tokens (patient_id, token_hash, token_display_code, expires_at)
+             VALUES ($1, $2, $3, $4);`,
+            [patientId, tokenHash, displayCode, expiresAt]
+        );
+
+        // 6. Secure QR Payload containing ONLY token reference
+        const qrPayload = JSON.stringify({
+            type: "MEDIKIOSK_PAIRING",
+            token: rawToken,
+            code: displayCode,
+        });
+
+        return res.status(200).json({
+            success: true,
+            qrPayload,
+            pairingCode: displayCode,
+            rawToken,
+            expiresAt: expiresAt.toISOString(),
+            expiresInSeconds: 300,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * 7. Get Patient's Connected Care Providers (Doctors)
+ * GET /api/patient/connected-doctors
+ * Access: Authenticated patient only
+ */
+async function getConnectedDoctors(req, res, next) {
+    try {
+        const patientId = req.user.id;
+
+        const result = await pool.query(
+            `SELECT pdr.id AS relationship_id, pdr.status, pdr.consent_method, pdr.created_at AS connected_at,
+                    u.id AS doctor_id, u.first_name, u.last_name, u.email, u.phone,
+                    dp.specialization, dp.department, dp.registration_number
+             FROM patient_doctor_relationships pdr
+             JOIN users u ON pdr.doctor_id = u.id
+             LEFT JOIN doctor_profiles dp ON u.id = dp.user_id
+             WHERE pdr.patient_id = $1
+             ORDER BY pdr.created_at DESC;`,
+            [patientId]
+        );
+
+        const connectedDoctors = result.rows.map((r) => ({
+            relationshipId: r.relationship_id,
+            doctorId: r.doctor_id,
+            firstName: r.first_name,
+            lastName: r.last_name || "",
+            doctorName: `Dr. ${r.first_name} ${r.last_name || ""}`.trim(),
+            specialization: r.specialization || "General Medicine",
+            department: r.department || "OPD",
+            registrationNumber: r.registration_number,
+            status: r.status,
+            consentMethod: r.consent_method,
+            connectedAt: r.connected_at,
+        }));
+
+        return res.status(200).json({
+            success: true,
+            connectedDoctors,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * 8. Revoke Connected Doctor Access (Patient Consent Revocation)
+ * DELETE /api/patient/connected-doctors/:relationshipId
+ * Access: Authenticated patient only
+ */
+async function revokeDoctorAccess(req, res, next) {
+    try {
+        const patientId = req.user.id;
+        const { relationshipId } = req.params;
+
+        const result = await pool.query(
+            `UPDATE patient_doctor_relationships
+             SET status = 'revoked', updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1 AND patient_id = $2
+             RETURNING *;`,
+            [relationshipId, patientId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Connected care provider relationship not found or unauthorized.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Doctor access successfully revoked.",
+            relationship: result.rows[0],
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     saveOnboardingPreferences,
     getOnboardingPreferences,
     updatePatientProfile,
     getPatientMedicalHistory,
     getPatientMedicalId,
+    generatePatientQrToken,
+    getConnectedDoctors,
+    revokeDoctorAccess,
 };
 

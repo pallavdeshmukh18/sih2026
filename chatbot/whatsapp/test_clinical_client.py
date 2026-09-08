@@ -11,7 +11,9 @@ from chatbot.whatsapp.config import (
     EXIT_TEXT,
     INVALID_MENU_TEXT,
     INVALID_TOKEN_MESSAGE,
+    LANGUAGE_SELECTION_MESSAGE,
     LINKING_INSTRUCTIONS_MESSAGE,
+    LOCALIZED_MENUS,
     MENU_MESSAGE,
     MENU_TEXT,
     UPLOAD_REPORT_TEXT,
@@ -728,17 +730,75 @@ class TestWhatsAppAuthenticationAndLinking(unittest.TestCase):
         self.bot._is_outgoing_message = MagicMock(return_value=False)
         self.bot._get_message_identifier = MagicMock(return_value=f"id_{message_text}")
 
-    # 1. Unlinked user + "hello medikiosk" -> token instructions (WAITING_FOR_TOKEN)
+    # 1. Unlinked user + "hello medikiosk" -> language selection -> token instructions (WAITING_FOR_TOKEN)
     def test_1_unlinked_user_hello_medikiosk_shows_token_instructions(self):
         self.bot.auth_client.is_linked.return_value = False
         self._setup_mock_chat("+919876543210", "hello medikiosk")
 
+        # Step 1: activation phrase prompts for language selection
         res = self.bot._check_active_chat_messages()
 
         self.assertTrue(res)
+        self.assertEqual(self.bot.get_menu_state("+919876543210"), WhatsAppState.SELECTING_LANGUAGE)
+        self.bot.send_message.assert_called_once_with(LANGUAGE_SELECTION_MESSAGE)
+        self.bot.clinical_client.handle_message.assert_not_called()
+
+        # Step 2: user selects option 1 (English) -> receives linking instructions
+        self.bot.send_message.reset_mock()
+        self._setup_mock_chat("+919876543210", "1")
+        res2 = self.bot._check_active_chat_messages()
+
+        self.assertTrue(res2)
         self.assertEqual(self.bot.get_menu_state("+919876543210"), WhatsAppState.WAITING_FOR_TOKEN)
         self.bot.send_message.assert_called_once_with(LINKING_INSTRUCTIONS_MESSAGE)
         self.bot.clinical_client.handle_message.assert_not_called()
+
+    # 1b. Unlinked user selects Hindi ("2") -> receives Hindi linking instructions and persists on token
+    def test_1b_unlinked_user_selects_hindi_linking_instructions(self):
+        self.bot.auth_client.is_linked.return_value = False
+        self.bot.set_menu_state("+919876543210", WhatsAppState.SELECTING_LANGUAGE)
+        self._setup_mock_chat("+919876543210", "2")
+
+        res = self.bot._check_active_chat_messages()
+        self.assertTrue(res)
+        self.assertEqual(self.bot.get_menu_state("+919876543210"), WhatsAppState.WAITING_FOR_TOKEN)
+        self.assertEqual(self.bot.pending_languages.get("+919876543210"), "hi")
+        from chatbot.whatsapp.config import LOCALIZED_LINKING_INSTRUCTIONS
+        self.bot.send_message.assert_called_once_with(LOCALIZED_LINKING_INSTRUCTIONS["hi"])
+
+    # 1c. Linked user with language="mr" immediately receives Marathi menu
+    def test_1c_linked_user_with_language_receives_marathi_menu(self):
+        self.bot.auth_client.is_linked.return_value = True
+        self.bot.auth_client.get_account_language.return_value = "mr"
+        self._setup_mock_chat("+919876543210", "hello medikiosk")
+
+        res = self.bot._check_active_chat_messages()
+        self.assertTrue(res)
+        self.assertEqual(self.bot.get_menu_state("+919876543210"), WhatsAppState.MENU)
+        from chatbot.whatsapp.config import LOCALIZED_MENUS
+        self.bot.send_message.assert_called_once_with(LOCALIZED_MENUS["mr"])
+
+    # 1d. Linked user missing language -> prompted for language -> selects "4" -> updates account and shows Gujarati menu
+    def test_1d_linked_user_missing_language_prompts_and_updates_account(self):
+        self.bot.auth_client.is_linked.return_value = True
+        self.bot.auth_client.get_account_language.return_value = None
+        self._setup_mock_chat("+919876543210", "hello medikiosk")
+
+        # Step 1: prompted for language
+        res = self.bot._check_active_chat_messages()
+        self.assertTrue(res)
+        self.assertEqual(self.bot.get_menu_state("+919876543210"), WhatsAppState.SELECTING_LANGUAGE)
+        self.bot.send_message.assert_called_once_with(LANGUAGE_SELECTION_MESSAGE)
+
+        # Step 2: selects "4" (Gujarati)
+        self.bot.send_message.reset_mock()
+        self._setup_mock_chat("+919876543210", "4")
+        res2 = self.bot._check_active_chat_messages()
+        self.assertTrue(res2)
+        self.bot.auth_client.update_account_language.assert_called_once_with("+919876543210", "gu")
+        self.assertEqual(self.bot.get_menu_state("+919876543210"), WhatsAppState.MENU)
+        from chatbot.whatsapp.config import LOCALIZED_MENUS
+        self.bot.send_message.assert_called_once_with(LOCALIZED_MENUS["gu"])
 
     # 2. Unlinked user + random message -> no response
     def test_2_unlinked_user_random_message_ignored(self):

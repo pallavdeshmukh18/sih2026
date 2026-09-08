@@ -41,10 +41,12 @@ router.post("/staff/login", staffController.loginStaff);
 router.get("/me", authenticateToken, authController.getMe);
 
 // WhatsApp Account Linking & Status Endpoints
+const whatsappAuthMiddleware = require("../middleware/whatsappAuthMiddleware");
 router.post("/whatsapp/token", authenticateToken, authController.generateWhatsAppToken);
 router.get("/whatsapp/status", authController.getWhatsAppStatus);
 router.post("/whatsapp/status", authController.getWhatsAppStatus);
 router.post("/whatsapp/link", authController.linkWhatsAppAccount);
+router.post("/whatsapp/language", whatsappAuthMiddleware, authController.updateWhatsAppLanguage);
 router.get("/whatsapp/me", authenticateToken, authController.getWhatsAppMe);
 router.post("/whatsapp/unlink", authenticateToken, authController.unlinkWhatsApp);
 

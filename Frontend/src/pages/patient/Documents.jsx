@@ -264,7 +264,7 @@ export default function Documents() {
       };
       const langCode = langCodeMap[currentLanguage] || "en-IN";
 
-      const res = await synthesizeSpeech(text, langCode, "shubh", 1.0);
+      const res = await synthesizeSpeech(text, langCode, "simran", 1.0);
       if (res.audio_b64) {
         const audioUrl = `data:audio/wav;base64,${res.audio_b64}`;
         if (audioRef.current) {

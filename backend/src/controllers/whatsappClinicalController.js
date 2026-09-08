@@ -6,8 +6,8 @@ const {
 } = require("../services/clinicalSessionService");
 
 /**
- * Helper to resolve authenticated WhatsApp identity to MediKiosk user_id.
- * Enforces that arbitrary patient_id from the client is NEVER trusted.
+ * Helper to resolve authenticated WhatsApp identity to MediKiosk user_id and authoritative account language.
+ * Enforces that arbitrary patient_id or language from the client is NEVER trusted.
  */
 async function resolveWhatsAppUser(whatsappId) {
     if (!whatsappId || typeof whatsappId !== "string" || !whatsappId.trim()) {
@@ -18,7 +18,10 @@ async function resolveWhatsAppUser(whatsappId) {
 
     const normalizedId = whatsappId.trim();
     const result = await pool.query(
-        `SELECT user_id FROM whatsapp_accounts WHERE whatsapp_id = $1;`,
+        `SELECT w.user_id, p.preferred_language
+         FROM whatsapp_accounts w
+         LEFT JOIN patient_profiles p ON w.user_id = p.user_id
+         WHERE w.whatsapp_id = $1;`,
         [normalizedId]
     );
 
@@ -28,7 +31,10 @@ async function resolveWhatsAppUser(whatsappId) {
         throw err;
     }
 
-    return result.rows[0].user_id;
+    return {
+        userId: result.rows[0].user_id,
+        language: result.rows[0].preferred_language || "en",
+    };
 }
 
 /**
@@ -39,15 +45,16 @@ async function startSession(req, res, next) {
     try {
         const { whatsapp_id, whatsappId } = req.body;
         const targetWhatsappId = whatsapp_id || whatsappId;
-        const userId = await resolveWhatsAppUser(targetWhatsappId);
+        const userAccount = await resolveWhatsAppUser(targetWhatsappId);
 
         const chiefComplaint = req.body.chief_complaint || req.body.chiefComplaint;
-        const language = req.body.language || "en";
+        // The user account is the sole source of truth for language
+        const language = userAccount.language || "en";
         const consultationType = req.body.consultation_type || req.body.consultationType || "allopathic";
         const appointmentId = req.body.appointment_id || req.body.appointmentId || null;
 
         const result = await startSessionCore({
-            patientId: userId,
+            patientId: userAccount.userId,
             appointmentId,
             language,
             consultationType,
@@ -84,7 +91,7 @@ async function processTextTurn(req, res, next) {
         const sessionId = req.params.id;
         const { whatsapp_id, whatsappId } = req.body;
         const targetWhatsappId = whatsapp_id || whatsappId;
-        const userId = await resolveWhatsAppUser(targetWhatsappId);
+        const { userId } = await resolveWhatsAppUser(targetWhatsappId);
 
         const patientText = req.body.patient_text || req.body.patientText;
 
@@ -127,7 +134,7 @@ async function finalizeSession(req, res, next) {
         const sessionId = req.params.id;
         const { whatsapp_id, whatsappId } = req.body;
         const targetWhatsappId = whatsapp_id || whatsappId;
-        const userId = await resolveWhatsAppUser(targetWhatsappId);
+        const { userId } = await resolveWhatsAppUser(targetWhatsappId);
 
         const documentData = req.body.document_data || req.body.documentData || null;
 

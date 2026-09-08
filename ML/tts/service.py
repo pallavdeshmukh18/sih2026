@@ -114,7 +114,7 @@ class SarvamTTSService:
         Args:
             text: Text to synthesize (up to 2500 chars).
             language_code: BCP-47 language code (e.g. 'en-IN', 'hi-IN', 'mr-IN').
-            speaker: Speaker voice (defaults to 'shubh').
+            speaker: Speaker voice (defaults to 'simran').
             pace: Speech pace (defaults to 1.0, range 0.5 - 2.0).
 
         Returns:

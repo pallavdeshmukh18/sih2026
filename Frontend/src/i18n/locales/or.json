@@ -253,6 +253,25 @@
     "error": "Unable to load your Medical ID.",
     "retry": "Retry",
     "takeAssessment": "Take Clinical Assessment",
-    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile."
+    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile.",
+    "connectWithDoctor": "ଆପଣଙ୍କ ଡାକ୍ତରଙ୍କ ସହିତ ଯୋଡ଼ି ହୁଅନ୍ତୁ",
+    "qrDescription": "ଆପଣଙ୍କ ସେବା ରେକର୍ଡ ଯୋଡ଼ିବା ପାଇଁ ଜଣେ ଅଧିକୃତ ଡାକ୍ତରଙ୍କ ସହିତ ଆପଣଙ୍କ ମେଡିକାଲ୍ ID ସୁରକ୍ଷିତ ଭାବରେ ସେୟାର କରନ୍ତୁ।",
+    "expiresIn": "QR ସମାପ୍ତି ସମୟ",
+    "generateNewQr": "ନୂତନ QR ସୃଷ୍ଟି କରନ୍ତୁ",
+    "generating": "ସୃଷ୍ଟି ହେଉଛି...",
+    "pairingCode": "ପେୟାରିଂ କୋଡ୍",
+    "qrSecurityNotice": "ଏହି QR ରେ ଆପଣଙ୍କ ଚିକିତ୍ସା ସୂଚନା ନାହିଁ। ଏହା ଜଣେ ଅଧିକୃତ ଡାକ୍ତରଙ୍କ ସହିତ ଏକ ଅସ୍ଥାୟୀ ସୁରକ୍ଷିତ ସଂଯୋଗ ଅନୁରୋଧ ସୃଷ୍ଟି କରେ।",
+    "connectedCareProviders": "ସଂଯୁକ୍ତ ସେବା ପ୍ରଦାନକାରୀ",
+    "connectedProvidersSubtitle": "ଯେଉଁ ଡାକ୍ତରମାନଙ୍କର ଆପଣଙ୍କ MediKiosk କ୍ଲିନିକାଲ୍ ପ୍ରୋଫାଇଲ୍ ପର୍ଯ୍ୟନ୍ତ ଅଧିକୃତ ପହଞ୍ଚ ଅଛି।",
+    "noConnectedProviders": "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ସଂଯୁକ୍ତ ସେବା ପ୍ରଦାନକାରୀ ନାହାଁନ୍ତି",
+    "noConnectedProvidersSub": "ଆପଣଙ୍କ MediKiosk ରେକର୍ଡ ଯୋଡ଼ିବା ପାଇଁ ଡାକ୍ତରଙ୍କ ସହିତ ଆପଣଙ୍କ ସୁରକ୍ଷିତ QR ସେୟାର କରନ୍ତୁ।",
+    "qrExpired": "QR ସମାପ୍ତ ହେଲା",
+    "revokeAccess": "ପହଞ୍ଚ ରଦ୍ଦ କରନ୍ତୁ",
+    "revoking": "ରଦ୍ଦ ହେଉଛି...",
+    "accessRevoked": "ପହଞ୍ଚ ରଦ୍ଦ ହେଲା",
+    "connectedAt": "ସଂଯୁକ୍ତ",
+    "statusActive": "ସକ୍ରିୟ",
+    "viewDoctor": "ଦେଖନ୍ତୁ",
+    "qrAriaLabel": "ଡାକ୍ତରଙ୍କ ସହିତ ଯୋଡ଼ି ହେବା ପାଇଁ ସୁରକ୍ଷିତ ମେଡିକାଲ୍ ID QR କୋଡ୍"
   }
 }

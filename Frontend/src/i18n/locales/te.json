@@ -253,6 +253,25 @@
     "error": "Unable to load your Medical ID.",
     "retry": "Retry",
     "takeAssessment": "Take Clinical Assessment",
-    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile."
+    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile.",
+    "connectWithDoctor": "మీ డాక్టర్‌తో కనెక్ట్ అవ్వండి",
+    "qrDescription": "మీ సంరక్షణ రికార్డును కనెక్ట్ చేయడానికి మీ మెడికల్ IDని అధీకృత డాక్టర్‌తో సురక్షితంగా భాగస్వామ్యం చేయండి.",
+    "expiresIn": "QR గడువు ముగిసే సమయం",
+    "generateNewQr": "కొత్త QRని సృష్టించండి",
+    "generating": "సృష్టిస్తోంది...",
+    "pairingCode": "జత చేసే కోడ్",
+    "qrSecurityNotice": "ఈ QRలో మీ వైద్య సమాచారం ఉండదు. ఇది అధీకృత డాక్టర్‌తో తాత్కాలిక సురક્ષిత కనెక్షన్ అభ్యర్థనను సృష్టిస్తుంది.",
+    "connectedCareProviders": "కనెక్ట్ చేయబడిన సంరక్షణ ప్రదాతలు",
+    "connectedProvidersSubtitle": "మీ MediKiosk క్లినికల్ ప్రొఫైల్‌కు అధీకృత ప్రాప్యత ఉన్న డాక్టర్లు.",
+    "noConnectedProviders": "ఇంకా కనెక్ట్ చేయబడిన సంరక్షణ ప్రదాతలు లేరు",
+    "noConnectedProvidersSub": "మీ MediKiosk రికార్డును కనెక్ట్ చేయడానికి డాక్టర్‌తో మీ సురక్షిత QRని భాగస్వామ్యం చేయండి.",
+    "qrExpired": "QR గడువు ముగిసింది",
+    "revokeAccess": "యాక్సెస్ రద్దు చేయండి",
+    "revoking": "రద్దు చేస్తోంది...",
+    "accessRevoked": "యాక్సెస్ రద్దు చేయబడింది",
+    "connectedAt": "కనెక్ట్ చేయబడింది",
+    "statusActive": "సక్రియం",
+    "viewDoctor": "చూడండి",
+    "qrAriaLabel": "డాక్టర్‌తో కనెక్ట్ అవ్వడానికి సురక్షిత మెడికల్ ID QR కోడ్"
   }
 }

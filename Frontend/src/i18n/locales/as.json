@@ -253,6 +253,25 @@
     "error": "Unable to load your Medical ID.",
     "retry": "Retry",
     "takeAssessment": "Take Clinical Assessment",
-    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile."
+    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile.",
+    "connectWithDoctor": "আপোনাৰ চিকিৎসকৰ সৈতে সংযোজিত হওক",
+    "qrDescription": "আপোনাৰ সেৱা ৰেকৰ্ড সংଯোগ কৰিবলৈ এজন কৰ্তৃত্বপ্ৰাপ্ত চিকিৎসকৰ সৈতে আপোনাৰ মেডিকেল ID সুৰক্ষিতভাৱে শ্বেয়াৰ কৰক।",
+    "expiresIn": "QR সময়সীমা অন্ত",
+    "generateNewQr": "নতুন QR সৃষ্টি কৰক",
+    "generating": "সৃষ্টি কৰা হৈছে...",
+    "pairingCode": "পেয়াৰিং ক’ড",
+    "qrSecurityNotice": "এই QR ত আপোনাৰ চিকিৎসা সম্পৰ্কীয় তথ্য নাথাকে। ই এজন কৰ্তৃত্বপ্ৰাপ্ত চিকিৎসকৰ সৈতে এটা অস্থায়ী সুৰক্ষিত সংযোগ অনুৰোধ সৃষ্টি কৰে।",
+    "connectedCareProviders": "সংযোজিত সেৱা প্ৰদানকাৰী",
+    "connectedProvidersSubtitle": "যিসকল চিকিৎসকৰ আপোনাৰ MediKiosk ক্লিনিকেল প্ৰফাইলত কৰ্তৃত্বপ্ৰাপ্ত প্ৰৱেশাধিকাৰ আছে।",
+    "noConnectedProviders": "এতিয়ালৈকে কোনো সংযোজিত সেৱা প্ৰদানকাৰী নাই",
+    "noConnectedProvidersSub": "আপোনাৰ MediKiosk ৰেকৰ্ড সংଯোগ কৰিবলৈ চিকিৎসকৰ সৈতে আপোনাৰ সুৰক্ষিত QR শ্বেয়াৰ কৰক।",
+    "qrExpired": "QR ৰ সময়সীমা উকলিল",
+    "revokeAccess": "প্ৰৱেশাধিকাৰ ৰ বাতিল কৰক",
+    "revoking": "বাতিল কৰা হৈছে...",
+    "accessRevoked": "প্ৰৱেশাধিকাৰ বাতিল কৰা হ’ল",
+    "connectedAt": "সংযোজিত",
+    "statusActive": "সক্ৰিয়",
+    "viewDoctor": "চাওক",
+    "qrAriaLabel": "চিকিৎসকৰ সৈতে সংযোজিত হ’বলৈ সুৰক্ষিত মেডিকেল ID QR ক’ড"
   }
 }

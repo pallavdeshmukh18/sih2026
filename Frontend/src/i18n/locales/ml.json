@@ -253,6 +253,25 @@
     "error": "Unable to load your Medical ID.",
     "retry": "Retry",
     "takeAssessment": "Take Clinical Assessment",
-    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile."
+    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile.",
+    "connectWithDoctor": "നിങ്ങളുടെ ഡോക്ടറുമായി ബന്ധപ്പെടുക",
+    "qrDescription": "നിങ്ങളുടെ പരിചരണ റെക്കോർഡ് ബന്ധിപ്പിക്കുന്നതിന് നിങ്ങളുടെ മെഡിക്കൽ ഐഡി അംഗീകൃത ഡോക്ടറുമായി സുരക്ഷിതമായി പങ്കിടുക.",
+    "expiresIn": "QR കാലാവധി തീരുന്നത്",
+    "generateNewQr": "പുതിയ QR സൃഷ്ടിക്കുക",
+    "generating": "സൃഷ്ടിക്കുന്നു...",
+    "pairingCode": "പെയറിംഗ് കോഡ്",
+    "qrSecurityNotice": "ഈ QR-ൽ നിങ്ങളുടെ മെഡിക്കൽ വിവരങ്ങൾ അടങ്ങിയിട്ടില്ല. ഇത് ഒരു അംഗീകൃത ഡോക്ടറുമായി താൽക്കാലിക സുരക്ഷിത കണക്ഷൻ അഭ്യർത്ഥന സൃഷ്ടിക്കുന്നു.",
+    "connectedCareProviders": "ബന്ധിപ്പിച്ച പരിചരണ ദാതാക്കൾ",
+    "connectedProvidersSubtitle": "നിങ്ങളുടെ MediKiosk ക്ലിനിക്കൽ പ്രൊഫൈലിലേക്ക് അംഗീകൃത ആക്‌സസ് ഉള്ള ഡോക്ടർമാർ.",
+    "noConnectedProviders": "ഇതുവരെ ബന്ധിപ്പിച്ച പരിചരണ ദാതാക്കളൊന്നുമില്ല",
+    "noConnectedProvidersSub": "നിങ്ങളുടെ MediKiosk റെക്കോർഡ് ബന്ധിപ്പിക്കുന്നതിന് ഡോക്ടറുമായി നിങ്ങളുടെ സുരക്ഷിത QR പങ്കിടുക.",
+    "qrExpired": "QR കാലാവധി കഴിഞ്ഞു",
+    "revokeAccess": "ആക്സസ് പിൻവലിക്കുക",
+    "revoking": "പിൻവലിക്കുന്നു...",
+    "accessRevoked": "ആക്സസ് പിൻവലിച്ചു",
+    "connectedAt": "ബന്ധിപ്പിച്ചു",
+    "statusActive": "സജീവം",
+    "viewDoctor": "കാണുക",
+    "qrAriaLabel": "ഡോക്ടറുമായി ബന്ധിപ്പിക്കുന്നതിനുള്ള സുരക്ഷിത മെഡിക്കൽ ഐഡി QR കോഡ്"
   }
 }

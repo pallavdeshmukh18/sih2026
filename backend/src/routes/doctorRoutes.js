@@ -13,6 +13,12 @@ router.get("/queue", authorizeRoles("doctor"), doctorController.getDoctorQueue);
 router.get("/patient/:id/unified-history", authorizeRoles("doctor", "receptionist"), doctorController.getPatientUnifiedHistory);
 router.post("/consultations/:appointmentId/confirm", authorizeRoles("doctor"), doctorController.confirmConsultation);
 
+// Doctor QR Patient Pairing & Patient Management
+router.post("/patients/pair/preview", authorizeRoles("doctor"), doctorController.previewPatientPairing);
+router.post("/patients/pair/confirm", authorizeRoles("doctor"), doctorController.confirmPatientPairing);
+router.get("/patients", authorizeRoles("doctor"), doctorController.getDoctorPatients);
+router.delete("/patients/:patientId", authorizeRoles("doctor"), doctorController.revokePatientConnection);
+
 // Admin: Doctor Verification (only doctors can verify other doctors)
 router.get("/admin/pending", authorizeRoles("doctor"), doctorController.getPendingDoctors);
 router.patch("/admin/verify/:doctorId", authorizeRoles("doctor"), doctorController.verifyDoctor);

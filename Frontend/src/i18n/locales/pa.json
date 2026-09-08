@@ -253,6 +253,25 @@
     "error": "Unable to load your Medical ID.",
     "retry": "Retry",
     "takeAssessment": "Take Clinical Assessment",
-    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile."
+    "completeAssessmentPrompt": "Complete your clinical assessment to build your medical profile.",
+    "connectWithDoctor": "ਆਪਣੇ ਡਾਕਟਰ ਨਾਲ ਜੁੜੋ",
+    "qrDescription": "ਆਪਣੇ ਦੇਖਭਾਲ ਰਿਕਾਰਡ ਨੂੰ ਜੋੜਨ ਲਈ ਕਿਸੇ ਅਧਿਕਾਰਤ ਡਾਕਟਰ ਨਾਲ ਆਪਣੀ ਮੈਡੀਕਲ ਆਈਡੀ ਸੁਰੱਖਿਅਤ ਰੂਪ ਨਾਲ ਸਾਂਝੀ ਕਰੋ।",
+    "expiresIn": "QR ਮਿਆਦ ਦੀ ਸਮਾਪਤੀ",
+    "generateNewQr": "ਨਵਾਂ QR ਬਣਾਓ",
+    "generating": "ਬਣਾਇਆ ਜਾ ਰਿਹਾ ਹੈ...",
+    "pairingCode": "ਪੇਅਰਿੰਗ ਕੋਡ",
+    "qrSecurityNotice": "ਇਸ QR ਵਿੱਚ ਤੁਹਾਡੀ ਡਾਕਟਰੀ ਜਾਣਕਾਰੀ ਨਹੀਂ ਹੈ। ਇਹ ਇੱਕ ਅਧਿਕਾਰਤ ਡਾਕਟਰ ਨਾਲ ਇੱਕ ਅਸਥਾਈ ਸੁਰੱਖਿਅਤ ਕਨੈਕਸ਼ਨ ਬੇਨਤੀ ਬਣਾਉਂਦਾ ਹੈ।",
+    "connectedCareProviders": "ਜੁੜੇ ਹੋਏ ਦੇਖਭਾਲ ਪ੍ਰਦਾਤਾ",
+    "connectedProvidersSubtitle": "ਉਹ ਡਾਕਟਰ ਜਿਨ੍ਹਾਂ ਕੋਲ ਤੁਹਾਡੀ MediKiosk ਕਲੀਨਿਕਲ ਪ੍ਰੋਫਾਈਲ ਤੱਕ ਅਧਿਕਾਰਤ ਪਹੁੰਚ ਹੈ।",
+    "noConnectedProviders": "ਅਜੇ ਤੱਕ ਕੋਈ ਜੁੜੇ ਹੋਏ ਦੇਖਭਾਲ ਪ੍ਰਦਾਤਾ ਨਹੀਂ ਹਨ",
+    "noConnectedProvidersSub": "ਆਪਣੇ MediKiosk ਰਿਕਾਰਡ ਨੂੰ ਜੋੜਨ ਲਈ ਡਾਕਟਰ ਨਾਲ ਆਪਣਾ ਸੁਰੱਖਿਅਤ QR ਸਾਂਝਾ ਕਰੋ।",
+    "qrExpired": "QR ਦੀ ਮਿਆਦ ਖਤਮ",
+    "revokeAccess": "ਪਹੁੰਚ ਰੱਦ ਕਰੋ",
+    "revoking": "ਰੱਦ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ...",
+    "accessRevoked": "ਪਹੁੰਚ ਰੱਦ ਕੀਤੀ ਗਈ",
+    "connectedAt": "ਜੁੜੇ",
+    "statusActive": "ਸਰਗਰਮ",
+    "viewDoctor": "ਦੇਖੋ",
+    "qrAriaLabel": "ਡਾਕਟਰ ਨਾਲ ਜੁੜਨ ਲਈ ਸੁਰੱਖਿਅਤ ਮੈਡੀਕਲ ਆਈਡੀ QR ਕੋਡ"
   }
 }

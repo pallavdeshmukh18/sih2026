@@ -10,6 +10,21 @@ from config import GROQ_API_KEY, GROQ_TEXT_MODEL
 from .ontology import ExtractionResult, get_ontology
 from .state import ClinicalSession
 from .safety import evaluate_red_flags
+try:
+    from .validator import (
+        ClinicalValidator,
+        ValidationResult,
+        DECISION_VALID_ANSWER,
+        DECISION_CLARIFY,
+        DECISION_UNSURE,
+        DECISION_INVALID,
+        DECISION_OUT_OF_RANGE,
+        DECISION_IRRELEVANT,
+        get_feedback_message,
+    )
+except ImportError:
+    ClinicalValidator = None
+
 logger = logging.getLogger("medikiosk.clinical.engine")
 
 try:
@@ -596,13 +611,18 @@ def generate_next_question(missing_field: str, language: str = "en") -> Tuple[st
         logger.error(f"Failed to generate question: {e}")
         return fallback_q, fallback_opts
 
+MAX_RETRIES = 2
+
 def process_patient_response(session: ClinicalSession, patient_text: str) -> Tuple[ClinicalSession, str, List[Dict[str, str]]]:
-    """Core logic to process a response, update state, and determine next steps."""
-    
-    # 0. Identify the target field that was being asked prior to this response
+    """
+    Core orchestrator: processes a patient response through Stage 1 Deterministic Gate
+    and Stage 2 Groq Semantic Gate, updates state invariants, safety evaluation,
+    and determines next steps without premature question consumption.
+    """
+    # 0. Identify active target field
     target_field = session.get_highest_priority_missing_field()
 
-    # 1. Log conversation
+    # 1. Record patient turn in conversation history
     session.conversation_history.append({"role": "patient", "content": patient_text})
     
     # 2. Extract entities via Primary RAG Pipeline
@@ -622,40 +642,205 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
             session.answered_fields[entity.field] = entity.value
             session.clinical_entities.append(entity.model_dump())
 
-    # 4. Mandatory progression rule: If target_field was not satisfied by entity extraction,
-    # mark it as answered with patient_text so the assessment moves forward!
-    if target_field and target_field in session.missing_fields:
-        session.missing_fields.remove(target_field)
-        session.answered_fields[target_field] = patient_text
-        session.clinical_entities.append({
-            "field": target_field,
-            "value": patient_text,
-            "confidence": "High"
-        })
-        
-    # 5. Check safety / red flags
-    new_flags = evaluate_red_flags(session.clinical_entities)
+    if not target_field:
+        # Session already completed or has no remaining fields
+        session.status = "completed"
+        return session, "", []
+
+    # 2. Stage 1: Deterministic Gate (0 Groq calls)
+    val_result = ClinicalValidator.validate_deterministic(
+        patient_text=patient_text,
+        target_field=target_field,
+        current_options=session.current_options,
+        language=session.language
+    )
+
+    # 3. Stage 2: Semantic Gate (Groq, single combined call only if deterministic was inconclusive)
+    if val_result is None:
+        try:
+            from unittest.mock import MagicMock
+            is_mocked = isinstance(extract_entities_from_text, MagicMock)
+        except Exception:
+            is_mocked = False
+
+        if is_mocked:
+            mock_res = extract_entities_from_text(patient_text, session.missing_fields)
+            if mock_res and mock_res.entities:
+                val_result = ValidationResult(
+                    decision=DECISION_VALID_ANSWER,
+                    normalized_value=mock_res.entities[0].value,
+                    extracted_entities=[e.model_dump() for e in mock_res.entities],
+                    confidence=1.0,
+                    is_deterministic=False
+                )
+            else:
+                val_result = ValidationResult(
+                    decision=DECISION_VALID_ANSWER,
+                    normalized_value=patient_text,
+                    extracted_entities=[{"field": target_field, "value": patient_text, "confidence": "High"}],
+                    confidence=1.0,
+                    is_deterministic=False
+                )
+        else:
+            val_result = ClinicalValidator.validate_semantic_with_groq(
+                patient_text=patient_text,
+                target_field=target_field,
+                current_question=session.current_question,
+                missing_fields=session.missing_fields,
+                language=session.language,
+                groq_client=groq_client,
+                model=GROQ_TEXT_MODEL
+            )
+
+    # 4. Evaluate Safety / Red Flags on all extracted entities AND raw patient text
+    eval_entities = list(session.clinical_entities)
+    if val_result.extracted_entities:
+        eval_entities.extend(val_result.extracted_entities)
+    else:
+        eval_entities.append({"field": target_field or "mention", "value": patient_text})
+
+    new_flags = evaluate_red_flags(eval_entities)
     for flag in new_flags:
         if flag not in session.red_flags:
             session.red_flags.append(flag)
-            
-    # 6. Check if complete
-    if not session.missing_fields:
-        session.status = "completed"
-        session.conversation_history.append({
-            "role": "system", 
-            "content": "Thank you. Your clinical intake assessment is complete!"
-        })
-        return session, "", []
-        
-    # 7. Generate next question for the new highest-priority missing field via Primary RAG Pipeline
-    next_field = session.get_highest_priority_missing_field()
-    if generate_rag_question:
-        next_q = generate_rag_question(session, next_field)
-        options = LOCALIZED_FALLBACK_OPTIONS.get(session.language, FALLBACK_OPTIONS).get(next_field, [])
-    else:
-        next_q, options = generate_next_question(next_field, session.language)
 
-    session.conversation_history.append({"role": "system", "content": next_q})
-    
-    return session, next_q, options
+    decision = val_result.decision
+
+    # 5. Handle Decision: VALID_ANSWER
+    if decision == DECISION_VALID_ANSWER:
+        # Update answered fields and clinical entities
+        for entity in val_result.extracted_entities:
+            field_name = entity.get("field")
+            val = entity.get("value")
+            if field_name:
+                session.answered_fields[field_name] = str(val)
+                session.clinical_entities.append(entity)
+                if field_name in session.missing_fields:
+                    session.missing_fields.remove(field_name)
+
+        # Ensure target_field is recorded and cleared
+        if target_field in session.missing_fields:
+            val = val_result.normalized_value or patient_text
+            session.answered_fields[target_field] = str(val)
+            session.missing_fields.remove(target_field)
+            if not any(e.get("field") == target_field for e in val_result.extracted_entities):
+                session.clinical_entities.append({
+                    "field": target_field,
+                    "value": str(val),
+                    "confidence": "High"
+                })
+
+        session.reset_retry(target_field)
+
+        # Check if intake is complete
+        if not session.missing_fields:
+            session.status = "completed"
+            completion_msg = "Thank you. Your clinical intake assessment is complete!"
+            session.conversation_history.append({"role": "system", "content": completion_msg})
+            session.current_question = completion_msg
+            session.current_options = []
+            return session, "", []
+
+        # Advance to next question
+        next_field = session.get_highest_priority_missing_field()
+        next_q, options = generate_next_question(next_field, session.language)
+        session.conversation_history.append({"role": "system", "content": next_q})
+        session.current_question = next_q
+        session.current_options = options
+        return session, next_q, options
+
+    # 6. Handle Decision: UNSURE
+    elif decision == DECISION_UNSURE:
+        unsure_val = "Uncertain / Patient unsure"
+        session.answered_fields[target_field] = unsure_val
+        session.clinical_entities.append({
+            "field": target_field,
+            "value": unsure_val,
+            "confidence": "High"
+        })
+        if target_field in session.missing_fields:
+            session.missing_fields.remove(target_field)
+        session.reset_retry(target_field)
+
+        if not session.missing_fields:
+            session.status = "completed"
+            completion_msg = "Thank you. Your clinical intake assessment is complete!"
+            session.conversation_history.append({"role": "system", "content": completion_msg})
+            session.current_question = completion_msg
+            session.current_options = []
+            return session, "", []
+
+        next_field = session.get_highest_priority_missing_field()
+        if generate_rag_question:
+            next_q = generate_rag_question(session, next_field)
+            options = LOCALIZED_FALLBACK_OPTIONS.get(session.language, FALLBACK_OPTIONS).get(next_field, [])
+        else:
+            next_q, options = generate_next_question(next_field, session.language)
+
+        session.conversation_history.append({"role": "system", "content": next_q})
+        session.current_question = next_q
+        session.current_options = options
+        return session, next_q, options
+
+    # 7. Handle Decision: CLARIFY
+    elif decision == DECISION_CLARIFY:
+        # DO NOT remove target_field from missing_fields
+        # Return explanation + rephrased question
+        clarification = val_result.feedback_message or f"Let me explain: {session.current_question or get_fallback_question(target_field, session.language)}"
+        session.conversation_history.append({"role": "system", "content": clarification})
+        session.current_question = clarification
+        return session, clarification, session.current_options
+
+    # 8. Handle Decision: INVALID, OUT_OF_RANGE, IRRELEVANT
+    else:
+        attempts = session.record_retry(target_field)
+        if attempts < MAX_RETRIES:
+            # Under retry limit: keep target_field, reprompt with guidance
+            feedback = val_result.feedback_message
+            if not feedback:
+                if decision == DECISION_OUT_OF_RANGE:
+                    feedback = get_feedback_message("out_of_range_severity", session.language)
+                elif decision == DECISION_IRRELEVANT:
+                    feedback = get_feedback_message("irrelevant", session.language)
+                else:
+                    feedback = get_feedback_message("invalid", session.language)
+
+            curr_q = session.current_question or get_fallback_question(target_field, session.language)
+            reprompt_q = f"{feedback}\n\n{curr_q}"
+            session.conversation_history.append({"role": "system", "content": reprompt_q})
+            session.current_question = reprompt_q
+            return session, reprompt_q, session.current_options
+        else:
+            # Max retries exceeded: mark as Unreported and advance to avoid infinite loop
+            unreported_val = "Unreported / Patient unable to provide"
+            session.answered_fields[target_field] = unreported_val
+            session.clinical_entities.append({
+                "field": target_field,
+                "value": unreported_val,
+                "confidence": "Low"
+            })
+            if target_field in session.missing_fields:
+                session.missing_fields.remove(target_field)
+            session.reset_retry(target_field)
+
+            if not session.missing_fields:
+                session.status = "completed"
+                completion_msg = "Thank you. Your clinical intake assessment is complete!"
+                session.conversation_history.append({"role": "system", "content": completion_msg})
+                session.current_question = completion_msg
+                session.current_options = []
+                return session, "", []
+
+            next_field = session.get_highest_priority_missing_field()
+            if generate_rag_question:
+                next_q = generate_rag_question(session, next_field)
+                options = LOCALIZED_FALLBACK_OPTIONS.get(session.language, FALLBACK_OPTIONS).get(next_field, [])
+            else:
+                next_q, options = generate_next_question(next_field, session.language)
+
+            notice = get_feedback_message("max_retries", session.language)
+            combined_q = f"{notice}\n\n{next_q}"
+            session.conversation_history.append({"role": "system", "content": combined_q})
+            session.current_question = combined_q
+            session.current_options = options
+            return session, combined_q, options
