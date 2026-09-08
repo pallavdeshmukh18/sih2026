@@ -167,6 +167,26 @@ export async function getPatientOnboarding(token) {
 }
 
 // ==================================================
+// WHATSAPP ACCOUNT LINKING API CALLS
+// ==================================================
+
+/** Generate WhatsApp Linking Token for Authenticated Patient */
+export async function generateWhatsAppToken(token) {
+    return apiRequest("/api/auth/whatsapp/token", "POST", null, token);
+}
+
+/** Get WhatsApp Account Linking Status */
+export async function getWhatsAppMe(token) {
+    return apiRequest("/api/auth/whatsapp/me", "GET", null, token);
+}
+
+/** Unlink WhatsApp Account */
+export async function unlinkWhatsApp(token) {
+    return apiRequest("/api/auth/whatsapp/unlink", "POST", null, token);
+}
+
+
+// ==================================================
 // PATIENT APPOINTMENTS & DOCTOR DIRECTORY API CALLS
 // ==================================================
 

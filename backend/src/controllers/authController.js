@@ -1637,6 +1637,231 @@ async function loginDoctor(req, res) {
     }
 }
 
+// ==================================================
+// WHATSAPP LINKING & AUTHENTICATION CONTROLLERS
+// ==================================================
+
+/**
+ * Generate a secure linking token for logged-in user
+ * POST /api/auth/whatsapp/token
+ */
+async function generateWhatsAppToken(req, res) {
+    try {
+        const userId = req.user.id;
+
+        // Generate a clean 6-character alphanumeric token (e.g. 'E4A9F2')
+        const rawBytes = crypto.randomBytes(3);
+        const token = rawBytes.toString("hex").toUpperCase();
+        const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+        // Invalidate previous unexpired/unused tokens for this user
+        await pool.query(
+            `UPDATE whatsapp_link_tokens
+             SET used = TRUE, used_at = NOW()
+             WHERE user_id = $1 AND used = FALSE;`,
+            [userId]
+        );
+
+        // Store new temporary token with 10-minute expiration (HASH ONLY, NO RAW TOKEN STORED)
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+        await pool.query(
+            `INSERT INTO whatsapp_link_tokens (user_id, token_hash, expires_at)
+             VALUES ($1, $2, $3);`,
+            [userId, tokenHash, expiresAt]
+        );
+
+        return res.status(200).json({
+            success: true,
+            token,
+            expiresAt: expiresAt.toISOString(),
+            message: "WhatsApp linking token generated successfully",
+        });
+    } catch (error) {
+        console.error("Error in generateWhatsAppToken:", error.message);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error generating WhatsApp token",
+        });
+    }
+}
+
+/**
+ * Check if a WhatsApp ID is linked to a MediKiosk account
+ * GET /api/auth/whatsapp/status?whatsapp_id=...
+ * POST /api/auth/whatsapp/status
+ */
+async function getWhatsAppStatus(req, res) {
+    try {
+        const whatsappId = req.query.whatsapp_id || req.body.whatsapp_id;
+
+        if (!whatsappId) {
+            return res.status(400).json({
+                success: false,
+                message: "whatsapp_id query parameter or body field is required",
+            });
+        }
+
+        const normalizedId = whatsappId.trim();
+
+        const result = await pool.query(
+            `SELECT w.user_id, u.first_name, u.last_name, u.role
+             FROM whatsapp_accounts w
+             JOIN users u ON w.user_id = u.id
+             WHERE w.whatsapp_id = $1;`,
+            [normalizedId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(200).json({
+                linked: false,
+            });
+        }
+
+        const account = result.rows[0];
+        return res.status(200).json({
+            linked: true,
+            user_id: account.user_id,
+            user_name: account.first_name || "Patient",
+            role: account.role,
+        });
+    } catch (error) {
+        console.error("Error in getWhatsAppStatus:", error.message);
+        return res.status(500).json({
+            linked: false,
+            message: "Internal server error checking WhatsApp status",
+        });
+    }
+}
+
+/**
+ * Link WhatsApp ID using a valid verification token
+ * POST /api/auth/whatsapp/link
+ * Body: { "whatsapp_id": "string", "token": "string" }
+ */
+async function linkWhatsAppAccount(req, res) {
+    try {
+        const { whatsapp_id, token } = req.body;
+
+        if (!whatsapp_id || !token) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required fields: whatsapp_id, token",
+            });
+        }
+
+        const normalizedId = whatsapp_id.trim();
+        const normalizedToken = token.trim().toUpperCase();
+        const tokenHash = crypto.createHash("sha256").update(normalizedToken).digest("hex");
+
+        // Verify token strictly by SHA-256 hash, non-expired, and unused
+        const tokenQuery = await pool.query(
+            `SELECT t.id, t.user_id, t.expires_at, t.used, u.first_name, u.last_name
+             FROM whatsapp_link_tokens t
+             JOIN users u ON t.user_id = u.id
+             WHERE t.token_hash = $1
+               AND t.expires_at > NOW()
+               AND t.used = FALSE;`,
+            [tokenHash]
+        );
+
+        if (tokenQuery.rows.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "The token entered could not be verified or has expired.",
+            });
+        }
+
+        const record = tokenQuery.rows[0];
+
+        // Immediately invalidate the temporary token (single use)
+        await pool.query(
+            `UPDATE whatsapp_link_tokens
+             SET used = TRUE, used_at = NOW()
+             WHERE id = $1;`,
+            [record.id]
+        );
+
+        // Upsert permanent account linking association (whatsapp_id -> user_id)
+        await pool.query(
+            `INSERT INTO whatsapp_accounts (user_id, whatsapp_id)
+             VALUES ($1, $2)
+             ON CONFLICT (whatsapp_id) DO UPDATE
+             SET user_id = EXCLUDED.user_id, updated_at = NOW();`,
+            [record.user_id, normalizedId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            user_id: record.user_id,
+            user_name: record.first_name || "Patient",
+            message: "WhatsApp account linked successfully",
+        });
+    } catch (error) {
+        console.error("Error in linkWhatsAppAccount:", error.message);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error during WhatsApp linking",
+        });
+    }
+}
+
+/**
+ * Get current authenticated user's linked WhatsApp status
+ * GET /api/auth/whatsapp/me
+ */
+async function getWhatsAppMe(req, res) {
+    try {
+        const userId = req.user.id;
+
+        const result = await pool.query(
+            `SELECT whatsapp_id, created_at FROM whatsapp_accounts WHERE user_id = $1;`,
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(200).json({
+                linked: false,
+            });
+        }
+
+        return res.status(200).json({
+            linked: true,
+            whatsapp_id: result.rows[0].whatsapp_id,
+            linked_at: result.rows[0].created_at,
+        });
+    } catch (error) {
+        console.error("Error in getWhatsAppMe:", error.message);
+        return res.status(500).json({
+            message: "Internal server error fetching WhatsApp info",
+        });
+    }
+}
+
+/**
+ * Unlink WhatsApp for current authenticated user
+ * POST /api/auth/whatsapp/unlink
+ */
+async function unlinkWhatsApp(req, res) {
+    try {
+        const userId = req.user.id;
+
+        await pool.query(
+            `DELETE FROM whatsapp_accounts WHERE user_id = $1;`,
+            [userId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "WhatsApp account unlinked successfully",
+        });
+    } catch (error) {
+        console.error("Error in unlinkWhatsApp:", error.message);
+        return res.status(500).json({
+            message: "Internal server error unlinking WhatsApp",
+        });
+    }
+}
+
 module.exports = {
     registerPhone,
     verifyPhone,
@@ -1654,4 +1879,9 @@ module.exports = {
     getMe,
     registerDoctor,
     loginDoctor,
+    generateWhatsAppToken,
+    getWhatsAppStatus,
+    linkWhatsAppAccount,
+    getWhatsAppMe,
+    unlinkWhatsApp,
 };

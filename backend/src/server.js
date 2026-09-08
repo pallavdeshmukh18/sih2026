@@ -12,6 +12,7 @@ const doctorRoutes = require("./routes/doctorRoutes");
 const staffRoutes = require("./routes/staffRoutes");
 const patientRoutes = require("./routes/patientRoutes");
 const ttsRoutes = require("./routes/ttsRoutes");
+const whatsappRoutes = require("./routes/whatsappRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -29,6 +30,7 @@ app.use("/api/documents", documentRoutes);
 app.use("/api/doctor", doctorRoutes);
 app.use("/api/doctor/staff", staffRoutes);
 app.use("/api/tts", ttsRoutes);
+app.use("/api/whatsapp", whatsappRoutes);
 
 app.get("/", (req, res) => {
     res.json({

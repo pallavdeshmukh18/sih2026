@@ -40,4 +40,13 @@ router.post("/staff/login", staffController.loginStaff);
 // Authenticated User Identity (Shared for all login methods)
 router.get("/me", authenticateToken, authController.getMe);
 
+// WhatsApp Account Linking & Status Endpoints
+router.post("/whatsapp/token", authenticateToken, authController.generateWhatsAppToken);
+router.get("/whatsapp/status", authController.getWhatsAppStatus);
+router.post("/whatsapp/status", authController.getWhatsAppStatus);
+router.post("/whatsapp/link", authController.linkWhatsAppAccount);
+router.get("/whatsapp/me", authenticateToken, authController.getWhatsAppMe);
+router.post("/whatsapp/unlink", authenticateToken, authController.unlinkWhatsApp);
+
 module.exports = router;
+

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   User, 
@@ -15,17 +16,31 @@ import {
   Send, 
   KeyRound, 
   Check, 
-  AlertCircle 
+  MessageSquare,
+  Copy,
+  AlertCircle,
+  Clock,
+  RefreshCw 
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
 import { SUPPORTED_LANGUAGES, INDIAN_STATES_AND_UTS } from "../../constants/onboardingData";
-import { requestPhoneLink, verifyPhoneLink, updatePatientProfile } from "../../services/api";
+import { 
+  requestPhoneLink, 
+  verifyPhoneLink, 
+  updatePatientProfile,
+  generateWhatsAppToken,
+  getWhatsAppMe,
+  unlinkWhatsApp
+} from "../../services/api";
 import styles from "./Account.module.css";
+
 
 export default function Account() {
   const { user, token, refreshUser } = useAuth();
   const { language, changeLanguage, t } = useLanguage();
+  const location = useLocation();
+  const whatsappCardRef = useRef(null);
 
   // Personal Info Form State
   const [firstName, setFirstName] = useState("");
@@ -53,6 +68,132 @@ export default function Account() {
   const [mockOtpHint, setMockOtpHint] = useState("");
   const [phoneLoading, setPhoneLoading] = useState(false);
   const [phoneError, setPhoneError] = useState("");
+
+  // WhatsApp Linking State
+  const [whatsappInfo, setWhatsappInfo] = useState({ linked: false, whatsappId: null });
+  const [whatsappToken, setWhatsappToken] = useState("");
+  const [whatsappExpiresAt, setWhatsappExpiresAt] = useState(null);
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const [tokenCopied, setTokenCopied] = useState(false);
+  const [whatsappError, setWhatsappError] = useState("");
+  const [unlinking, setUnlinking] = useState(false);
+  const [showUnlinkModal, setShowUnlinkModal] = useState(false);
+  const [timeLeft, setTimeLeft] = useState("");
+  const [isExpired, setIsExpired] = useState(false);
+
+  // Scroll to WhatsApp card if navigated via /account/link-whatsapp or /account/whatsapp
+  useEffect(() => {
+    if (location.pathname.includes("whatsapp") || location.search.includes("whatsapp")) {
+      setTimeout(() => {
+        whatsappCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 200);
+    }
+  }, [location.pathname, location.search]);
+
+  // Fetch WhatsApp linking status on mount / token change
+  useEffect(() => {
+    if (token) {
+      getWhatsAppMe(token)
+        .then((res) => {
+          if (res?.linked) {
+            setWhatsappInfo({ linked: true, whatsappId: res.whatsapp_id });
+          } else {
+            setWhatsappInfo({ linked: false, whatsappId: null });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [token]);
+
+  // Live Countdown Timer for Token Expiration
+  useEffect(() => {
+    if (!whatsappExpiresAt) {
+      setTimeLeft("");
+      setIsExpired(false);
+      return;
+    }
+
+    const updateTimer = () => {
+      const remainingMs = new Date(whatsappExpiresAt).getTime() - Date.now();
+      if (remainingMs <= 0) {
+        setTimeLeft("00:00");
+        setIsExpired(true);
+        return;
+      }
+      setIsExpired(false);
+      const totalSecs = Math.floor(remainingMs / 1000);
+      const mins = Math.floor(totalSecs / 60);
+      const secs = totalSecs % 60;
+      setTimeLeft(`${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [whatsappExpiresAt]);
+
+  const formattedExpiryTime = useMemo(() => {
+    if (!whatsappExpiresAt) return "";
+    try {
+      return new Date(whatsappExpiresAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    } catch {
+      return "";
+    }
+  }, [whatsappExpiresAt]);
+
+  const handleGenerateWhatsAppToken = async () => {
+    try {
+      setTokenLoading(true);
+      setWhatsappError("");
+      const res = await generateWhatsAppToken(token);
+      if (res?.success && res?.token) {
+        setWhatsappToken(res.token);
+        setWhatsappExpiresAt(res.expiresAt);
+        setTokenCopied(false);
+      } else {
+        setWhatsappError(res?.message || "Unable to generate token. Please try again in a moment.");
+      }
+    } catch (err) {
+      if (err?.status === 401) {
+        setWhatsappError("Your session has expired. Please log in again.");
+      } else if (err?.message?.includes("Network error") || err?.message?.includes("Failed to fetch")) {
+        setWhatsappError("Server connection timeout. Please check your network or try again in a moment.");
+      } else {
+        setWhatsappError("Unable to generate token. Please try again in a moment.");
+      }
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
+  const handleCopyWhatsAppToken = () => {
+    if (whatsappToken) {
+      navigator.clipboard.writeText(whatsappToken);
+      setTokenCopied(true);
+      setTimeout(() => setTokenCopied(false), 2500);
+    }
+  };
+
+  const handleConfirmUnlink = async () => {
+    try {
+      setUnlinking(true);
+      setWhatsappError("");
+      const res = await unlinkWhatsApp(token);
+      if (res?.success) {
+        setWhatsappInfo({ linked: false, whatsappId: null });
+        setWhatsappToken("");
+        setWhatsappExpiresAt(null);
+        setShowUnlinkModal(false);
+        setFeedback({ type: "success", text: "WhatsApp account unlinked successfully." });
+      } else {
+        setWhatsappError(res?.message || "Failed to unlink WhatsApp account.");
+      }
+    } catch (err) {
+      setWhatsappError("Unable to unlink WhatsApp account. Please try again.");
+    } finally {
+      setUnlinking(false);
+    }
+  };
 
   // Sync state with authenticated user
   useEffect(() => {
@@ -239,6 +380,26 @@ export default function Account() {
                   </span>
                 ) : (
                   <span className={styles.unverifiedBadge}>Not Linked</span>
+                )}
+              </div>
+              <div className={styles.infoItem} style={{ justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <MessageSquare size={16} style={{ color: "#16a34a" }} />
+                  <span>{whatsappInfo.linked ? (whatsappInfo.whatsappId || "WhatsApp Linked") : "WhatsApp"}</span>
+                </div>
+                {whatsappInfo.linked ? (
+                  <span className={styles.verifiedBadge}>
+                    <Check size={12} /> Connected
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => whatsappCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                    className={styles.unverifiedBadge}
+                    style={{ cursor: "pointer", border: "1px solid #fed7aa", background: "#fff7ed" }}
+                  >
+                    Link WhatsApp
+                  </button>
                 )}
               </div>
               <div className={styles.infoItem}>
@@ -430,6 +591,229 @@ export default function Account() {
               </div>
             </div>
 
+            {/* Link WhatsApp Card */}
+            <div
+              ref={whatsappCardRef}
+              className={styles.card}
+              style={{
+                border: location.pathname.includes("whatsapp") ? "2px solid #16a34a" : "1px solid #e2e8f0",
+                transition: "border 0.3s ease"
+              }}
+            >
+              <div className={styles.cardHeader}>
+                <div className={styles.iconWrapper} style={{ background: "#dcfce7", color: "#16a34a" }}>
+                  <MessageSquare size={20} />
+                </div>
+                <div>
+                  <h3 className={styles.cardTitle}>Link WhatsApp</h3>
+                  <p style={{ margin: "2px 0 0 0", fontSize: "13px", color: "#64748b" }}>
+                    Connect your MediKiosk account to WhatsApp so you can use MediKiosk directly from WhatsApp.
+                  </p>
+                </div>
+              </div>
+
+              {whatsappInfo.linked ? (
+                <div style={{ marginTop: "14px", padding: "20px", background: "#f0fdf4", borderRadius: "14px", border: "1px solid #bbf7d0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                      <div style={{ background: "#dcfce7", color: "#16a34a", padding: "8px", borderRadius: "10px", marginTop: "2px" }}>
+                        <CheckCircle size={22} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: "700", fontSize: "16px", color: "#166534" }}>
+                          ✅ WhatsApp Connected
+                        </div>
+                        <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#15803d" }}>
+                          Your MediKiosk account is already linked to WhatsApp: <strong>{whatsappInfo.whatsappId}</strong>
+                        </p>
+                        <div style={{ marginTop: "12px", fontSize: "13px", color: "#334155", background: "#ffffff", padding: "12px 16px", borderRadius: "10px", border: "1px solid #bbf7d0", lineHeight: "1.6" }}>
+                          📱 You can now use MediKiosk directly through WhatsApp.
+                          <br />
+                          Send <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", fontWeight: "700", color: "#0f172a" }}>hello medikiosk</code> to start.
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowUnlinkModal(true)}
+                      disabled={unlinking}
+                      style={{
+                        padding: "8px 16px",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#dc2626",
+                        background: "#ffffff",
+                        border: "1px solid #fca5a5",
+                        borderRadius: "10px",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      {unlinking ? "Unlinking..." : "Unlink WhatsApp"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ marginTop: "14px" }}>
+                  {/* Error Notification */}
+                  {whatsappError && (
+                    <div className={styles.bannerError} style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                      <AlertCircle size={16} />
+                      <span>❌ {whatsappError}</span>
+                    </div>
+                  )}
+
+                  {!whatsappToken ? (
+                    <div style={{ padding: "20px", background: "#f8fafc", borderRadius: "14px", border: "1px solid #e2e8f0" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+                        <div>
+                          <div style={{ fontWeight: "600", fontSize: "14px", color: "#0f172a", display: "flex", alignItems: "center", gap: "6px" }}>
+                            🔗 WhatsApp Account
+                          </div>
+                          <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b" }}>
+                            Generate a temporary, one-time linking token to connect your WhatsApp number.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleGenerateWhatsAppToken}
+                          disabled={tokenLoading}
+                          className={styles.linkPhoneBtn}
+                          style={{ background: "#16a34a", display: "flex", alignItems: "center", gap: "8px", padding: "10px 20px" }}
+                        >
+                          {tokenLoading ? (
+                            <>
+                              <RefreshCw size={15} className={styles.spinning} /> Generating Token...
+                            </>
+                          ) : (
+                            <>
+                              <MessageSquare size={15} /> Link WhatsApp
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ background: "#f8fafc", padding: "22px", borderRadius: "16px", border: "1px solid #e2e8f0" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#0f172a", marginBottom: "4px" }}>
+                        <KeyRound size={18} style={{ color: "#16a34a" }} />
+                        <h4 style={{ margin: 0, fontSize: "16px", fontWeight: "700" }}>🔐 WhatsApp Linking Token</h4>
+                      </div>
+                      <p style={{ margin: "4px 0 14px 0", fontSize: "13px", color: "#64748b" }}>
+                        Your temporary linking code is:
+                      </p>
+
+                      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "14px" }}>
+                        <div style={{
+                          fontFamily: "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace",
+                          fontSize: "26px",
+                          fontWeight: "700",
+                          letterSpacing: "6px",
+                          padding: "10px 22px",
+                          background: "#ffffff",
+                          border: isExpired ? "2px dashed #dc2626" : "2px dashed #16a34a",
+                          borderRadius: "12px",
+                          color: isExpired ? "#dc2626" : "#16a34a",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
+                        }}>
+                          {whatsappToken}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleCopyWhatsAppToken}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: "11px 18px",
+                            borderRadius: "10px",
+                            border: "none",
+                            background: tokenCopied ? "#16a34a" : "#0f172a",
+                            color: "#ffffff",
+                            fontWeight: "600",
+                            fontSize: "13px",
+                            cursor: "pointer",
+                            transition: "background 0.2s"
+                          }}
+                        >
+                          {tokenCopied ? <Check size={16} /> : <Copy size={16} />}
+                          {tokenCopied ? "Copied!" : "📋 Copy Token"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleGenerateWhatsAppToken}
+                          disabled={tokenLoading}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "11px 16px",
+                            borderRadius: "10px",
+                            border: "1px solid #cbd5e1",
+                            background: "#ffffff",
+                            color: "#334155",
+                            fontWeight: "600",
+                            fontSize: "13px",
+                            cursor: "pointer",
+                            transition: "all 0.2s"
+                          }}
+                        >
+                          <RefreshCw size={14} className={tokenLoading ? styles.spinning : ""} />
+                          🔄 Generate New Token
+                        </button>
+                      </div>
+
+                      {/* Expiration Timer Indicator */}
+                      <div style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        color: isExpired ? "#dc2626" : "#0f766e",
+                        background: isExpired ? "#fee2e2" : "#ccfbf1",
+                        padding: "6px 12px",
+                        borderRadius: "8px",
+                        marginBottom: "16px"
+                      }}>
+                        <Clock size={14} />
+                        {isExpired ? (
+                          <span>⚠️ Token expired at {formattedExpiryTime}. Please click "Generate New Token" above.</span>
+                        ) : (
+                          <span>⏱️ Valid for {timeLeft || "10:00"} {formattedExpiryTime ? `(Expires at ${formattedExpiryTime})` : ""}</span>
+                        )}
+                      </div>
+
+                      {/* Next Steps Instructions */}
+                      <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                        <div style={{ fontWeight: "700", fontSize: "13px", color: "#0f172a", marginBottom: "8px" }}>
+                          📱 Next steps
+                        </div>
+                        <ol style={{ margin: 0, paddingLeft: "20px", fontSize: "13px", color: "#475569", lineHeight: "1.7" }}>
+                          <li>1️⃣ Open WhatsApp.</li>
+                          <li>2️⃣ Open the MediKiosk chat.</li>
+                          <li>
+                            3️⃣ Send: <code style={{ background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", fontWeight: "700", color: "#0f172a" }}>hello medikiosk</code>
+                          </li>
+                          <li>4️⃣ When prompted, send the token above.</li>
+                        </ol>
+                        <div style={{ marginTop: "12px", fontSize: "12px", color: "#b45309", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span>⚠️</span>
+                          <span>Do not share this token with anyone.</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Security & Notifications Cards */}
             <div className={styles.formGrid}>
               <div className={styles.card}>
@@ -594,6 +978,70 @@ export default function Account() {
                   </div>
                 </form>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* WhatsApp Unlink Confirmation Modal */}
+      <AnimatePresence>
+        {showUnlinkModal && (
+          <div className={styles.modalBackdrop} onClick={() => setShowUnlinkModal(false)}>
+            <motion.div
+              className={styles.modalContent}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: "420px" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                <div style={{ background: "#fee2e2", color: "#dc2626", padding: "8px", borderRadius: "10px" }}>
+                  <AlertCircle size={22} />
+                </div>
+                <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700", color: "#0f172a" }}>
+                  ⚠️ Unlink WhatsApp?
+                </h3>
+              </div>
+              <p style={{ fontSize: "14px", color: "#475569", lineHeight: "1.5", margin: "0 0 20px 0" }}>
+                This will disconnect your WhatsApp account from MediKiosk.
+              </p>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowUnlinkModal(false)}
+                  disabled={unlinking}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "10px",
+                    border: "1px solid #cbd5e1",
+                    background: "#ffffff",
+                    color: "#475569",
+                    fontWeight: "600",
+                    fontSize: "13px",
+                    cursor: "pointer"
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmUnlink}
+                  disabled={unlinking}
+                  style={{
+                    padding: "8px 18px",
+                    borderRadius: "10px",
+                    border: "none",
+                    background: "#dc2626",
+                    color: "#ffffff",
+                    fontWeight: "600",
+                    fontSize: "13px",
+                    cursor: "pointer"
+                  }}
+                >
+                  {unlinking ? "Unlinking..." : "Unlink"}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

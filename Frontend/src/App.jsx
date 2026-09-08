@@ -57,8 +57,10 @@ function App() {
             <Route path="appointments" element={<Appointments />} />
             <Route path="documents" element={<Documents />} />
             
-            {/* New Dummy Pages */}
+            {/* Account & WhatsApp Linking Routes */}
             <Route path="account" element={<Account />} />
+            <Route path="account/link-whatsapp" element={<Account />} />
+            <Route path="account/whatsapp" element={<Account />} />
             <Route path="doctor" element={<DoctorDirectory />} />
             <Route path="departments" element={<Departments />} />
             <Route path="schedule" element={<PatientSchedule />} />
@@ -77,8 +79,10 @@ function App() {
             <Route path="patients" element={<PatientAccess />} />
             <Route path="team" element={<TeamManagement />} />
             
-            {/* New Dummy Pages */}
+            {/* Account & WhatsApp Linking Routes */}
             <Route path="account" element={<Account />} />
+            <Route path="account/link-whatsapp" element={<Account />} />
+            <Route path="account/whatsapp" element={<Account />} />
             <Route path="doctor" element={<DoctorDirectory />} />
             <Route path="departments" element={<Departments />} />
             <Route path="schedule" element={<DoctorAppointments />} />
@@ -89,6 +93,11 @@ function App() {
             <Route path="" element={<Navigate to="/doctor/dashboard" replace />} />
             <Route path="*" element={<ComingSoon />} />
           </Route>
+
+          {/* Top-Level Authenticated Route Aliases for Direct Account / WhatsApp Navigation */}
+          <Route path="/account" element={<ProtectedRoute><Navigate to="/patient/account" replace /></ProtectedRoute>} />
+          <Route path="/account/link-whatsapp" element={<ProtectedRoute><Navigate to="/patient/account/link-whatsapp" replace /></ProtectedRoute>} />
+          <Route path="/account/whatsapp" element={<ProtectedRoute><Navigate to="/patient/account/whatsapp" replace /></ProtectedRoute>} />
         </Routes>
       </Router>
     </AuthProvider>
