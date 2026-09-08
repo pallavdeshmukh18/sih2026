@@ -1,460 +1,311 @@
-import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  FileText,
-  Search,
-  Sparkles,
-  Upload,
-  FileSignature,
-  Download,
-  Trash2,
-  ExternalLink,
-  Loader2,
   AlertCircle,
   CheckCircle2,
-  Clock,
-  ShieldCheck,
-  MessageSquare,
-  HelpCircle,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  FileImage,
+  FileScan,
+  FileText,
+  FolderOpen,
+  Loader2,
+  MoreHorizontal,
+  Search,
   Send,
-  Volume2,
-  RefreshCw,
+  Sparkles,
+  Trash2,
+  UploadCloud,
   X,
-  FileCode,
-  Info,
-  ChevronRight
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
 import {
+  askDocumentQuestion,
+  deleteMedicalDocument,
   getPatientDocuments,
   uploadMedicalDocument,
-  deleteMedicalDocument,
-  getDocumentDownloadUrl,
-  askDocumentQuestion,
-  synthesizeSpeech
 } from "../../services/api";
 import DocumentDetailModal from "../../components/DocumentDetailModal";
-import styles from "./Documents.module.css";
-import medicalDocsHero from "../../assets/medical_docs_hero.jpg";
+import medicalDocsHero from "../../assets/medical-documents-hero-v2.png";
 import smarterDocsCard from "../../assets/smarter_docs_card.jpg";
+import styles from "./Documents.module.css";
+
+const MAX_FILE_SIZE = 15 * 1024 * 1024;
+
+function classifyDocument(doc) {
+  const name = `${doc.file_name || ""} ${doc.document_type || ""}`.toLowerCase();
+  if (name.includes("blood") || name.includes("lab")) return { key: "lab", label: "Lab Report" };
+  if (name.includes("prescription") || name.includes("medicine")) return { key: "prescription", label: "Prescription" };
+  if (name.includes("x-ray") || name.includes("scan") || doc.file_type?.includes("image")) return { key: "imaging", label: "Imaging" };
+  if (name.includes("discharge")) return { key: "discharge", label: "Discharge Summary" };
+  return { key: "other", label: "Medical Record" };
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes);
+  if (!value) return "—";
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(0)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDate(value) {
+  if (!value) return { date: "—", time: "" };
+  const date = new Date(value);
+  return {
+    date: date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+    time: date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+  };
+}
 
 export default function Documents() {
   const { user, token } = useAuth();
-  const { t, currentLanguage } = useLanguage();
+  const patientId = user?.id;
+  const { currentLanguage } = useLanguage();
   const fileInputRef = useRef(null);
-  const qaSectionRef = useRef(null);
-
-  // Document List State
+  const scanInputRef = useRef(null);
+  const aiInputRef = useRef(null);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Upload State
-  const [uploadState, setUploadState] = useState("idle"); // idle | uploading | processing | success | error
-  const [uploadStageText, setUploadStageText] = useState("");
-  const [uploadErrorMsg, setUploadErrorMsg] = useState("");
+  const [error, setError] = useState("");
+  const [uploadState, setUploadState] = useState("idle");
+  const [uploadMessage, setUploadMessage] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
-
-  // Modal State
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("recent");
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const [menuDocId, setMenuDocId] = useState(null);
+  const [showAi, setShowAi] = useState(false);
+  const [aiDocId, setAiDocId] = useState("");
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [aiAnswer, setAiAnswer] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
-  // Grounded Document Q&A State
-  const [selectedDocForQA, setSelectedDocForQA] = useState(null);
-  const [qaQuestion, setQaQuestion] = useState("");
-  const [qaLoading, setQaLoading] = useState(false);
-  const [qaHistory, setQaHistory] = useState([]); // [{ question, answer, what_report_says, what_it_means, questions_for_doctor, disclaimer }]
-  const [qaError, setQaError] = useState(null);
-
-  // Audio TTS State for Answer Reading
-  const [playingAudioIdx, setPlayingAudioIdx] = useState(null);
-  const [audioLoadingIdx, setAudioLoadingIdx] = useState(null);
-  const audioRef = useRef(null);
-
-  // Load Patient Documents from Authenticated Backend
-  const fetchDocuments = async () => {
-    if (!token || !user?.id) return;
-    setLoading(true);
-    setError(null);
+  const fetchDocuments = useCallback(async (showLoader = true) => {
+    if (!token || !patientId) return;
+    if (showLoader) setLoading(true);
+    setError("");
     try {
-      const res = await getPatientDocuments(user.id, token);
-      if (res.success && Array.isArray(res.documents)) {
-        setDocuments(res.documents);
-        // Default select latest processed document if none selected
-        if (!selectedDocForQA && res.documents.length > 0) {
-          const completedDoc = res.documents.find(d => d.ocr_status === "completed") || res.documents[0];
-          setSelectedDocForQA(completedDoc);
-        }
-      } else {
-        throw new Error(res.message || "Failed to load medical records.");
+      const response = await getPatientDocuments(patientId, token);
+      if (!response.success || !Array.isArray(response.documents)) {
+        throw new Error(response.message || "Unable to load your medical documents.");
       }
-    } catch (err) {
-      console.error("Failed to fetch documents:", err);
-      setError(err.message || "Unable to load your medical documents.");
+      setDocuments(response.documents);
+      setAiDocId((current) => current || response.documents.find((doc) => doc.ocr_status === "completed")?.id || response.documents[0]?.id || "");
+    } catch (requestError) {
+      setError(requestError.message || "Unable to load your medical documents.");
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
-  };
+  }, [token, patientId]);
 
   useEffect(() => {
     fetchDocuments();
-  }, [token, user?.id]);
+  }, [fetchDocuments]);
 
-  // Handle Document Switching
-  const handleSelectDocumentForQA = (doc) => {
-    if (selectedDocForQA?.id === doc.id) return;
-    setSelectedDocForQA(doc);
-    setQaHistory([]); // Clear previous document conversation context
-    setQaError(null);
-    setQaQuestion("");
-  };
+  const visibleDocuments = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return [...documents]
+      .filter((doc) => {
+        const type = classifyDocument(doc);
+        const matchesType = typeFilter === "all" || type.key === typeFilter;
+        const haystack = `${doc.file_name || ""} ${doc.description || ""} ${type.label}`.toLowerCase();
+        return matchesType && (!normalizedQuery || haystack.includes(normalizedQuery));
+      })
+      .sort((a, b) => {
+        const difference = new Date(b.created_at || 0) - new Date(a.created_at || 0);
+        return sortOrder === "oldest" ? -difference : difference;
+      });
+  }, [documents, query, sortOrder, typeFilter]);
 
-  // Handle Document File Upload
+  const usedBytes = useMemo(
+    () => documents.reduce((total, doc) => total + Number(doc.file_size || 0), 0),
+    [documents],
+  );
+  const storagePercent = Math.min(100, Math.round((usedBytes / MAX_FILE_SIZE) * 100));
+
   const processUpload = async (file) => {
     if (!file) return;
-
     const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
     if (!allowedTypes.includes(file.type)) {
       setUploadState("error");
-      setUploadErrorMsg("Only PDF, JPG, JPEG, and PNG medical files are supported.");
+      setUploadMessage("Please choose a PDF, JPG, JPEG, or PNG file.");
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadState("error");
+      setUploadMessage("The selected file is larger than 15 MB.");
       return;
     }
 
     setUploadState("uploading");
-    setUploadStageText("Uploading document to secure medical storage...");
-    setUploadErrorMsg("");
-
+    setUploadMessage("Uploading and securely processing your document…");
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("patientId", user.id);
+    formData.append("patientId", patientId);
     formData.append("documentType", "other");
 
     try {
-      setTimeout(() => {
-        setUploadState("processing");
-        setUploadStageText("Running OCR & structuring medical report...");
-      }, 900);
-
-      const res = await uploadMedicalDocument(formData, token);
-
-      if (res.success && res.document) {
-        setUploadState("success");
-        setUploadStageText(t("dashboard.uploadSuccess") || "Record uploaded and processed successfully!");
-        
-        await fetchDocuments();
-        
-        // Automatically select the newly uploaded document for Q&A
-        setSelectedDocForQA(res.document);
-        setQaHistory([]);
-        setQaError(null);
-        
-        setTimeout(() => setUploadState("idle"), 4000);
-      } else {
-        throw new Error(res.message || "Document upload failed.");
-      }
-    } catch (err) {
-      console.error("Document upload error:", err);
+      const response = await uploadMedicalDocument(formData, token);
+      if (!response.success) throw new Error(response.message || "Upload failed.");
+      setUploadState("success");
+      setUploadMessage("Document uploaded successfully.");
+      await fetchDocuments(false);
+      window.setTimeout(() => setUploadState("idle"), 3500);
+    } catch (uploadError) {
       setUploadState("error");
-      setUploadErrorMsg(err.message || "We couldn't process this document. Please try uploading a clearer copy.");
+      setUploadMessage(uploadError.message || "We could not upload this document.");
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
+      if (scanInputRef.current) scanInputRef.current.value = "";
     }
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) processUpload(file);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) processUpload(file);
-  };
-
-  // Handle Document Deletion
-  const handleDeleteDoc = async (documentId) => {
+  const handleDelete = async (documentOrId) => {
+    const doc = typeof documentOrId === "object"
+      ? documentOrId
+      : documents.find((item) => item.id === documentOrId);
+    if (!doc) return;
+    if (!window.confirm(`Delete “${doc.file_name}”? This cannot be undone.`)) return;
     try {
-      await deleteMedicalDocument(documentId, token);
-      setDocuments((prev) => prev.filter((d) => d.id !== documentId));
-      if (selectedDoc?.id === documentId) setSelectedDoc(null);
-      if (selectedDocForQA?.id === documentId) {
-        const remaining = documents.filter((d) => d.id !== documentId);
-        setSelectedDocForQA(remaining.length > 0 ? remaining[0] : null);
-        setQaHistory([]);
-      }
-    } catch (err) {
-      console.error("Delete document error:", err);
+      await deleteMedicalDocument(doc.id, token);
+      setDocuments((current) => current.filter((item) => item.id !== doc.id));
+      setMenuDocId(null);
+      if (selectedDoc?.id === doc.id) setSelectedDoc(null);
+    } catch (deleteError) {
+      setError(deleteError.message || "Unable to delete this document.");
     }
   };
 
-  // Handle Opening Original Document Download URL
-  const handleOpenOriginal = async (docId) => {
+  const handleAskAi = async (event) => {
+    event.preventDefault();
+    if (!aiDocId || !aiQuestion.trim()) return;
+    setAiLoading(true);
+    setAiAnswer("");
     try {
-      const res = await getDocumentDownloadUrl(docId, token);
-      if (res.downloadUrl) {
-        window.open(res.downloadUrl, "_blank", "noopener,noreferrer");
-      }
-    } catch (err) {
-      console.error("Open original document error:", err);
-    }
-  };
-
-  // Submit Grounded Question about Selected Record
-  const handleAskQuestion = async (queryText) => {
-    const textToAsk = (queryText || qaQuestion).trim();
-    if (!textToAsk || !selectedDocForQA) return;
-
-    setQaLoading(true);
-    setQaError(null);
-
-    // Build conversation history for current document
-    const previousHistory = qaHistory.map(h => ({
-      question: h.question,
-      answer: h.answer
-    }));
-
-    try {
-      const res = await askDocumentQuestion(
-        selectedDocForQA.id,
-        textToAsk,
-        currentLanguage || "en",
-        previousHistory,
-        token
-      );
-
-      if (res.success) {
-        const newTurn = {
-          question: textToAsk,
-          answer: res.answer,
-          what_report_says: res.what_report_says || [],
-          what_it_means: res.what_it_means || "",
-          questions_for_doctor: res.questions_for_doctor || [],
-          sources: res.sources || [],
-          disclaimer: res.disclaimer || "Educational purpose only."
-        };
-        setQaHistory((prev) => [...prev, newTurn]);
-        setQaQuestion("");
-      } else {
-        throw new Error(res.message || "Failed to get an explanation.");
-      }
-    } catch (err) {
-      console.error("Document QA error:", err);
-      setQaError(err.message || "Unable to answer your question right now. Please try again.");
+      const response = await askDocumentQuestion(aiDocId, aiQuestion.trim(), currentLanguage || "en", [], token);
+      if (!response.success) throw new Error(response.message || "Unable to answer this question.");
+      setAiAnswer(response.answer || response.what_it_means || "No answer was returned.");
+    } catch (questionError) {
+      setAiAnswer(questionError.message || "Unable to answer this question right now.");
     } finally {
-      setQaLoading(false);
+      setAiLoading(false);
     }
   };
 
-  // TTS Speech Synthesis for AI Answers
-  const handleSpeakAnswer = async (text, idx) => {
-    if (playingAudioIdx === idx && audioRef.current) {
-      audioRef.current.pause();
-      setPlayingAudioIdx(null);
-      return;
-    }
-
-    setAudioLoadingIdx(idx);
-    try {
-      const langCodeMap = {
-        en: "en-IN", hi: "hi-IN", mr: "mr-IN", gu: "gu-IN",
-        bn: "bn-IN", ta: "ta-IN", te: "te-IN", kn: "kn-IN",
-        ml: "ml-IN", pa: "pa-IN", or: "od-IN", as: "as-IN"
-      };
-      const langCode = langCodeMap[currentLanguage] || "en-IN";
-
-      const res = await synthesizeSpeech(text, langCode, "simran", 1.0);
-      if (res.audio_b64) {
-        const audioUrl = `data:audio/wav;base64,${res.audio_b64}`;
-        if (audioRef.current) {
-          audioRef.current.pause();
-        }
-        const audio = new Audio(audioUrl);
-        audioRef.current = audio;
-
-        audio.onended = () => setPlayingAudioIdx(null);
-        audio.onerror = () => setPlayingAudioIdx(null);
-
-        await audio.play();
-        setPlayingAudioIdx(idx);
-      }
-    } catch (err) {
-      console.error("TTS audio play error:", err);
-    } finally {
-      setAudioLoadingIdx(null);
-    }
+  const openAiPanel = () => {
+    setShowAi(true);
+    window.setTimeout(() => aiInputRef.current?.focus(), 180);
   };
-
-  // Format File Size
-  const formatBytes = (bytes) => {
-    if (!bytes || isNaN(bytes)) return "0 KB";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
-  };
-
-  const recentExtractions = documents
-    .filter((d) => d.extracted_text || d.ai_summary || d.extracted_entities)
-    .slice(0, 3);
 
   return (
-    <div className={`${styles.page} workspacePage`} style={{ paddingBottom: "16px" }}>
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        style={{ display: "flex", flexDirection: "column", gap: "24px" }}
-      >
-        {/* Banner */}
-        <div className={styles.banner}>
-          <div className={styles.bannerContent}>
-            <span>Medical Documents</span>
-            <h1>Medical Documents & Intelligence</h1>
-            <p>Upload, view, and ask grounded questions about your prescriptions, lab reports, and medical records.</p>
-          </div>
-          <img src={medicalDocsHero} alt="Medical Documents Hero" className={styles.bannerImage} />
-          <div className={styles.bannerQuote}>
-            "Organized<br />Today.<br />Healthier<br />Tomorrow."
-          </div>
+    <motion.main className={`${styles.page} workspacePage`} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <header className={styles.hero}>
+        <div className={styles.heroCopy}>
+          <span className={styles.eyebrow}>Medical documents</span>
+          <h1>Medical Documents &amp; Intelligence</h1>
+          <p>Upload, organize, and ask grounded questions about your prescriptions, lab reports, and medical records.</p>
         </div>
+        <img src={medicalDocsHero} alt="Illustrated medical records surrounded by leaves" />
+        <blockquote>“Organized today.<br />Healthier tomorrow.”</blockquote>
+      </header>
 
-        {/* Upload Zone */}
-        <div
-          className={`${styles.uploadZone} ${isDragOver ? styles.dragOver : ""}`}
-          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-          onDragLeave={() => setIsDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Upload size={32} className={styles.uploadIcon} />
-          <h3>Upload Medical File</h3>
-          <p>Drag and drop your file here, or <b>click to browse</b></p>
-          <small>Supported formats: PDF, JPG, JPEG, PNG • Maximum size: 15MB</small>
+      <div className={styles.workspaceGrid}>
+        <section className={styles.mainColumn}>
+          <div
+            className={`${styles.uploadCard} ${isDragOver ? styles.dragOver : ""}`}
+            onDragOver={(event) => { event.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={(event) => { event.preventDefault(); setIsDragOver(false); processUpload(event.dataTransfer.files?.[0]); }}
+            onClick={() => fileInputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(event) => { if (event.key === "Enter") fileInputRef.current?.click(); }}
+          >
+            <UploadCloud className={styles.uploadIcon} size={34} strokeWidth={1.8} />
+            <strong>Upload Medical File</strong>
+            <span>Drag and drop your file here, or <u>click to browse</u></span>
+            <small>PDF, JPG, JPEG, or PNG · Maximum file size 15 MB</small>
+            <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(event) => processUpload(event.target.files?.[0])} hidden />
+            <AnimatePresence>
+              {uploadState !== "idle" && (
+                <motion.div className={`${styles.uploadStatus} ${styles[uploadState]}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                  {uploadState === "uploading" && <Loader2 size={15} className={styles.spin} />}
+                  {uploadState === "success" && <CheckCircle2 size={15} />}
+                  {uploadState === "error" && <AlertCircle size={15} />}
+                  {uploadMessage}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
-          {/* Hidden File Input */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept=".pdf,.jpg,.jpeg,.png"
-            style={{ display: "none" }}
-          />
-
-          {uploadState !== "idle" && (
-            <div style={{ marginTop: "16px", color: uploadState === "error" ? "#ef4444" : "#0d9488", fontSize: "14px", fontWeight: "600", display: "flex", alignItems: "center", justify: "center", gap: "8px" }}>
-              {uploadState === "error" ? <AlertCircle size={16} /> : uploadState === "success" ? <CheckCircle2 size={16} /> : <Loader2 size={16} className="spin" />}
-              {uploadState === "error" ? uploadErrorMsg : uploadStageText}
-            </div>
-          )}
-        </div>
-
-        <div className={styles.workspaceGrid}>
-          {/* Main Content Area */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-
-            {/* Search and Filters */}
-            <div className={styles.searchBar}>
-              <div className={styles.searchWrapper}>
-                <Search size={18} className={styles.searchIcon} />
-                <input type="text" placeholder="Search documents by name, type, or description..." className={styles.searchInput} />
-              </div>
-              <select className={styles.filterSelect}>
+          <div className={styles.filters}>
+            <label className={styles.searchField}>
+              <Search size={18} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search documents by name, type, or description…" />
+            </label>
+            <label className={styles.selectField}>
+              <FileText size={17} />
+              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                 <option value="all">All Types</option>
                 <option value="lab">Lab Reports</option>
                 <option value="prescription">Prescriptions</option>
+                <option value="imaging">Imaging</option>
+                <option value="discharge">Discharge</option>
+                <option value="other">Other Records</option>
               </select>
-              <select className={styles.filterSelect}>
+              <ChevronDown size={15} />
+            </label>
+            <label className={styles.selectField}>
+              <FolderOpen size={17} />
+              <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>
                 <option value="recent">Last Updated</option>
                 <option value="oldest">Oldest First</option>
               </select>
+              <ChevronDown size={15} />
+            </label>
+          </div>
+
+          <section className={styles.recordsCard}>
+            <div className={styles.recordsHeader}>
+              <div>
+                <h2>Your Document Records</h2>
+                <p>{visibleDocuments.length} {visibleDocuments.length === 1 ? "document" : "documents"} · {sortOrder === "recent" ? "Newest first" : "Oldest first"}</p>
+              </div>
             </div>
 
-            {/* Document Records Table */}
-            <div className={styles.sectionBlock}>
-              <div className={styles.sectionHeader}>
-                <h3>Your Document Records</h3>
-                <p>{documents.length} documents • Sorted by most recent</p>
-              </div>
-
-              {loading ? (
-                <div style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>
-                  <Loader2 size={24} className="spin" style={{ margin: "0 auto 12px" }} />
-                  Loading your medical records...
-                </div>
-              ) : error ? (
-                <div style={{ padding: "24px", color: "#ef4444", textAlign: "center" }}>{error}</div>
-              ) : documents.length === 0 ? (
-                <div style={{ padding: "60px 24px", textAlign: "center", color: "#64748b" }}>
-                  <FileText size={48} color="#cbd5e1" style={{ margin: "0 auto 16px" }} />
-                  <h4 style={{ fontSize: "16px", color: "#0f172a", marginBottom: "8px" }}>No documents found</h4>
-                  <p>Upload a document to see it listed here.</p>
-                </div>
-              ) : (
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Type</th>
-                      <th>Uploaded On</th>
-                      <th>Size</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
+            {loading ? (
+              <div className={styles.emptyState}><Loader2 className={styles.spin} /><strong>Loading your records…</strong></div>
+            ) : error ? (
+              <div className={`${styles.emptyState} ${styles.errorState}`}><AlertCircle /><strong>{error}</strong><button onClick={() => fetchDocuments()}>Try again</button></div>
+            ) : visibleDocuments.length === 0 ? (
+              <div className={styles.emptyState}><div className={styles.emptyIcon}><FileText /></div><strong>{documents.length ? "No matching documents" : "No documents uploaded yet"}</strong><span>{documents.length ? "Try adjusting your search or filters." : "Upload your first record to keep your health files in one secure place."}</span></div>
+            ) : (
+              <div className={styles.tableWrap}>
+                <table>
+                  <thead><tr><th>Name</th><th>Type</th><th>Uploaded on</th><th>Size</th><th>Actions</th></tr></thead>
                   <tbody>
-                    {documents.map((doc) => {
-                      const isPdf = doc.file_type?.includes("pdf");
-                      let typeBadge = { class: "other", label: "Other", iconClass: "default" };
-
-                      // Very basic mock typing for UI demo purposes based on file name or type
-                      if (doc.file_name.toLowerCase().includes("blood") || doc.file_name.toLowerCase().includes("lab")) {
-                        typeBadge = { class: "lab", label: "Lab Report", iconClass: "pdf" };
-                      } else if (doc.file_name.toLowerCase().includes("prescription") || doc.file_name.toLowerCase().includes("dr")) {
-                        typeBadge = { class: "prescription", label: "Prescription", iconClass: "pdf" };
-                      } else if (doc.file_name.toLowerCase().includes("x-ray") || doc.file_type?.includes("image")) {
-                        typeBadge = { class: "imaging", label: "Imaging", iconClass: "image" };
-                      } else if (doc.file_name.toLowerCase().includes("discharge")) {
-                        typeBadge = { class: "discharge", label: "Discharge Summary", iconClass: "doc" };
-                      }
-
+                    {visibleDocuments.map((doc) => {
+                      const type = classifyDocument(doc);
+                      const date = formatDate(doc.created_at);
+                      const isImage = doc.file_type?.includes("image");
                       return (
                         <tr key={doc.id}>
+                          <td><div className={styles.documentName}><span className={`${styles.fileIcon} ${styles[type.key]}`}>{isImage ? <FileImage /> : <FileText />}</span><span><strong>{doc.file_name || "Untitled document"}</strong><small>{doc.ocr_status === "completed" ? "Ready for AI questions" : "Processing document"}</small></span></div></td>
+                          <td><span className={`${styles.typeBadge} ${styles[type.key]}`}>{type.label}</span></td>
+                          <td><span className={styles.dateCell}>{date.date}<small>{date.time}</small></span></td>
+                          <td className={styles.sizeCell}>{formatBytes(doc.file_size)}</td>
                           <td>
-                            <div className={styles.docNameCell}>
-                              <div className={`${styles.docIcon} ${styles[typeBadge.iconClass]}`}>
-                                {isPdf ? <FileText size={20} /> : <FileSignature size={20} />}
+                            <div className={styles.rowActions}>
+                              <button className={styles.viewButton} onClick={() => setSelectedDoc(doc)}><Eye size={15} /> View</button>
+                              <div className={styles.menuWrap}>
+                                <button className={styles.iconButton} aria-label={`More actions for ${doc.file_name}`} onClick={() => setMenuDocId((current) => current === doc.id ? null : doc.id)}><MoreHorizontal size={18} /></button>
+                                <AnimatePresence>
+                                  {menuDocId === doc.id && <motion.div className={styles.rowMenu} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}><button onClick={() => { setSelectedDoc(doc); setMenuDocId(null); }}><Eye size={14} /> Open details</button><button className={styles.deleteAction} onClick={() => handleDelete(doc)}><Trash2 size={14} /> Delete</button></motion.div>}
+                                </AnimatePresence>
                               </div>
-                              <div>
-                                <b>{doc.file_name}</b>
-                                <span>{doc.ocr_status === "completed" ? "Processed" : "Processing"}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td>
-                            <span className={`${styles.badge} ${styles[typeBadge.class]}`}>
-                              {typeBadge.label}
-                            </span>
-                          </td>
-                          <td>
-                            <div className={styles.dateCell}>
-                              {new Date(doc.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                              <span>{new Date(doc.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
-                            </div>
-                          </td>
-                          <td>{formatBytes(doc.file_size)}</td>
-                          <td>
-                            <div className={styles.actionsCell}>
-                              <button className={styles.viewBtn} onClick={() => setSelectedDoc(doc)}>
-                                <ExternalLink size={14} /> View
-                              </button>
-                              <button className={styles.moreBtn} onClick={() => {
-                                if (window.confirm(`Delete record "${doc.file_name}"?`)) {
-                                  handleDeleteDoc(doc.id);
-                                }
-                              }}>
-                                <Trash2 size={16} />
-                              </button>
                             </div>
                           </td>
                         </tr>
@@ -462,77 +313,54 @@ export default function Documents() {
                     })}
                   </tbody>
                 </table>
-              )}
-            </div>
-          </div>
-
-          {/* Right Sidebar */}
-          <div>
-            <div className={styles.sideCard}>
-              <h3>Quick Actions</h3>
-              <div className={styles.actionList}>
-                <div className={styles.actionItem} onClick={() => fileInputRef.current?.click()}>
-                  <div className={styles.actionItemLeft}>
-                    <Upload size={18} /> Upload Document
-                  </div>
-                  <ChevronRight size={16} color="#94a3b8" />
-                </div>
-                <div className={styles.actionItem}>
-                  <div className={styles.actionItemLeft}>
-                    <FileSignature size={18} /> Scan Document
-                  </div>
-                  <ChevronRight size={16} color="#94a3b8" />
-                </div>
-                <div className={styles.actionItem}>
-                  <div className={styles.actionItemLeft}>
-                    <Sparkles size={18} /> Ask AI about Document
-                  </div>
-                  <ChevronRight size={16} color="#94a3b8" />
-                </div>
-                <div className={styles.actionItem}>
-                  <div className={styles.actionItemLeft}>
-                    <FileText size={18} /> Organize Files
-                  </div>
-                  <ChevronRight size={16} color="#94a3b8" />
-                </div>
               </div>
-            </div>
+            )}
+          </section>
+        </section>
 
-            <div className={styles.sideCard}>
-              <h3>Storage Usage</h3>
-              <div className={styles.storageUsage}>
-                <div className={styles.storageRing}>
-                  <span>23%</span>
-                </div>
-                <div className={styles.storageText}>
-                  <b>3.4 MB used of 15 MB</b>
-                  <div className={styles.storageBar}>
-                    <div className={styles.storageBarFill}></div>
-                  </div>
-                  <a href="#" className={styles.storageLink} onClick={(e) => e.preventDefault()}>Manage Storage <ChevronRight size={14} /></a>
-                </div>
-              </div>
-            </div>
+        <aside className={styles.sideColumn}>
+          <section className={styles.sideCard}>
+            <h2>Quick Actions</h2>
+            <button onClick={() => fileInputRef.current?.click()}><span><UploadCloud /></span>Upload Document<ChevronRight /></button>
+            <button onClick={() => scanInputRef.current?.click()}><span><FileScan /></span>Scan Document<ChevronRight /></button>
+            <button onClick={openAiPanel}><span><Sparkles /></span>Ask AI about Document<ChevronRight /></button>
+            <button onClick={() => setSortOrder("recent")}><span><FolderOpen /></span>Organize Files<ChevronRight /></button>
+            <input ref={scanInputRef} type="file" accept="image/*" capture="environment" onChange={(event) => processUpload(event.target.files?.[0])} hidden />
+          </section>
 
-            <div className={styles.decorativeCard}>
-              <img src={smarterDocsCard} alt="Smarter Documents Better Care" />
-              <div style={{ position: "absolute", left: "24px", bottom: "24px", zIndex: 2, fontFamily: "var(--font-serif)", fontSize: "20px", fontStyle: "italic", color: "#064e3b", maxWidth: "150px", lineHeight: 1.2 }}>
-                Smarter<br />Documents.<br />Better Care.
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
+          <AnimatePresence>
+            {showAi && (
+              <motion.section className={`${styles.sideCard} ${styles.aiCard}`} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
+                <div className={styles.aiHeader}><div><Sparkles size={18} /><h2>Ask your document</h2></div><button aria-label="Close AI panel" onClick={() => setShowAi(false)}><X size={16} /></button></div>
+                {documents.length ? (
+                  <form onSubmit={handleAskAi}>
+                    <select value={aiDocId} onChange={(event) => { setAiDocId(event.target.value); setAiAnswer(""); }}>
+                      {documents.map((doc) => <option key={doc.id} value={doc.id}>{doc.file_name}</option>)}
+                    </select>
+                    <div className={styles.aiQuestion}><input ref={aiInputRef} value={aiQuestion} onChange={(event) => setAiQuestion(event.target.value)} placeholder="What does this report mean?" /><button disabled={aiLoading || !aiQuestion.trim()}>{aiLoading ? <Loader2 className={styles.spin} /> : <Send />}</button></div>
+                    {aiAnswer && <p className={styles.aiAnswer}>{aiAnswer}</p>}
+                  </form>
+                ) : <p className={styles.aiHint}>Upload a processed document before asking a question.</p>}
+              </motion.section>
+            )}
+          </AnimatePresence>
 
-      {/* Structured Medical Record Modal */}
-      {selectedDoc && (
-        <DocumentDetailModal
-          doc={selectedDoc}
-          onClose={() => setSelectedDoc(null)}
-          onDelete={handleDeleteDoc}
-        />
-      )}
-    </div>
+          <section className={styles.sideCard}>
+            <h2>Storage Usage</h2>
+            <div className={styles.storageLayout}>
+              <div className={styles.storageRing} style={{ "--used": `${storagePercent * 3.6}deg` }}><span>{storagePercent}%</span></div>
+              <div className={styles.storageDetails}><strong>{formatBytes(usedBytes) === "—" ? "0 MB" : formatBytes(usedBytes)} used of 15 MB</strong><div><span style={{ width: `${storagePercent}%` }} /></div><button onClick={() => setSortOrder("recent")}>Manage Storage <ChevronRight size={14} /></button></div>
+            </div>
+          </section>
+
+          <section className={styles.decorativeCard}>
+            <img src={smarterDocsCard} alt="Botanical medical records illustration" />
+            <p>Smarter<br />Documents.<br />Better Care.</p>
+          </section>
+        </aside>
+      </div>
+
+      {selectedDoc && <DocumentDetailModal doc={selectedDoc} onClose={() => setSelectedDoc(null)} onDelete={handleDelete} />}
+    </motion.main>
   );
 }
-
