@@ -33,6 +33,11 @@ import BedManager from "./pages/shared/BedManager";
 import Payment from "./pages/shared/Payment";
 import Mail from "./pages/shared/Mail";
 
+// Receptionist Pages
+import ReceptionistDashboard from "./pages/ReceptionistDashboard";
+import ReceptionistAppointments from "./pages/receptionist/ReceptionistAppointments";
+import ReceptionistPatients from "./pages/receptionist/ReceptionistPatients";
+
 import "./App.css";
 
 function App() {
@@ -87,6 +92,25 @@ function App() {
             <Route path="mail" element={<Mail />} />
 
             <Route path="" element={<Navigate to="/doctor/dashboard" replace />} />
+            <Route path="*" element={<ComingSoon />} />
+          </Route>
+
+          {/* Protected Receptionist / Front-Desk Routes */}
+          <Route path="/receptionist" element={<ProtectedRoute role="receptionist"><DashboardLayout /></ProtectedRoute>}>
+            <Route path="dashboard" element={<ReceptionistDashboard />} />
+            <Route path="appointments" element={<ReceptionistAppointments />} />
+            <Route path="patients" element={<ReceptionistPatients />} />
+            
+            {/* Shared Hospital Modules */}
+            <Route path="doctor" element={<DoctorDirectory />} />
+            <Route path="departments" element={<Departments />} />
+            <Route path="schedule" element={<ReceptionistAppointments />} />
+            <Route path="bed" element={<BedManager />} />
+            <Route path="payment" element={<Payment />} />
+            <Route path="account" element={<Account />} />
+            <Route path="mail" element={<Mail />} />
+
+            <Route path="" element={<Navigate to="/receptionist/dashboard" replace />} />
             <Route path="*" element={<ComingSoon />} />
           </Route>
         </Routes>

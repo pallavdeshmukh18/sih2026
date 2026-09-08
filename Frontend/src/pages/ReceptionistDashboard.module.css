@@ -1,0 +1,505 @@
+﻿.dashboard {
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    font-family: var(--font-sans, system-ui, sans-serif);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.dateBadge {
+    display: inline-block;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+}
+
+.title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 6px 0;
+}
+
+.subtitle {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0;
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.primaryBtn {
+    background: #0d9488;
+    color: white;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.primaryBtn:hover {
+    background: #0f766e;
+    transform: translateY(-1px);
+}
+
+.secondaryBtn {
+    background: white;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.secondaryBtn:hover {
+    background: #f8fafc;
+}
+
+.metricsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.metricCard {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+.metricIcon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.toneBlue { background: #eff6ff; color: #2563eb; }
+.toneGreen { background: #f0fdf4; color: #16a34a; }
+.toneAmber { background: #fffbeb; color: #d97706; }
+.tonePurple { background: #faf5ff; color: #7c3aed; }
+
+.metricContent {
+    display: flex;
+    flex-direction: column;
+}
+
+.metricLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.metricValue {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+    margin: 2px 0;
+}
+
+.metricDetail {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.workspaceGrid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 24px;
+}
+
+@media (max-width: 1024px) {
+    .workspaceGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.queueCard {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+.queueHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.cardTitle {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0 0 4px 0;
+}
+
+.cardSubtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+}
+
+.searchBox {
+    position: relative;
+    width: 280px;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+}
+
+.searchBox input {
+    width: 100%;
+    padding: 8px 12px 8px 36px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.searchBox input:focus {
+    border-color: #0d9488;
+}
+
+.tableWrapper {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    text-align: left;
+}
+
+.table th {
+    padding: 12px 14px;
+    color: #64748b;
+    font-weight: 600;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.table td {
+    padding: 14px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #334155;
+    vertical-align: middle;
+}
+
+.patientInfo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #0d9488;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.patientName {
+    display: block;
+    color: #0f172a;
+    font-weight: 600;
+}
+
+.patientGender {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.contactPhone {
+    font-weight: 500;
+    color: #475569;
+}
+
+.doctorBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #0f172a;
+    font-weight: 500;
+    background: #f8fafc;
+    padding: 4px 10px;
+    border-radius: 6px;
+}
+
+.timeBadge {
+    font-weight: 600;
+    color: #0d9488;
+}
+
+.statusBadge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.statusScheduled { background: #fef3c7; color: #b45309; }
+.statusCheckedIn { background: #dcfce7; color: #15803d; }
+.statusCompleted { background: #f1f5f9; color: #475569; }
+.statusCancelled { background: #fee2e2; color: #b91c1c; }
+
+.checkInBtn {
+    background: #0d9488;
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.checkInBtn:hover {
+    background: #0f766e;
+}
+
+.checkedInDone {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #16a34a;
+    font-weight: 600;
+}
+
+.emptyState {
+    text-align: center;
+    padding: 48px 24px;
+}
+
+.emptyState h3 {
+    margin: 12px 0 6px 0;
+    color: #1e293b;
+}
+
+.emptyState p {
+    color: #64748b;
+    margin: 0 0 16px 0;
+    font-size: 14px;
+}
+
+.emptyActionBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #0d9488;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.loadingState {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 48px 0;
+    color: #64748b;
+}
+
+.spinIcon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.sideColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.sideCard {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+}
+
+.sideCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.cardLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #0d9488;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.doctorList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.doctorItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.docAvatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #e6fffa;
+    color: #0d9488;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.docInfo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.docInfo strong {
+    font-size: 13px;
+    color: #0f172a;
+}
+
+.docInfo small {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.docOnlineBadge {
+    font-size: 11px;
+    font-weight: 600;
+    color: #16a34a;
+    background: #dcfce7;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.quickActionsGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.quickActionCard {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #f8fafc;
+    text-decoration: none;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.quickActionCard:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateX(2px);
+}
+
+.quickActionCard strong {
+    display: block;
+    font-size: 13px;
+    color: #0f172a;
+}
+
+.quickActionCard small {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.noDataText {
+    font-size: 12px;
+    color: #94a3b8;
+    text-align: center;
+    margin: 12px 0;
+}

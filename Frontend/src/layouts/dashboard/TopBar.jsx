@@ -30,10 +30,12 @@ export default function TopBar() {
         ))}
       </select>
     </div>
-    <span className={styles.portal}>{role} portal</span>
+    <span className={styles.portal}>
+      {role === 'receptionist' ? 'Front Desk' : role === 'doctor' ? 'Doctor Portal' : 'Patient Portal'}
+    </span>
     <Link aria-label="Messages" className={styles.iconButton} to={`/${role}/mail`}><Mail size={19}/></Link>
     <Link aria-label="Account settings" className={styles.iconButton} to={`/${role}/account`}><Settings size={19}/></Link>
-    <Link className={styles.profile} to={`/${role}/account`}><span className={styles.avatar}>{user?.firstName?.[0] || 'U'}{user?.lastName?.[0]}</span><span className={styles.userName}>{user?.firstName || 'Your account'}<small>{role}</small></span></Link>
+    <Link className={styles.profile} to={`/${role}/account`}><span className={styles.avatar}>{user?.firstName?.[0] || 'U'}{user?.lastName?.[0]}</span><span className={styles.userName}>{user?.firstName || 'Your account'}<small>{role === 'receptionist' ? 'Front Desk' : role}</small></span></Link>
   </div>
  </header>;
 }

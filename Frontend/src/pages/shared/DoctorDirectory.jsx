@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Stethoscope, Calendar, Search, CheckCircle, AlertCircle, X, Building2, Award } from "lucide-react";
+import { Stethoscope, Calendar, Clock, Search, CheckCircle, AlertCircle, X, Building2, Award } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
 import { fetchPublicDoctors, createAppointment } from "../../services/api";
+import DoctorScheduleModal from "../../components/DoctorScheduleModal";
 import styles from "./DoctorDirectory.module.css";
 
 export default function DoctorDirectory() {
@@ -17,6 +18,7 @@ export default function DoctorDirectory() {
 
   // Booking Modal State
   const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [scheduleDoctor, setScheduleDoctor] = useState(null);
   const [scheduledAt, setScheduledAt] = useState("");
   const [appointmentType, setAppointmentType] = useState("in_person");
   const [reason, setReason] = useState("");
@@ -227,13 +229,24 @@ export default function DoctorDirectory() {
                     </div>
                   </div>
 
-                  <button
-                    className={styles.bookBtn}
-                    onClick={() => handleOpenBooking(doc)}
-                  >
-                    <Calendar size={16} />
-                    Book Visit
-                  </button>
+                  <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+                    <button
+                      className={styles.bookBtn}
+                      style={{ background: "#ffffff", color: "#0284c7", border: "1px solid #0284c7" }}
+                      onClick={() => setScheduleDoctor(doc)}
+                      title="View booked and available time slots"
+                    >
+                      <Clock size={15} />
+                      Schedule
+                    </button>
+                    <button
+                      className={styles.bookBtn}
+                      onClick={() => handleOpenBooking(doc)}
+                    >
+                      <Calendar size={15} />
+                      Book Visit
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -342,6 +355,18 @@ export default function DoctorDirectory() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Doctor Live Schedule Modal */}
+      <DoctorScheduleModal
+        doctor={scheduleDoctor}
+        isOpen={!!scheduleDoctor}
+        onClose={() => setScheduleDoctor(null)}
+        onBookSlot={(doc, slotTime) => {
+          setScheduleDoctor(null);
+          setSelectedDoctor(doc);
+          setScheduledAt(slotTime);
+        }}
+      />
     </div>
   );
 }

@@ -1377,7 +1377,7 @@ async function exchangeGoogleCode(req, res) {
 // ==================================================
 
 /**
- * 11. Get Authenticated Patient Info
+ * 11. Get Authenticated User Info (Patient, Doctor, Receptionist, Staff)
  * GET /api/auth/me
  */
 async function getMe(req, res) {
@@ -1385,11 +1385,13 @@ async function getMe(req, res) {
         const userId = req.user.id;
 
         const result = await pool.query(
-            `SELECT u.id, u.first_name, u.last_name, u.role, u.login_method, u.email, u.phone,
+            `SELECT u.id, u.first_name, u.last_name, u.role, u.login_method, u.email, u.phone, u.created_by_doctor_id,
                     p.date_of_birth, p.gender, p.abha_id,
-                    p.state, p.preferred_language, p.interaction_mode, p.accessibility_preference
+                    p.state, p.preferred_language, p.interaction_mode, p.accessibility_preference,
+                    d.registration_number, d.specialization, d.department AS doctor_department, d.verification_status
              FROM users u
              LEFT JOIN patient_profiles p ON u.id = p.user_id
+             LEFT JOIN doctor_profiles d ON u.id = d.user_id
              WHERE u.id = $1 AND u.is_active = true;`,
             [userId]
         );
@@ -1413,11 +1415,16 @@ async function getMe(req, res) {
                 phoneVerified: !!row.phone,
                 role: row.role,
                 loginMethod: row.login_method,
+                doctorId: row.created_by_doctor_id,
             },
             profile: {
                 dateOfBirth: row.date_of_birth,
                 gender: row.gender,
                 abhaId: row.abha_id,
+                registrationNumber: row.registration_number,
+                specialization: row.specialization,
+                department: row.doctor_department,
+                verificationStatus: row.verification_status,
             },
             onboarding: row.role === 'patient' ? {
                 state: row.state,

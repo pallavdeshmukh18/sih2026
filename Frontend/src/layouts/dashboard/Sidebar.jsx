@@ -30,17 +30,33 @@ const Sidebar = () => {
 
                 <div className={styles.sectionTitle}>{t('navigation.applications')}</div>
                 <div className={styles.menuSection}>
+                    {/* Role specific primary links */}
+                    {role === 'receptionist' && (
+                        <>
+                            <NavLink to="/receptionist/appointments" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                                <ClipboardList size={20} />
+                                <span>Front-Desk Queue</span>
+                            </NavLink>
+                            <NavLink to="/receptionist/patients" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                                <Users size={20} />
+                                <span>Walk-In Registration</span>
+                            </NavLink>
+                        </>
+                    )}
+
                     <NavLink to={`${basePath}/doctor`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                         <Stethoscope size={20} />
-                        <span>{t('navigation.doctors')}</span>
+                        <span>{role === 'receptionist' ? 'Doctor Availability' : t('navigation.doctors')}</span>
                     </NavLink>
                     
-                    {role === 'doctor' ? (
+                    {role === 'doctor' && (
                         <NavLink to="/doctor/patients" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                             <Users size={20} />
                             <span>Patients</span>
                         </NavLink>
-                    ) : (
+                    )}
+
+                    {role === 'patient' && (
                         <>
                             <NavLink to="/patient/medical-id" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                                 <ShieldCheck size={20} />
@@ -67,22 +83,19 @@ const Sidebar = () => {
                         </NavLink>
                     )}
                     
-                    {role === 'doctor' ? (
-                        <NavLink to="/doctor/schedule" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                            <Calendar size={20} />
-                            <span>{t('navigation.schedule')}</span>
-                        </NavLink>
-                    ) : (
-                        <NavLink to="/patient/schedule" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                    {role !== 'receptionist' && (
+                        <NavLink to={`${basePath}/schedule`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                             <Calendar size={20} />
                             <span>{t('navigation.schedule')}</span>
                         </NavLink>
                     )}
                     
-                    <NavLink to={`${basePath}/appointments`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                        <ClipboardList size={20} />
-                        <span>{t('navigation.appointments')}</span>
-                    </NavLink>
+                    {role !== 'receptionist' && (
+                        <NavLink to={`${basePath}/appointments`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                            <ClipboardList size={20} />
+                            <span>{t('navigation.appointments')}</span>
+                        </NavLink>
+                    )}
                     
                     {role === 'patient' && (
                         <NavLink to="/patient/documents" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
@@ -90,19 +103,18 @@ const Sidebar = () => {
                             <span>{t('navigation.documents')}</span>
                         </NavLink>
                     )}
-                    {role === 'doctor' && (
-                        <NavLink to={`${basePath}/bed`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                            <Bed size={20} />
-                            <span>{t('navigation.bedManager')}</span>
-                        </NavLink>
-                    )}
+
+                    <NavLink to={`${basePath}/bed`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                        <Bed size={20} />
+                        <span>{t('navigation.bedManager')}</span>
+                    </NavLink>
                 </div>
 
                 <div className={styles.sectionTitle}>{t('navigation.others')}</div>
                 <div className={styles.menuSection}>
                     <NavLink to={`${basePath}/payment`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                         <CreditCard size={20} />
-                        <span>{t('navigation.payment')}</span>
+                        <span>{role === 'receptionist' ? 'Billing Counter' : t('navigation.payment')}</span>
                     </NavLink>
                     <NavLink to={`${basePath}/mail`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                         <Mail size={20} />

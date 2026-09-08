@@ -63,8 +63,8 @@ async function runDoctorConsultationTests() {
 
         await pool.query(
             `INSERT INTO patient_profiles (user_id, date_of_birth, gender, abha_id)
-             VALUES ($1, '1982-03-25', 'male', '91-1234-5678-9012');`,
-            [patient.id]
+             VALUES ($1, '1982-03-25', 'male', $2);`,
+            [patient.id, `91-1234-5678-${timestamp.toString().slice(-4)}`]
         );
 
         // Add sample medical history
@@ -179,16 +179,17 @@ async function runDoctorConsultationTests() {
         process.exitCode = 1;
     } finally {
         for (const consId of createdIds.consultations) {
-            await pool.query(`DELETE FROM consultations WHERE id = $1`, [consId]);
+            await pool.query(`DELETE FROM consultations WHERE id = $1`, [consId]).catch(() => {});
         }
         for (const sessId of createdIds.sessions) {
-            await pool.query(`DELETE FROM clinical_sessions WHERE id = $1`, [sessId]);
+            await pool.query(`DELETE FROM clinical_sessions WHERE id = $1`, [sessId]).catch(() => {});
         }
         for (const apptId of createdIds.appointments) {
-            await pool.query(`DELETE FROM appointments WHERE id = $1`, [apptId]);
+            await pool.query(`DELETE FROM appointments WHERE id = $1`, [apptId]).catch(() => {});
         }
         for (const userId of createdIds.users) {
-            await pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
+            await pool.query(`DELETE FROM medical_history WHERE user_id = $1`, [userId]).catch(() => {});
+            await pool.query(`DELETE FROM users WHERE id = $1`, [userId]).catch(() => {});
         }
         if (server) {
             server.close();

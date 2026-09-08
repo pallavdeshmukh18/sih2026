@@ -115,6 +115,46 @@ export async function loginStaff(email, password) {
 }
 
 // ==================================================
+// RECEPTIONIST FRONT-DESK API CALLS
+// ==================================================
+
+/** Fetch Receptionist Live Dashboard Stats */
+export async function fetchReceptionistStats(token) {
+    return apiRequest("/api/receptionist/stats", "GET", null, token);
+}
+
+/** Fetch Hospital-wide Appointments for Front-Desk */
+export async function fetchReceptionistAppointments(params = {}, token) {
+    const query = new URLSearchParams();
+    if (params.date) query.append("date", params.date);
+    if (params.doctorId) query.append("doctorId", params.doctorId);
+    if (params.status) query.append("status", params.status);
+    if (params.search) query.append("search", params.search);
+    const queryString = query.toString() ? `?${query.toString()}` : "";
+    return apiRequest(`/api/receptionist/appointments${queryString}`, "GET", null, token);
+}
+
+/** Check-in Patient for Appointment */
+export async function checkInAppointment(appointmentId, token) {
+    return apiRequest(`/api/receptionist/check-in/${appointmentId}`, "POST", null, token);
+}
+
+/** Register Walk-In Patient and Optionally Book Appointment */
+export async function registerWalkInPatient(patientData, token) {
+    return apiRequest("/api/receptionist/patients/walk-in", "POST", patientData, token);
+}
+
+/** Fetch Patients Directory for Front-Desk */
+export async function fetchReceptionistPatients(params = {}, token) {
+    const query = new URLSearchParams();
+    if (params.search) query.append("search", params.search);
+    if (params.limit) query.append("limit", params.limit);
+    if (params.offset) query.append("offset", params.offset);
+    const queryString = query.toString() ? `?${query.toString()}` : "";
+    return apiRequest(`/api/receptionist/patients${queryString}`, "GET", null, token);
+}
+
+// ==================================================
 // SHARED AUTH USER PROFILE API CALL
 // ==================================================
 
