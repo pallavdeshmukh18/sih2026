@@ -7,7 +7,8 @@ const mlService = require("../services/mlService");
  */
 async function startSession(req, res, next) {
     try {
-        const { appointmentId, chiefComplaint, language = "en", consultationType = "allopathic" } = req.body;
+        const { appointmentId, chiefComplaint, consultationType = "allopathic" } = req.body;
+        const language = req.body.language || req.user?.onboarding?.preferredLanguage || req.user?.preferred_language || "en";
         const patientId = req.user.role === "patient" ? req.user.id : req.body.patientId;
 
         if (!chiefComplaint || !chiefComplaint.trim()) {
@@ -66,13 +67,22 @@ async function startSession(req, res, next) {
 
         if (existingSession.rows.length > 0) {
             const currentSession = existingSession.rows[0];
-            return res.status(200).json({
-                success: true,
-                message: "Active session already exists.",
-                sessionId: currentSession.id,
-                state: currentSession.current_state,
-                nextQuestion: currentSession.current_state?.conversation_history?.slice(-1)[0]?.content || "How can I help you today?",
-            });
+            if (currentSession.language !== language || (chiefComplaint && currentSession.chief_complaint !== chiefComplaint)) {
+                await pool.query(
+                    `UPDATE clinical_sessions SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = $1;`,
+                    [currentSession.id]
+                );
+            } else {
+                const currentState = currentSession.current_state || {};
+                return res.status(200).json({
+                    success: true,
+                    message: "Active session already exists.",
+                    sessionId: currentSession.id,
+                    state: currentState,
+                    nextQuestion: currentState.current_question || currentState.conversation_history?.slice(-1)[0]?.content || "How can I help you today?",
+                    options: currentState.current_options || currentState.options || [],
+                });
+            }
         }
 
         // Call FastAPI ML service to initialize clinical ontology state
@@ -86,10 +96,53 @@ async function startSession(req, res, next) {
             );
         } catch (mlErr) {
             console.warn("[ML FALLBACK] Clinical AI service unavailable, using local session initial state:", mlErr.message);
-            // Fallback initial state if ML server is cold
+            
+            const fallbackQuestions = {
+                hi: `मेडीकियोस्क में आपका स्वागत है। आपको ${chiefComplaint} की समस्या कितने समय से हो रही है?`,
+                mr: `मेडीकियोस्कमध्ये आपले स्वागत आहे. तुम्हाला ${chiefComplaint} चा त्रास किती दिवसांपासून होत आहे?`,
+                gu: `મેડીકિયોસ્કમાં તમારું સ્વાગત છે. તમને ${chiefComplaint} ની તકલીફ કેટલા સમયથી થઈ રહી છે?`,
+                bn: `মেডিকিয়োস্কে আপনাকে স্বাগতম। আপনি কত দিন ধরে ${chiefComplaint} অনুভব করছেন?`,
+                ta: `மெடிகியோஸ்கிற்கு நல்வரவு. எவ்வளவு காலமாக ${chiefComplaint} பிரச்சினை இருக்கிறது?`,
+                te: `మెడికియోస్క్‌కి స్వాగతం. ఎంతకాలంగా ${chiefComplaint} సమస్యతో బాధపడుతున్నారు?`,
+                kn: `ಮೆಡಿಕಿಯೋಸ್ಕ್‌ಗೆ സ്വാഗತನ. ಎಷ್ಟು ದಿನಗಳಿಂದ ${chiefComplaint} ಸಮಸ್ಯೆ ಇದೆ?`,
+                ml: `മെഡികിയോസ്കിലേക്ക് സ്വാഗതം. എത്ര നാളായി ${chiefComplaint} പ്രശ്നം അനുഭവപ്പെടുന്നു?`,
+                pa: `ਮੈਡੀਕਿਓਸਕ ਵਿੱਚ ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ। ਤੁਹਾਨੂੰ ${chiefComplaint} ਦੀ ਸਮੱਸਿਆ ਕਿੰਨੇ ਸਮੇਂ ਤੋਂ ਹੋ ਰਹੀ ਹੈ?`,
+                or: `ମେଡିକିଓସ୍କକୁ ସ୍ୱାଗତ। କେତେ ଦିନ ହେବ ${chiefComplaint} ସମସ୍ୟା ଅଛି?`,
+                as: `মেডিকিয়স্কলৈ স্বাগতম। কিমান দিনৰ পৰা ${chiefComplaint} সমস্যা হৈছে?`
+            };
+            const fallbackOptionsMap = {
+                hi: [
+                    { id: "dur_today", label: "आज ही शुरू हुआ" },
+                    { id: "dur_few_days", label: "कुछ दिनों से" },
+                    { id: "dur_few_weeks", label: "कुछ हफ्तों से" },
+                    { id: "dur_chronic", label: "लंबे समय से / पुराना" }
+                ],
+                mr: [
+                    { id: "dur_today", label: "आजच सुरू झाले" },
+                    { id: "dur_few_days", label: "काही दिवसांपासून" },
+                    { id: "dur_few_weeks", label: "काही आठवड्यांपासून" },
+                    { id: "dur_chronic", label: "दीर्घकालीन / जुना त्रास" }
+                ],
+                gu: [
+                    { id: "dur_today", label: "આજે જ શરૂ થયું" },
+                    { id: "dur_few_days", label: "કેટલાક દિવસોથી" },
+                    { id: "dur_few_weeks", label: "કેટલાક અઠવાડિયાથી" },
+                    { id: "dur_chronic", label: "લાંબા સમયથી / જૂનું" }
+                ]
+            };
+
+            const fallbackQText = fallbackQuestions[language] || `Welcome to MediKiosk. How long have you been experiencing ${chiefComplaint}?`;
+            const fallbackOptsList = fallbackOptionsMap[language] || [
+                { id: "dur_today", label: "Just started today" },
+                { id: "dur_few_days", label: "A few days" },
+                { id: "dur_few_weeks", label: "A few weeks" },
+                { id: "dur_chronic", label: "Long term / Chronic" }
+            ];
+
             mlSessionResponse = {
                 session_id: require("crypto").randomUUID(),
-                next_question: `Welcome to MediKiosk. How long have you been experiencing ${chiefComplaint}?`,
+                next_question: fallbackQText,
+                options: fallbackOptsList,
                 state: {
                     session_id: require("crypto").randomUUID(),
                     patient_id: patientId,
@@ -101,8 +154,10 @@ async function startSession(req, res, next) {
                     clinical_entities: [],
                     red_flags: [],
                     conversation_history: [
-                        { role: "system", content: `Welcome to MediKiosk. How long have you been experiencing ${chiefComplaint}?` }
+                        { role: "system", content: fallbackQText }
                     ],
+                    current_question: fallbackQText,
+                    current_options: fallbackOptsList,
                     status: "active"
                 }
             };
@@ -131,6 +186,7 @@ async function startSession(req, res, next) {
             success: true,
             sessionId: result.rows[0].id,
             nextQuestion: mlSessionResponse.next_question,
+            options: mlSessionResponse.options || [],
             state: result.rows[0].current_state,
         });
     } catch (error) {
@@ -249,6 +305,7 @@ async function processVoiceTurn(req, res, next) {
             success: true,
             transcript: patientText,
             nextQuestion: clinicalAiResult.next_question,
+            options: clinicalAiResult.options || [],
             audioBase64,
             extractedEntities: clinicalAiResult.extracted_entities,
             redFlags: currentState.red_flags || [],
@@ -302,6 +359,7 @@ async function processTextTurn(req, res, next) {
             console.warn("[ML FALLBACK] Clinical AI fallback for text turn:", aiErr.message);
             clinicalAiResult = {
                 next_question: "Are there any other details you would like to mention?",
+                options: [],
                 extracted_entities: [{ field: "text_response", value: patientText, confidence: "High" }],
                 red_flags: [],
                 is_complete: false,
@@ -341,6 +399,7 @@ async function processTextTurn(req, res, next) {
         return res.status(200).json({
             success: true,
             nextQuestion: clinicalAiResult.next_question,
+            options: clinicalAiResult.options || [],
             extractedEntities: clinicalAiResult.extracted_entities,
             redFlags: currentState.red_flags || [],
             isComplete: clinicalAiResult.is_complete,

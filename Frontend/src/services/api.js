@@ -220,6 +220,11 @@ export async function fetchPublicDoctors(token) {
     return apiRequest("/api/doctor/directory", "GET", null, token);
 }
 
+/** Fetch Available Appointment Slots for a Doctor on a Date */
+export async function getAvailableAppointmentSlots(doctorId, date, token) {
+    return apiRequest(`/api/appointments/available?doctorId=${doctorId}&date=${date}`, "GET", null, token);
+}
+
 /** Create / Book a New Appointment */
 export async function createAppointment(appointmentData, token) {
     return apiRequest("/api/appointments", "POST", appointmentData, token);
@@ -228,6 +233,11 @@ export async function createAppointment(appointmentData, token) {
 /** Get Authenticated Patient's Appointments */
 export async function getPatientAppointments(token) {
     return apiRequest("/api/appointments/patient", "GET", null, token);
+}
+
+/** Get Authenticated Doctor's Queue / Appointments */
+export async function getDoctorQueue(token) {
+    return apiRequest("/api/doctor/queue", "GET", null, token);
 }
 
 // ==================================================

@@ -126,7 +126,7 @@ const Sidebar = () => {
             <div className={styles.logoutSection}>
                 <button onClick={logout} className={styles.logoutButton}>
                     <LogOut size={20} />
-                    <span>Log Out</span>
+                    <span>{t('common.logout', 'Log Out')}</span>
                 </button>
             </div>
         </aside>

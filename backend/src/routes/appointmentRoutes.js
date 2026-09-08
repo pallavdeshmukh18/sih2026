@@ -7,6 +7,7 @@ const authenticateToken = require("../middleware/authMiddleware");
 router.use(authenticateToken);
 
 router.post("/", appointmentController.createAppointment);
+router.get("/available", appointmentController.getAvailableSlots);
 router.get("/patient", appointmentController.getPatientAppointments);
 router.get("/:id", appointmentController.getAppointmentById);
 router.patch("/:id/status", appointmentController.updateAppointmentStatus);

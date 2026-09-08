@@ -44,13 +44,17 @@ async def start_session(req: StartSessionRequest):
     
     # Generate the first question based on the highest priority missing field
     next_field = session.get_highest_priority_missing_field()
-    next_q = generate_next_question(next_field, session.language) if next_field else "How can I help you?"
+    if next_field:
+        next_q, options = generate_next_question(next_field, session.language)
+    else:
+        next_q, options = "How can I help you?", []
     
     session.conversation_history.append({"role": "system", "content": next_q})
     
     return {
         "session_id": session.session_id,
         "next_question": next_q,
+        "options": options,
         "state": session.model_dump()
     }
 
@@ -71,17 +75,16 @@ async def respond(req: RespondRequest):
         return {
             "message": "Session is already completed",
             "is_complete": True,
+            "options": [],
             "state": session.model_dump()
         }
         
-    session = process_patient_response(session, req.patient_text)
+    session, next_q, options = process_patient_response(session, req.patient_text)
     SESSIONS_DB[req.session_id] = session
     
-    # The last message in history is the system's next question (or completion message)
-    last_msg = session.conversation_history[-1]["content"] if session.conversation_history else ""
-    
     return {
-        "next_question": last_msg if session.status != "completed" else None,
+        "next_question": next_q if session.status != "completed" else None,
+        "options": options if session.status != "completed" else [],
         "extracted_entities": session.clinical_entities,
         "red_flags": session.red_flags,
         "is_complete": session.status == "completed",

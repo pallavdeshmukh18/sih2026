@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useEffect } from "react";
+import i18n from "i18next";
+import { initReactI18next, useTranslation } from "react-i18next";
 
 import en from "./locales/en.json";
 import hi from "./locales/hi.json";
@@ -13,79 +15,113 @@ import pa from "./locales/pa.json";
 import or from "./locales/or.json";
 import as from "./locales/as.json";
 
-const LOCALES = { en, hi, mr, gu, bn, ta, te, kn, ml, pa, or, as };
-
-export const LANGUAGE_OPTIONS = [
-    { code: "en", label: "English", nativeLabel: "English" },
-    { code: "hi", label: "Hindi", nativeLabel: "हिन्दी" },
-    { code: "mr", label: "Marathi", nativeLabel: "मराठी" },
-    { code: "gu", label: "Gujarati", nativeLabel: "ગુજરાતી" },
-    { code: "bn", label: "Bengali", nativeLabel: "বাংলা" },
-    { code: "ta", label: "Tamil", nativeLabel: "தமிழ்" },
-    { code: "te", label: "Telugu", nativeLabel: "తెలుగు" },
-    { code: "kn", label: "Kannada", nativeLabel: "ಕನ್ನಡ" },
-    { code: "ml", label: "Malayalam", nativeLabel: "മലയാളം" },
-    { code: "pa", label: "Punjabi", nativeLabel: "ਪੰਜਾਬੀ" },
-    { code: "or", label: "Odia", nativeLabel: "ଓଡ଼િଆ" },
-    { code: "as", label: "Assamese", nativeLabel: "অসমীয়া" },
-];
+import { SUPPORTED_LANGUAGES, LANGUAGE_OPTIONS } from "./languages";
+import { useAuth } from "../context/AuthContext";
+import { updatePatientProfile } from "../services/api";
 
 const STORAGE_KEY = "medikiosk_language";
+
+const resources = {
+  en: { translation: en },
+  hi: { translation: hi },
+  mr: { translation: mr },
+  gu: { translation: gu },
+  bn: { translation: bn },
+  ta: { translation: ta },
+  te: { translation: te },
+  kn: { translation: kn },
+  ml: { translation: ml },
+  pa: { translation: pa },
+  or: { translation: or },
+  as: { translation: as },
+};
+
+const savedLang = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+const initialLanguage = savedLang && resources[savedLang] ? savedLang : "en";
+
+if (!i18n.isInitialized) {
+  i18n.use(initReactI18next).init({
+    resources,
+    lng: initialLanguage,
+    fallbackLng: "en",
+    interpolation: {
+      escapeValue: false, // React already escapes values
+    },
+    react: {
+      useSuspense: false,
+    },
+  });
+}
 
 const LanguageContext = createContext(null);
 
 export const LanguageProvider = ({ children }) => {
-    const [language, setLanguage] = useState(() => {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        return saved && LOCALES[saved] ? saved : "en";
-    });
+  const { t, i18n: i18nInstance } = useTranslation();
+  let auth = null;
+  try {
+    auth = useAuth();
+  } catch (e) {
+    auth = null;
+  }
+  const user = auth?.user;
+  const token = auth?.token;
 
-    const changeLanguage = (code) => {
-        if (LOCALES[code]) {
-            setLanguage(code);
-            localStorage.setItem(STORAGE_KEY, code);
-            document.documentElement.lang = code;
+  // Sync preferred_language from authenticated user profile when loaded
+  useEffect(() => {
+    const userLang = user?.onboarding?.preferredLanguage || user?.onboarding?.preferred_language || user?.preferredLanguage;
+    if (userLang && resources[userLang] && i18nInstance.language !== userLang) {
+      i18nInstance.changeLanguage(userLang);
+      localStorage.setItem(STORAGE_KEY, userLang);
+      document.documentElement.lang = userLang;
+    }
+  }, [user, i18nInstance]);
+
+  const changeLanguage = async (code) => {
+    if (resources[code]) {
+      await i18nInstance.changeLanguage(code);
+      localStorage.setItem(STORAGE_KEY, code);
+      document.documentElement.lang = code;
+
+      // Persist to backend user profile if authenticated
+      if (token && user) {
+        try {
+          await updatePatientProfile({ preferredLanguage: code }, token);
+        } catch (err) {
+          console.warn("[i18n] Failed to persist preferredLanguage to backend:", err.message);
         }
-    };
+      }
+    }
+  };
 
-    useEffect(() => {
-        document.documentElement.lang = language;
-    }, [language]);
-
-    const t = (keyPath) => {
-        const keys = keyPath.split(".");
-        let currentDict = LOCALES[language] || LOCALES.en;
-        
-        for (const k of keys) {
-            if (currentDict && currentDict[k] !== undefined) {
-                currentDict = currentDict[k];
-            } else {
-                // Fallback to English if translation key is missing in active locale
-                let fallbackDict = LOCALES.en;
-                for (const fk of keys) {
-                    if (fallbackDict && fallbackDict[fk] !== undefined) {
-                        fallbackDict = fallbackDict[fk];
-                    } else {
-                        return keyPath; // Return raw key if even fallback fails
-                    }
-                }
-                return fallbackDict;
-            }
-        }
-        return currentDict;
-    };
-
-    return (
-        <LanguageContext.Provider value={{ language, changeLanguage, t }}>
-            {children}
-        </LanguageContext.Provider>
-    );
+  return (
+    <LanguageContext.Provider
+      value={{
+        language: i18nInstance.language,
+        currentLanguage: i18nInstance.language,
+        changeLanguage,
+        t,
+        i18n: i18nInstance,
+      }}
+    >
+      {children}
+    </LanguageContext.Provider>
+  );
 };
 
 export const useLanguage = () => {
-    const context = useContext(LanguageContext);
-    if (!context) {
-        throw new Error("useLanguage must be used within a LanguageProvider");
-    }
-    return context;
+  const context = useContext(LanguageContext);
+  if (!context) {
+    // Fallback if rendered outside provider
+    return {
+      language: i18n.language || "en",
+      currentLanguage: i18n.language || "en",
+      changeLanguage: (code) => i18n.changeLanguage(code),
+      t: i18n.t.bind(i18n),
+      i18n,
+    };
+  }
+  return context;
 };
+
+export { i18n, SUPPORTED_LANGUAGES, LANGUAGE_OPTIONS };
+export default i18n;
