@@ -531,7 +531,10 @@ def extract_entities_from_text(text: str, missing_fields: List[str]) -> Extracti
             {{"field": "field_name", "value": "extracted value", "confidence": "High/Medium/Low"}}
         ]
     }}
-    Only include fields that are explicitly mentioned or clearly implied.
+    CRITICAL INSTRUCTION:
+    - Include ONLY fields that the patient EXPLICITLY mentioned or clearly implied.
+    - DO NOT include empty strings "", "unknown", "null", "none", "n/a", or unmentioned fields.
+    - If a field from Target Missing Fields was NOT mentioned by the patient, DO NOT include it in the entities array.
     """
     
     try:

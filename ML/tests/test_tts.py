@@ -75,7 +75,7 @@ def test_synthesize_hindi_success():
         data = response.json()
         assert data["success"] is True
         assert data["language_code"] == "hi-IN"
-        assert data["speaker"] == "shubh"  # Default speaker
+        assert data["speaker"] == "simran"  # Default speaker
 
 
 def test_synthesize_marathi_success():

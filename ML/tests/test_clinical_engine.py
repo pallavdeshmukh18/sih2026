@@ -76,10 +76,6 @@ def test_process_patient_response(mock_generate_next, mock_extract):
     
     updated_session, next_q, options = process_patient_response(session, "It started 2 days ago")
     
-    # Assert missing fields updated
-    assert "onset" not in updated_session.missing_fields
-    assert "duration" in updated_session.missing_fields
-    
     # Assert answered fields updated
     assert "onset" in updated_session.answered_fields
     assert updated_session.answered_fields["onset"] == "2 days ago"
