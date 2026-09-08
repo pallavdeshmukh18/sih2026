@@ -1,11 +1,10 @@
-import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./layouts/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
 import LandingPage from "./pages/LandingPage";
-import AuthPage from "./pages/AuthPage";
+import SignupPage from "./pages/Signup/SignupPage";
 import GoogleCallback from "./pages/GoogleCallback";
 import DashboardLayout from "./layouts/dashboard/DashboardLayout";
 
@@ -43,7 +42,8 @@ function App() {
         <ScrollToTop />
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/auth" element={<SignupPage />} />
+          <Route path="/signup" element={<Navigate to="/auth" replace />} />
           <Route path="/auth/google/callback" element={<GoogleCallback />} />
 
           {/* Dedicated Patient Onboarding Route */}

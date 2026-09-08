@@ -109,6 +109,11 @@ export async function loginDoctor(email, password) {
     return apiRequest("/api/auth/doctor/login", "POST", { email, password });
 }
 
+/** Staff email + password login (receptionist, nurse, admin) */
+export async function loginStaff(email, password) {
+    return apiRequest("/api/auth/staff/login", "POST", { email, password });
+}
+
 // ==================================================
 // SHARED AUTH USER PROFILE API CALL
 // ==================================================
@@ -273,5 +278,4 @@ export async function getDocumentDownloadUrl(documentId, token) {
 export async function synthesizeTTS(text, languageCode = "en", token = null) {
     return apiRequest("/api/tts/synthesize", "POST", { text, languageCode }, token);
 }
-
 
