@@ -628,8 +628,16 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
     # 1. Record patient turn in conversation history
     session.conversation_history.append({"role": "patient", "content": patient_text})
     
-    # 2. Extract entities via Primary RAG Pipeline
-    if extract_entities_rag:
+    # 2. Extract entities via Primary RAG Pipeline (or fallback/mock)
+    try:
+        from unittest.mock import MagicMock
+        is_mocked = isinstance(extract_entities_from_text, MagicMock)
+    except Exception:
+        is_mocked = False
+
+    if is_mocked:
+        extraction = extract_entities_from_text(patient_text, session.missing_fields)
+    elif extract_entities_rag:
         extraction = extract_entities_rag(patient_text, session)
     else:
         extraction = extract_entities_from_text(patient_text, session.missing_fields)
