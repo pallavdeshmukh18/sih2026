@@ -141,6 +141,7 @@ async function runDocumentTests() {
             await pool.query(`DELETE FROM documents WHERE id = $1`, [docId]);
         }
         for (const userId of createdIds.users) {
+            await pool.query(`DELETE FROM medical_history WHERE patient_id = $1`, [userId]);
             await pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
         }
         if (server) {

@@ -506,6 +506,216 @@ async function verifyLoginPhone(req, res) {
     }
 }
 
+/**
+ * 4b. Request Phone Linking OTP for Authenticated Patient
+ * POST /api/auth/patient/link-phone/request
+ */
+async function requestPhoneLink(req, res) {
+    try {
+        const userId = req.user.id;
+        const { phone } = req.body;
+
+        if (!phone) {
+            return res.status(400).json({
+                message: "Phone number is required.",
+            });
+        }
+
+        const normalizedPhone = normalizePhone(phone);
+        if (!isValidIndianPhone(normalizedPhone)) {
+            return res.status(400).json({
+                message: "Invalid Indian phone number format. Must be 10 digits (e.g. +919876543210).",
+            });
+        }
+
+        // Check if phone number is already registered to another user
+        const existingUser = await pool.query(
+            "SELECT id FROM users WHERE phone = $1 AND id != $2;",
+            [normalizedPhone, userId]
+        );
+        if (existingUser.rows.length > 0) {
+            return res.status(400).json({
+                message: "Phone number is already linked to another account.",
+            });
+        }
+
+        // 1. Cooldown Check: Enforce 60-second wait between consecutive OTP resends
+        const cooldownCheck = await pool.query(
+            `SELECT COUNT(*) FROM otp_verifications 
+             WHERE phone = $1 AND purpose = 'phone_link' AND created_at > NOW() - INTERVAL '60 seconds';`,
+            [normalizedPhone]
+        );
+        if (parseInt(cooldownCheck.rows[0].count, 10) > 0) {
+            return res.status(429).json({
+                message: "Please wait 60 seconds before requesting another OTP.",
+            });
+        }
+
+        // 2. Sliding Window Rate Limiting Check: Max 3 OTP requests per 10 mins
+        const rateCheck = await pool.query(
+            `SELECT COUNT(*) FROM otp_verifications 
+             WHERE phone = $1 AND purpose = 'phone_link' AND created_at > NOW() - INTERVAL '10 minutes';`,
+            [normalizedPhone]
+        );
+        if (parseInt(rateCheck.rows[0].count, 10) >= 3) {
+            return res.status(429).json({
+                message: "Too many OTP requests. Please wait a few minutes before trying again.",
+            });
+        }
+
+        // 3. Invalidate previous unverified active OTPs for this phone + purpose
+        await pool.query(
+            `UPDATE otp_verifications
+             SET expires_at = NOW()
+             WHERE phone = $1
+               AND purpose = 'phone_link'
+               AND verified_at IS NULL
+               AND expires_at > NOW();`,
+            [normalizedPhone]
+        );
+
+        // Send OTP via 2Factor Provider or local Mock
+        const providerRes = await sendOTP2Factor(normalizedPhone);
+
+        let hashedOtp;
+        let metadata;
+
+        if (providerRes.isProvider) {
+            hashedOtp = hashOTP("2FACTOR_PROVIDER_MANAGED");
+            metadata = {
+                provider: "2factor",
+                providerSessionId: providerRes.sessionId,
+                userId,
+            };
+        } else {
+            hashedOtp = hashOTP(providerRes.mockOtp);
+            metadata = {
+                provider: "dev_mock",
+                userId,
+            };
+        }
+
+        const result = await pool.query(
+            `INSERT INTO otp_verifications (phone, identifier_type, purpose, otp_hash, metadata, expires_at)
+             VALUES ($1, 'phone', 'phone_link', $2, $3, NOW() + INTERVAL '5 minutes')
+             RETURNING id;`,
+            [normalizedPhone, hashedOtp, JSON.stringify(metadata)]
+        );
+
+        const verificationId = result.rows[0].id;
+
+        return res.status(200).json({
+            message: "OTP sent successfully",
+            verificationId,
+            mockOtp: providerRes.isProvider ? undefined : providerRes.mockOtp,
+        });
+    } catch (error) {
+        console.error("Error in requestPhoneLink:", error.message);
+        return res.status(error.message.includes("Unable to send OTP") ? 502 : 500).json({
+            message: error.message.includes("Unable to send OTP")
+                ? error.message
+                : "Internal server error requesting phone link OTP",
+        });
+    }
+}
+
+/**
+ * 4c. Verify Phone Linking OTP & Update User Phone
+ * POST /api/auth/patient/link-phone/verify
+ */
+async function verifyPhoneLink(req, res) {
+    try {
+        const userId = req.user.id;
+        const { verificationId, otp } = req.body;
+
+        if (!verificationId || !otp) {
+            return res.status(400).json({
+                message: "Missing required fields: verificationId, otp",
+            });
+        }
+
+        const otpResult = await pool.query(
+            `SELECT * FROM otp_verifications WHERE id = $1 AND purpose = 'phone_link';`,
+            [verificationId]
+        );
+
+        if (otpResult.rows.length === 0) {
+            return res.status(400).json({
+                message: "Invalid verification record",
+            });
+        }
+
+        const record = otpResult.rows[0];
+
+        if (record.verified_at) {
+            return res.status(400).json({
+                message: "OTP has already been verified",
+            });
+        }
+
+        if (new Date(record.expires_at) < new Date()) {
+            return res.status(400).json({
+                message: "OTP has expired. Please request a new one.",
+            });
+        }
+
+        if (record.attempts >= record.max_attempts) {
+            return res.status(400).json({
+                message: "Maximum verification attempts exceeded. Please request a new OTP.",
+            });
+        }
+
+        if (record.metadata && record.metadata.userId && record.metadata.userId !== userId) {
+            return res.status(403).json({
+                message: "Unauthorized verification record.",
+            });
+        }
+
+        // Increment attempt count
+        await pool.query(
+            `UPDATE otp_verifications SET attempts = attempts + 1 WHERE id = $1;`,
+            [verificationId]
+        );
+
+        // Verify OTP match
+        let isMatch = false;
+        if (record.metadata && record.metadata.provider === "2factor") {
+            isMatch = await verifyOTP2Factor(record.metadata.providerSessionId, otp);
+        } else {
+            isMatch = verifyOTP(otp, record.otp_hash);
+        }
+
+        if (!isMatch) {
+            return res.status(400).json({
+                message: "Invalid OTP code",
+            });
+        }
+
+        // Mark OTP as verified
+        await pool.query(
+            `UPDATE otp_verifications SET verified_at = CURRENT_TIMESTAMP WHERE id = $1;`,
+            [verificationId]
+        );
+
+        // Update User's phone in users table
+        await pool.query(
+            `UPDATE users SET phone = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2;`,
+            [record.phone, userId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Phone number linked successfully",
+            phone: record.phone,
+        });
+    } catch (error) {
+        console.error("Error in verifyPhoneLink:", error.message);
+        return res.status(500).json({
+            message: "Internal server error verifying phone link OTP",
+        });
+    }
+}
+
 
 // ==================================================
 // EMAIL AUTHENTICATION CONTROLLERS
@@ -1176,7 +1386,8 @@ async function getMe(req, res) {
 
         const result = await pool.query(
             `SELECT u.id, u.first_name, u.last_name, u.role, u.login_method, u.email, u.phone,
-                    p.date_of_birth, p.gender, p.abha_id
+                    p.date_of_birth, p.gender, p.abha_id,
+                    p.state, p.preferred_language, p.interaction_mode, p.accessibility_preference
              FROM users u
              LEFT JOIN patient_profiles p ON u.id = p.user_id
              WHERE u.id = $1 AND u.is_active = true;`,
@@ -1190,12 +1401,16 @@ async function getMe(req, res) {
         }
 
         const row = result.rows[0];
+        const isCompleted = !!(row.state && row.preferred_language && row.interaction_mode && row.accessibility_preference);
 
         return res.status(200).json({
             user: {
                 id: row.id,
                 firstName: row.first_name,
                 lastName: row.last_name,
+                email: row.email,
+                phone: row.phone,
+                phoneVerified: !!row.phone,
                 role: row.role,
                 loginMethod: row.login_method,
             },
@@ -1204,6 +1419,13 @@ async function getMe(req, res) {
                 gender: row.gender,
                 abhaId: row.abha_id,
             },
+            onboarding: row.role === 'patient' ? {
+                state: row.state,
+                preferredLanguage: row.preferred_language,
+                interactionMode: row.interaction_mode,
+                accessibilityPreference: row.accessibility_preference,
+                completed: isCompleted
+            } : null,
         });
     } catch (error) {
         console.error("Error in getMe:", error.message);
@@ -1420,6 +1642,8 @@ module.exports = {
     verifyPhone,
     loginPhone,
     verifyLoginPhone,
+    requestPhoneLink,
+    verifyPhoneLink,
     registerEmail,
     verifyEmail,
     loginEmail,

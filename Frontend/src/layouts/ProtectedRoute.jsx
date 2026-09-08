@@ -2,7 +2,7 @@ import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-const ProtectedRoute = ({ role, children }) => {
+const ProtectedRoute = ({ role, allowIncompleteOnboarding = false, children }) => {
     const { user, isAuthenticated, isLoading } = useAuth();
 
     if (isLoading) {
@@ -34,6 +34,21 @@ const ProtectedRoute = ({ role, children }) => {
             return <Navigate to="/doctor/dashboard" replace />;
         } else {
             return <Navigate to="/auth" replace />;
+        }
+    }
+
+    // Patient Onboarding completion check
+    if (user?.role === "patient") {
+        const isCompleted = user?.onboarding?.completed || !!localStorage.getItem(`medikiosk_patient_preferences_${user?.id}`);
+        
+        // If onboarding incomplete and route does NOT allow incomplete onboarding -> redirect to onboarding
+        if (!isCompleted && !allowIncompleteOnboarding) {
+            return <Navigate to="/patient/onboarding" replace />;
+        }
+
+        // If onboarding complete and patient visits onboarding route -> redirect to dashboard
+        if (isCompleted && allowIncompleteOnboarding) {
+            return <Navigate to="/patient/dashboard" replace />;
         }
     }
 

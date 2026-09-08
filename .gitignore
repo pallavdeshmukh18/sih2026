@@ -48,7 +48,6 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Local TTS audio test output
-ML/tts/output/
-ML/tts/test_response.json
-*.wav
+# Uploads
+backend/uploads/
+

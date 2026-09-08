@@ -1,0 +1,293 @@
+/* Floating AI Character Accessibility Guide Container */
+.characterContainer {
+  position: fixed;
+  bottom: 24px;
+  right: 28px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  pointer-events: none;
+  user-select: none;
+}
+
+.characterContainer * {
+  pointer-events: auto;
+}
+
+/* Glassmorphism Speech Bubble Popup */
+.speechBubble {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(13, 148, 136, 0.25);
+  box-shadow: 0 12px 32px rgba(15, 118, 110, 0.16), 0 2px 10px rgba(0, 0, 0, 0.04);
+  border-radius: 18px 18px 4px 18px;
+  padding: 12px 16px;
+  max-width: 280px;
+  min-width: 200px;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.speechHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.characterName {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #0f766e;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badgeTag {
+  background: #ccfbf1;
+  color: #0f766e;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.speechContent {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.speechPlaceholder {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Sound Wave Equalizer Bars */
+.soundWave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 14px;
+}
+
+.waveBar {
+  width: 3px;
+  height: 100%;
+  background: #0d9488;
+  border-radius: 3px;
+  animation: bounceBar 0.8s ease-in-out infinite alternate;
+}
+
+.waveBar:nth-child(1) { animation-delay: 0.1s; height: 40%; }
+.waveBar:nth-child(2) { animation-delay: 0.3s; height: 100%; }
+.waveBar:nth-child(3) { animation-delay: 0.2s; height: 70%; }
+.waveBar:nth-child(4) { animation-delay: 0.4s; height: 90%; }
+
+@keyframes bounceBar {
+  0% { transform: scaleY(0.3); }
+  100% { transform: scaleY(1.1); }
+}
+
+/* Main AI Character Body / Card */
+.characterCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  border: 2px solid rgba(13, 148, 136, 0.35);
+  border-radius: 40px;
+  padding: 6px 14px 6px 6px;
+  box-shadow: 0 10px 28px rgba(13, 148, 136, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.characterCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(13, 148, 136, 0.28);
+}
+
+/* Avatar Circle & Robot Face Illustration */
+.avatarRing {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #0f766e 0%, #042f2e 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(13, 148, 136, 0.45);
+  flex-shrink: 0;
+  overflow: visible;
+  transition: transform 0.2s ease;
+}
+
+.avatarRing:hover {
+  transform: scale(1.05);
+}
+
+.robotSvg {
+  transition: transform 0.3s ease;
+}
+
+.speakingSvg {
+  animation: headBob 0.6s ease-in-out infinite alternate;
+}
+
+.loadingSvg {
+  animation: headTilt 1s ease-in-out infinite alternate;
+}
+
+.antennaOrb {
+  transition: fill 0.3s ease;
+  animation: antennaPulse 1.8s ease-in-out infinite alternate;
+}
+
+.robotEye {
+  transition: fill 0.3s ease;
+  animation: eyeBlink 4s ease-in-out infinite;
+}
+
+.talkingMouth {
+  animation: mouthTalk 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes headBob {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-2px) rotate(2deg); }
+}
+
+@keyframes headTilt {
+  0% { transform: rotate(-3deg); }
+  100% { transform: rotate(3deg); }
+}
+
+@keyframes antennaPulse {
+  0% { r: 3px; filter: drop-shadow(0 0 2px #2dd4bf); }
+  100% { r: 4.5px; filter: drop-shadow(0 0 6px #2dd4bf); }
+}
+
+@keyframes eyeBlink {
+  0%, 94%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+
+@keyframes mouthTalk {
+  0% { d: path("M 18 27 Q 24 30 30 27"); }
+  100% { d: path("M 18 27 Q 24 34 30 27"); }
+}
+
+.pulseRing {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid #0d9488;
+  animation: avatarPulse 1.6s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes avatarPulse {
+  0% { transform: scale(0.95); opacity: 0.9; }
+  50% { transform: scale(1.22); opacity: 0.3; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+.stethBadge {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  background: #ffffff;
+  color: #0f766e;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+  border: 1px solid #ccfbf1;
+}
+
+/* Character Info Text */
+.characterMeta {
+  display: flex;
+  flex-direction: column;
+}
+
+.characterTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.characterSub {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Control Buttons */
+.controlsGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.controlBtn {
+  background: #f1f5f9;
+  border: none;
+  color: #475569;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.controlBtn:hover {
+  background: #e2e8f0;
+  color: #0f766e;
+}
+
+/* Muted / Collapsed States */
+.mutedCard {
+  border-color: #cbd5e1;
+  opacity: 0.85;
+}
+
+.collapsedCard {
+  padding: 6px;
+  border-radius: 50%;
+}
+
+@media (max-width: 640px) {
+  .characterContainer {
+    bottom: 16px;
+    right: 16px;
+  }
+  .speechBubble {
+    max-width: 220px;
+  }
+}

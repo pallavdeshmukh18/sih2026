@@ -1,19 +1,13 @@
-import chromadb
-from sentence_transformers import SentenceTransformer
-
-
-_model = SentenceTransformer(
-    "paraphrase-multilingual-MiniLM-L12-v2"
-)
-
-_client = chromadb.PersistentClient(
-    path="./chroma_store"
-)
-
-
-_collection = _client.get_or_create_collection(
-    name="patient_documents"
-)
+try:
+    import chromadb
+    from sentence_transformers import SentenceTransformer
+    _model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+    _client = chromadb.PersistentClient(path="./chroma_store")
+    _collection = _client.get_or_create_collection(name="patient_documents")
+except Exception as e:
+    _model = None
+    _client = None
+    _collection = None
 
 
 def chunk_text(
@@ -48,12 +42,22 @@ def store_document(
     extracted_doc,
     raw_text: str
 ):
+    if _model is None or _collection is None:
+        return {
+            "document_id": document_id,
+            "chunks_stored": 0,
+            "status": "skipped",
+            "message": "ChromaDB vector store skipped"
+        }
+
     chunks = chunk_text(raw_text)
 
     if not chunks:
-        raise ValueError(
-            "Cannot store document because OCR text is empty."
-        )
+        return {
+            "document_id": document_id,
+            "chunks_stored": 0,
+            "status": "empty"
+        }
 
     embeddings = _model.encode(
         chunks
@@ -68,9 +72,9 @@ def store_document(
         {
             "patient_id": patient_id,
             "document_id": document_id,
-            "document_type": extracted_doc.document_type,
+            "document_type": getattr(extracted_doc, "document_type", "prescription"),
             "document_date": (
-                extracted_doc.document_date
+                getattr(extracted_doc, "document_date", None)
                 or "unknown"
             )
         }

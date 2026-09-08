@@ -22,6 +22,7 @@ class StartSessionRequest(BaseModel):
 class RespondRequest(BaseModel):
     session_id: str
     patient_text: str
+    state: Optional[dict] = None
 
 class SummaryRequest(BaseModel):
     session_id: str
@@ -56,13 +57,21 @@ async def start_session(req: StartSessionRequest):
 @router.post("/session/respond")
 async def respond(req: RespondRequest):
     session = SESSIONS_DB.get(req.session_id)
+    if not session and req.state:
+        try:
+            session = ClinicalSession(**req.state)
+            SESSIONS_DB[req.session_id] = session
+        except Exception as e:
+            session = None
+            
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
         
     if session.status == "completed":
         return {
             "message": "Session is already completed",
-            "is_complete": True
+            "is_complete": True,
+            "state": session.model_dump()
         }
         
     session = process_patient_response(session, req.patient_text)
@@ -75,7 +84,8 @@ async def respond(req: RespondRequest):
         "next_question": last_msg if session.status != "completed" else None,
         "extracted_entities": session.clinical_entities,
         "red_flags": session.red_flags,
-        "is_complete": session.status == "completed"
+        "is_complete": session.status == "completed",
+        "state": session.model_dump()
     }
 
 @router.post("/session/summary")
