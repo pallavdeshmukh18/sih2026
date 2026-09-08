@@ -36,7 +36,7 @@ SUPPORTED_SPEAKERS: Set[str] = {
     "suhani", "mohit", "kavitha", "rehan", "soham", "rupali",
 }
 
-DEFAULT_SPEAKER: str = "shubh"
+DEFAULT_SPEAKER: str = "simran"
 DEFAULT_PACE: float = 1.0
 MIN_PACE: float = 0.5
 MAX_PACE: float = 2.0

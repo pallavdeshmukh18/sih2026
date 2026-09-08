@@ -72,7 +72,7 @@ async def synthesize_speech(request: TTSSynthesizeRequest):
         )
 
     # 4. Validate speaker
-    speaker = (request.speaker or "shubh").strip().lower()
+    speaker = (request.speaker or "simran").strip().lower()
     if speaker not in SUPPORTED_SPEAKERS:
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,

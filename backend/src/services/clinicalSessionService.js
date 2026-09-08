@@ -240,6 +240,9 @@ async function processTextTurnCore({ sessionId, patientId = null, patientText })
     if (!patientText || !patientText.trim()) {
         throw new ClinicalSessionError(400, "patientText is required.");
     }
+    if (patientText.length > 5000) {
+        throw new ClinicalSessionError(400, "patientText exceeds maximum allowed length of 5000 characters.");
+    }
 
     const sessionRes = await pool.query(
         `SELECT * FROM clinical_sessions WHERE id = $1;`,

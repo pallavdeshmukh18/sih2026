@@ -30,7 +30,7 @@ async function transcribeAudio(fileBuffer, filename = "audio.wav", languageCode 
 /**
  * 2. Synthesize Next Question via Sarvam Bulbul TTS
  */
-async function synthesizeSpeech(text, languageCode = "en-IN", speaker = "shubh", pace = 1.0) {
+async function synthesizeSpeech(text, languageCode = "en-IN", speaker = "simran", pace = 1.0) {
     try {
         const response = await axios.post(
             `${ML_BASE_URL}/api/tts/synthesize`,

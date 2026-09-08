@@ -5,9 +5,9 @@ from typing import Any, Dict, Optional
 import requests
 
 try:
-    from .config import BACKEND_API_TIMEOUT, BACKEND_API_URL
+    from .config import BACKEND_API_TIMEOUT, BACKEND_API_URL, WHATSAPP_SERVICE_KEY
 except (ImportError, ValueError):
-    from config import BACKEND_API_TIMEOUT, BACKEND_API_URL
+    from config import BACKEND_API_TIMEOUT, BACKEND_API_URL, WHATSAPP_SERVICE_KEY
 
 logger = logging.getLogger("medikiosk.whatsapp.auth_client")
 
@@ -70,6 +70,7 @@ class WhatsAppAuthClient:
                     "linked": bool(data.get("linked", False)),
                     "user_id": data.get("user_id"),
                     "user_name": data.get("user_name"),
+                    "language": data.get("language"),
                 }
             logger.warning(
                 "Non-200 response checking WhatsApp link status (%d): %s",
@@ -91,12 +92,18 @@ class WhatsAppAuthClient:
         status = self.check_link_status(whatsapp_id)
         return status.get("user_name")
 
-    def verify_and_link(self, whatsapp_id: str, token: str) -> Dict[str, Any]:
+    def get_account_language(self, whatsapp_id: str) -> Optional[str]:
+        """Convenience helper returning the user's account language if linked."""
+        status = self.check_link_status(whatsapp_id)
+        return status.get("language")
+
+    def verify_and_link(self, whatsapp_id: str, token: str, language: Optional[str] = None) -> Dict[str, Any]:
         """
         Submits candidate linking token to the backend for verification.
+        Optionally persists chosen language to user's account upon success.
 
         Endpoint: POST /api/auth/whatsapp/link
-        Payload: {"whatsapp_id": "...", "token": "..."}
+        Payload: {"whatsapp_id": "...", "token": "...", "language": "..."}
 
         Security Policy:
         The token is NEVER logged in plaintext or retained in client memory.
@@ -112,6 +119,8 @@ class WhatsAppAuthClient:
             "whatsapp_id": normalized_id,
             "token": cleaned_token,
         }
+        if language:
+            payload["language"] = str(language).strip().lower()
 
         try:
             res = requests.post(url, json=payload, timeout=self.timeout)
@@ -123,6 +132,7 @@ class WhatsAppAuthClient:
                         "success": True,
                         "user_id": data.get("user_id"),
                         "user_name": data.get("user_name") or "",
+                        "language": data.get("language"),
                     }
             elif res.status_code == 400:
                 data = {}
@@ -150,6 +160,46 @@ class WhatsAppAuthClient:
             return {
                 "success": False,
                 "message": "Connection error with MediKiosk authentication server.",
+                "error": str(exc),
+            }
+
+    def update_account_language(self, whatsapp_id: str, language: str) -> Dict[str, Any]:
+        """
+        Updates the account language for an already linked WhatsApp user in PostgreSQL.
+
+        Endpoint: POST /api/auth/whatsapp/language
+        Header: X-WhatsApp-Service-Key: <key>
+        Payload: {"whatsapp_id": "...", "language": "..."}
+        """
+        normalized_id = str(whatsapp_id).strip()
+        clean_lang = str(language).strip().lower()
+
+        url = f"{self.auth_base}/whatsapp/language"
+        headers = {
+            "X-WhatsApp-Service-Key": WHATSAPP_SERVICE_KEY,
+        }
+        payload = {
+            "whatsapp_id": normalized_id,
+            "language": clean_lang,
+        }
+
+        try:
+            res = requests.post(url, json=payload, headers=headers, timeout=self.timeout)
+            if res.status_code == 200:
+                data = res.json()
+                return {
+                    "success": True,
+                    "language": data.get("language", clean_lang),
+                }
+            logger.warning("Failed to update account language (%d): %s", res.status_code, res.text)
+            return {
+                "success": False,
+                "status_code": res.status_code,
+            }
+        except requests.RequestException as exc:
+            logger.error("Failed to connect to backend during language update: %s", exc)
+            return {
+                "success": False,
                 "error": str(exc),
             }
 

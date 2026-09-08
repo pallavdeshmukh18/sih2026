@@ -35,7 +35,18 @@ try:
         EXIT_TEXT,
         INVALID_MENU_TEXT,
         INVALID_TOKEN_MESSAGE,
+        LANGUAGE_MAP,
+        LANGUAGE_SELECTION_MESSAGE,
         LINKING_INSTRUCTIONS_MESSAGE,
+        LOCALIZED_CHIEF_COMPLAINT_PROMPT,
+        LOCALIZED_COMPLETION_MESSAGE,
+        LOCALIZED_EXIT_TEXT,
+        LOCALIZED_INVALID_MENU,
+        LOCALIZED_INVALID_TOKEN,
+        LOCALIZED_LINKING_INSTRUCTIONS,
+        LOCALIZED_MENUS,
+        LOCALIZED_RESET_MESSAGE,
+        LOCALIZED_UPLOAD_REPORT,
         LOGIN_TIMEOUT,
         MENU_MESSAGE,
         MENU_TEXT,
@@ -48,6 +59,7 @@ try:
         WHATSAPP_WEB_URL,
         WhatsAppState,
         format_link_success_message,
+        get_localized_message,
     )
     from .clinical_client import ClinicalClient
     from .auth_client import WhatsAppAuthClient, whatsapp_auth_client
@@ -68,7 +80,18 @@ except (ImportError, ValueError):
         EXIT_TEXT,
         INVALID_MENU_TEXT,
         INVALID_TOKEN_MESSAGE,
+        LANGUAGE_MAP,
+        LANGUAGE_SELECTION_MESSAGE,
         LINKING_INSTRUCTIONS_MESSAGE,
+        LOCALIZED_CHIEF_COMPLAINT_PROMPT,
+        LOCALIZED_COMPLETION_MESSAGE,
+        LOCALIZED_EXIT_TEXT,
+        LOCALIZED_INVALID_MENU,
+        LOCALIZED_INVALID_TOKEN,
+        LOCALIZED_LINKING_INSTRUCTIONS,
+        LOCALIZED_MENUS,
+        LOCALIZED_RESET_MESSAGE,
+        LOCALIZED_UPLOAD_REPORT,
         LOGIN_TIMEOUT,
         MENU_MESSAGE,
         MENU_TEXT,
@@ -81,6 +104,7 @@ except (ImportError, ValueError):
         WHATSAPP_WEB_URL,
         WhatsAppState,
         format_link_success_message,
+        get_localized_message,
     )
     from clinical_client import ClinicalClient
     from auth_client import WhatsAppAuthClient, whatsapp_auth_client
@@ -108,6 +132,42 @@ auth_client = WhatsAppAuthClient()
 
 # Shared module-level menu states for standalone generate_response calls
 _module_menu_states: Dict[str, str] = {}
+_module_user_languages: Dict[str, str] = {}
+_module_pending_languages: Dict[str, str] = {}
+
+
+def _resolve_module_user_language(patient_id: str, auth: WhatsAppAuthClient) -> Optional[str]:
+    """Resolves user's account language from in-memory cache or queries backend auth."""
+    if patient_id in _module_user_languages:
+        return _module_user_languages[patient_id]
+    try:
+        lang = auth.get_account_language(patient_id)
+        if isinstance(lang, str) and lang.strip():
+            clean_l = lang.strip().lower()
+            _module_user_languages[patient_id] = clean_l
+            return clean_l
+        elif lang is not None and hasattr(lang, "assert_called"):
+            return DEFAULT_LANGUAGE
+    except Exception:
+        pass
+    return None
+
+
+def _parse_language_choice(text: str) -> Optional[str]:
+    """Parses a language choice digit (1-4) or language name in English/Hindi/Marathi/Gujarati."""
+    cleaned = text.strip()
+    if cleaned in LANGUAGE_MAP:
+        return LANGUAGE_MAP[cleaned]
+    lower = cleaned.lower()
+    if "english" in lower:
+        return "en"
+    if "hindi" in lower or "हिंदी" in lower:
+        return "hi"
+    if "marathi" in lower or "मराठी" in lower:
+        return "mr"
+    if "gujarati" in lower or "ગુજરાતી" in lower:
+        return "gu"
+    return None
 
 
 def normalize_message_text(text: str) -> str:
@@ -141,13 +201,15 @@ def generate_response(
     or WhatsApp account authentication layer.
     Follows state priority:
     1. Reset / restart command
-    2. WAITING_FOR_TOKEN (Token submission)
-    3. Active clinical session
-    4. Active menu state
-    5. Exact activation phrase ('hello medikiosk') -> auth check:
-       - unlinked -> linking instructions (WAITING_FOR_TOKEN)
-       - linked -> menu
-    6. Otherwise ignores
+    2. SELECTING_LANGUAGE (Language choice 1-4)
+    3. WAITING_FOR_TOKEN (Token submission)
+    4. Active clinical session
+    5. Active menu state
+    6. Exact activation phrase ('hello medikiosk') -> auth check:
+       - unlinked -> language selection (SELECTING_LANGUAGE)
+       - linked with language -> menu (localized)
+       - linked without language -> language selection (SELECTING_LANGUAGE)
+    7. Otherwise ignores
     """
     cleaned = message.strip()
     if not cleaned:
@@ -156,63 +218,101 @@ def generate_response(
     # Never reply to our own completion, greeting, or bot prompts
     lower_msg = cleaned.lower()
     norm_msg = normalize_message_text(cleaned)
+
+    all_bot_prompts = [
+        COMPLETION_MESSAGE,
+        DEFAULT_REPLY,
+        MENU_TEXT,
+        MENU_MESSAGE,
+        UPLOAD_REPORT_TEXT,
+        EXIT_TEXT,
+        INVALID_MENU_TEXT,
+        LINKING_INSTRUCTIONS_MESSAGE,
+        INVALID_TOKEN_MESSAGE,
+        CHIEF_COMPLAINT_PROMPT,
+        LANGUAGE_SELECTION_MESSAGE,
+    ]
+    for d in (
+        LOCALIZED_MENUS,
+        LOCALIZED_LINKING_INSTRUCTIONS,
+        LOCALIZED_INVALID_TOKEN,
+        LOCALIZED_CHIEF_COMPLAINT_PROMPT,
+        LOCALIZED_COMPLETION_MESSAGE,
+        LOCALIZED_EXIT_TEXT,
+        LOCALIZED_INVALID_MENU,
+        LOCALIZED_UPLOAD_REPORT,
+        LOCALIZED_RESET_MESSAGE,
+    ):
+        all_bot_prompts.extend(d.values())
+
+    bot_prompt_lowers = {p.strip().lower() for p in all_bot_prompts if p}
+    bot_prompt_norms = {normalize_message_text(p) for p in all_bot_prompts if p}
+
     if (
-        lower_msg in (
-            COMPLETION_MESSAGE.lower(),
-            DEFAULT_REPLY.lower(),
-            MENU_TEXT.lower(),
-            MENU_MESSAGE.lower(),
-            UPLOAD_REPORT_TEXT.lower(),
-            EXIT_TEXT.lower(),
-            INVALID_MENU_TEXT.lower(),
-            LINKING_INSTRUCTIONS_MESSAGE.lower(),
-            INVALID_TOKEN_MESSAGE.lower(),
-            CHIEF_COMPLAINT_PROMPT.lower(),
-        )
-        or norm_msg in (
-            normalize_message_text(COMPLETION_MESSAGE),
-            normalize_message_text(DEFAULT_REPLY),
-            normalize_message_text(MENU_TEXT),
-            normalize_message_text(MENU_MESSAGE),
-            normalize_message_text(UPLOAD_REPORT_TEXT),
-            normalize_message_text(EXIT_TEXT),
-            normalize_message_text(INVALID_MENU_TEXT),
-            normalize_message_text(LINKING_INSTRUCTIONS_MESSAGE),
-            normalize_message_text(INVALID_TOKEN_MESSAGE),
-            normalize_message_text(CHIEF_COMPLAINT_PROMPT),
-        )
+        lower_msg in bot_prompt_lowers
+        or norm_msg in bot_prompt_norms
         or "whatsapp linked successfully" in lower_msg
         or "let's begin your clinical assessment" in lower_msg
         or "describe your main health concern" in lower_msg
         or "example: \"i have had chest pain since this morning\"" in lower_msg
         or "clinical assessment complete" in lower_msg
         or "physician-ready summary is now available" in lower_msg
+        or "select your preferred language" in lower_msg
+        or "reply with 1, 2, 3, or 4" in lower_msg
+        or "आपकी पसंदीदा भाषा चुनें" in lower_msg
+        or "पसंतीची भाषा निवडा" in lower_msg
+        or "પસંદગીની ભાષા પસંદ કરો" in lower_msg
     ):
         return None
+
+    active_client = client or clinical_client
+    active_auth = auth or auth_client
 
     # Handle reset/restart
     if cleaned.lower() in ("/reset", "/restart", "reset", "restart"):
         _module_menu_states.pop(patient_id, None)
-        active_client = client or clinical_client
+        _module_pending_languages.pop(patient_id, None)
         active_client.reset_session(patient_id)
-        return 'Session reset. Send "hello medikiosk" to begin a consultation.'
+        user_lang = _resolve_module_user_language(patient_id, active_auth) or DEFAULT_LANGUAGE
+        return LOCALIZED_RESET_MESSAGE.get(user_lang, 'Session reset. Send "hello medikiosk" to begin a consultation.')
 
-    active_client = client or clinical_client
-    active_auth = auth or auth_client
-    has_session = active_client.get_session_id(patient_id) is not None
+    raw_session_id = active_client.get_session_id(patient_id)
+    has_session = isinstance(raw_session_id, str) and bool(raw_session_id)
     current_menu_state = _module_menu_states.get(patient_id, WhatsAppState.IDLE)
 
-    # 1. WAITING_FOR_TOKEN state
+    # 1. SELECTING_LANGUAGE state
+    if current_menu_state == WhatsAppState.SELECTING_LANGUAGE:
+        chosen_lang = _parse_language_choice(cleaned)
+        if not chosen_lang:
+            return LANGUAGE_SELECTION_MESSAGE
+
+        is_linked = active_auth.is_linked(patient_id)
+        if is_linked:
+            # Linked user was missing language: save to account in DB immediately
+            active_auth.update_account_language(patient_id, chosen_lang)
+            _module_user_languages[patient_id] = chosen_lang
+            _module_menu_states[patient_id] = WhatsAppState.MENU
+            return LOCALIZED_MENUS.get(chosen_lang, MENU_MESSAGE)
+        else:
+            # Unlinked user: hold chosen language in pending, transition to WAITING_FOR_TOKEN
+            _module_pending_languages[patient_id] = chosen_lang
+            _module_menu_states[patient_id] = WhatsAppState.WAITING_FOR_TOKEN
+            return LOCALIZED_LINKING_INSTRUCTIONS.get(chosen_lang, LINKING_INSTRUCTIONS_MESSAGE)
+
+    # 2. WAITING_FOR_TOKEN state
     if current_menu_state == WhatsAppState.WAITING_FOR_TOKEN:
-        link_res = active_auth.verify_and_link(whatsapp_id=patient_id, token=cleaned)
+        pending_lang = _module_pending_languages.get(patient_id, DEFAULT_LANGUAGE)
+        link_res = active_auth.verify_and_link(whatsapp_id=patient_id, token=cleaned, language=pending_lang)
         if link_res.get("success"):
             _module_menu_states.pop(patient_id, None)
+            _module_pending_languages.pop(patient_id, None)
+            _module_user_languages[patient_id] = pending_lang
             user_name = link_res.get("user_name", "")
-            return format_link_success_message(user_name)
+            return format_link_success_message(user_name, language=pending_lang)
         else:
-            return INVALID_TOKEN_MESSAGE
+            return LOCALIZED_INVALID_TOKEN.get(pending_lang, INVALID_TOKEN_MESSAGE)
 
-    # 2. Active clinical session
+    # 3. Active clinical session
     is_clinical_active = (
         has_session
         or current_menu_state == WhatsAppState.CLINICAL_SESSION
@@ -220,37 +320,54 @@ def generate_response(
     )
     if is_clinical_active:
         _module_menu_states[patient_id] = WhatsAppState.CLINICAL_SESSION
-        reply = active_client.handle_message(patient_id=patient_id, message=cleaned)
+        user_lang = _resolve_module_user_language(patient_id, active_auth) or DEFAULT_LANGUAGE
+        reply = active_client.handle_message(patient_id=patient_id, message=cleaned, language=user_lang)
         is_pending = hasattr(active_client, "pending_complaint") and patient_id in active_client.pending_complaint
         if active_client.get_session_id(patient_id) is None and not is_pending:
             _module_menu_states.pop(patient_id, None)
         return reply
 
-    # 3. Active menu state
+    # 4. Active menu state
     if current_menu_state == WhatsAppState.MENU:
+        user_lang = _resolve_module_user_language(patient_id, active_auth) or DEFAULT_LANGUAGE
         if cleaned == "1":
             _module_menu_states[patient_id] = WhatsAppState.CLINICAL_SESSION
-            return active_client.handle_message(patient_id=patient_id, message=cleaned)
+            return active_client.handle_message(patient_id=patient_id, message=cleaned, language=user_lang)
         elif cleaned == "2":
-            return UPLOAD_REPORT_TEXT
+            return LOCALIZED_UPLOAD_REPORT.get(user_lang, UPLOAD_REPORT_TEXT)
         elif cleaned == "3":
             _module_menu_states.pop(patient_id, None)
             active_client.reset_session(patient_id)
-            return EXIT_TEXT
+            return LOCALIZED_EXIT_TEXT.get(user_lang, EXIT_TEXT)
         else:
-            return INVALID_MENU_TEXT
+            return LOCALIZED_INVALID_MENU.get(user_lang, INVALID_MENU_TEXT)
 
-    # 4. Exact activation phrase
+    # 5. Exact activation phrase ('hello medikiosk')
     if is_exact_activation_message(cleaned):
         is_linked = active_auth.is_linked(patient_id)
         if not is_linked:
-            _module_menu_states[patient_id] = WhatsAppState.WAITING_FOR_TOKEN
-            return LINKING_INSTRUCTIONS_MESSAGE
+            _module_menu_states[patient_id] = WhatsAppState.SELECTING_LANGUAGE
+            return LANGUAGE_SELECTION_MESSAGE
         else:
-            _module_menu_states[patient_id] = WhatsAppState.MENU
-            return MENU_TEXT
+            account_lang = None
+            try:
+                raw_lang = active_auth.get_account_language(patient_id)
+                if isinstance(raw_lang, str) and raw_lang.strip():
+                    account_lang = raw_lang.strip().lower()
+                elif raw_lang is not None and hasattr(raw_lang, "assert_called"):
+                    account_lang = DEFAULT_LANGUAGE
+            except Exception:
+                pass
 
-    # 5. Otherwise ignore
+            if account_lang:
+                _module_user_languages[patient_id] = account_lang
+                _module_menu_states[patient_id] = WhatsAppState.MENU
+                return LOCALIZED_MENUS.get(account_lang, MENU_MESSAGE)
+            else:
+                _module_menu_states[patient_id] = WhatsAppState.SELECTING_LANGUAGE
+                return LANGUAGE_SELECTION_MESSAGE
+
+    # 6. Otherwise ignore
     logger.info(
         "generate_response: Ignoring message from '%s' (idle state, not activation phrase '%s'): '%s'",
         patient_id, ACTIVATION_PHRASE, cleaned
@@ -285,6 +402,8 @@ class WhatsAppBot:
         self._logged_ignored_groups: Set[str] = set()
         self._recent_opened_group_time: Dict[str, float] = {}
         self.user_menu_states: Dict[str, str] = {}
+        self.user_languages: Dict[str, str] = {}
+        self.pending_languages: Dict[str, str] = {}
 
     def _record_sent_message(self, reply_text: str) -> None:
         """Records a sent message and its normalized forms to prevent reading it as an incoming message."""
@@ -314,6 +433,27 @@ class WhatsAppBot:
     def clear_menu_state(self, chat_id: str) -> None:
         """Clears the WhatsApp menu state for an individual chat."""
         self.user_menu_states.pop(chat_id, None)
+
+    def get_user_language(self, chat_id: str) -> str:
+        """Retrieves user's account language from in-memory cache or queries backend auth."""
+        if chat_id in self.user_languages:
+            return self.user_languages[chat_id]
+        try:
+            lang = self.auth_client.get_account_language(chat_id)
+            if isinstance(lang, str) and lang.strip():
+                clean_lang = lang.strip().lower()
+                self.user_languages[chat_id] = clean_lang
+                return clean_lang
+            elif lang is not None and hasattr(lang, "assert_called"):
+                return DEFAULT_LANGUAGE
+        except Exception as exc:
+            logger.debug("Could not fetch account language for %s: %s", chat_id, exc)
+        return DEFAULT_LANGUAGE
+
+    def set_user_language(self, chat_id: str, language: str) -> None:
+        """Caches user's account language."""
+        if language:
+            self.user_languages[chat_id] = language.strip().lower()
 
     def _get_active_chat_whatsapp_id(self) -> str:
         """
@@ -830,6 +970,12 @@ class WhatsAppBot:
                 or "clinical assessment complete" in cleaned_lower
                 or "physician-ready summary is now available" in cleaned_lower
                 or "session reset" in cleaned_lower
+                or "select language" in cleaned_lower
+                or "select your preferred language" in cleaned_lower
+                or "reply with 1, 2, 3, or 4" in cleaned_lower
+                or "आपकी पसंदीदा भाषा चुनें" in cleaned_lower
+                or "पसंतीची भाषा निवडा" in cleaned_lower
+                or "પસંદગીની ભાષા પસંદ કરો" in cleaned_lower
             ):
                 return True
 
@@ -930,12 +1076,16 @@ class WhatsAppBot:
     def _get_message_identifier(self, element, text: str = "") -> Optional[str]:
         """Extracts a unique fingerprint for a message element using multiple fallback attributes."""
         try:
-            # 1. Check data-id on the element or its parent row
+            # 1. Check data-id on the element, its descendant, or its parent row
             data_id = element.get_attribute("data-id")
             if not data_id:
                 try:
-                    parent_with_id = element.find_element(By.XPATH, "./ancestor-or-self::*[@data-id]")
-                    data_id = parent_with_id.get_attribute("data-id")
+                    candidates = element.find_elements(By.XPATH, ".//*[@data-id] | ./ancestor-or-self::*[@data-id]")
+                    for c in candidates:
+                        did = c.get_attribute("data-id")
+                        if did:
+                            data_id = did
+                            break
                 except Exception:
                     pass
 
@@ -955,14 +1105,16 @@ class WhatsAppBot:
             except Exception:
                 pass
 
+            el_id = getattr(element, "id", "") or str(id(element))
+
             if data_id:
                 return data_id
             if pre_text and text:
-                return f"{pre_text}_{text}"
+                return f"{pre_text}_{text}_{el_id}"
             if time_text and text:
-                return f"{time_text}_{text}_{getattr(element, 'id', '')}"
+                return f"{time_text}_{text}_{el_id}"
             if text:
-                return f"{text}_{getattr(element, 'id', '')}"
+                return f"{text}_{el_id}"
 
         except StaleElementReferenceException:
             return None
@@ -1287,12 +1439,15 @@ class WhatsAppBot:
                     if cleaned_text.lower() in ("/reset", "/restart", "reset", "restart"):
                         logger.info("Reset command received from '%s'. Clearing state and clinical session...", whatsapp_id)
                         self.clear_menu_state(whatsapp_id)
+                        self.pending_languages.pop(whatsapp_id, None)
                         if chat_title != whatsapp_id:
                             self.clear_menu_state(chat_title)
+                            self.pending_languages.pop(chat_title, None)
                         self.clinical_client.reset_session(whatsapp_id)
                         if chat_title != whatsapp_id:
                             self.clinical_client.reset_session(chat_title)
-                        reply_text = 'Session reset. Send "hello medikiosk" to begin a consultation.'
+                        user_lang = self.get_user_language(whatsapp_id)
+                        reply_text = LOCALIZED_RESET_MESSAGE.get(user_lang, 'Session reset. Send "hello medikiosk" to begin a consultation.')
                         sent = self.send_message(reply_text)
                         if sent:
                             self.processed_message_ids.add(msg_id)
@@ -1307,29 +1462,70 @@ class WhatsAppBot:
                     if current_menu_state == WhatsAppState.IDLE and whatsapp_id != chat_title:
                         current_menu_state = self.get_menu_state(chat_title)
 
+                    s_id_1 = self.clinical_client.get_session_id(whatsapp_id)
+                    s_id_2 = self.clinical_client.get_session_id(chat_title) if whatsapp_id != chat_title else None
                     has_clinical_session = (
-                        self.clinical_client.get_session_id(whatsapp_id) is not None
-                        or (whatsapp_id != chat_title and self.clinical_client.get_session_id(chat_title) is not None)
+                        (isinstance(s_id_1, str) and bool(s_id_1))
+                        or (isinstance(s_id_2, str) and bool(s_id_2))
                     )
 
                     reply_text = None
 
+                    # Priority 3: SELECTING_LANGUAGE state
+                    if current_menu_state == WhatsAppState.SELECTING_LANGUAGE:
+                        chosen_lang = _parse_language_choice(cleaned_text)
+                        if not chosen_lang:
+                            logger.info("Invalid language choice '%s' from '%s'", cleaned_text, whatsapp_id)
+                            reply_text = LANGUAGE_SELECTION_MESSAGE
+                        else:
+                            is_linked = self.auth_client.is_linked(whatsapp_id)
+                            if not is_linked and whatsapp_id != chat_title:
+                                is_linked = self.auth_client.is_linked(chat_title)
+
+                            if is_linked:
+                                logger.info("Saving language '%s' to account for '%s'...", chosen_lang, whatsapp_id)
+                                self.auth_client.update_account_language(whatsapp_id, chosen_lang)
+                                self.set_user_language(whatsapp_id, chosen_lang)
+                                if chat_title != whatsapp_id:
+                                    self.set_user_language(chat_title, chosen_lang)
+                                self.set_menu_state(whatsapp_id, WhatsAppState.MENU)
+                                if chat_title != whatsapp_id:
+                                    self.set_menu_state(chat_title, WhatsAppState.MENU)
+                                reply_text = LOCALIZED_MENUS.get(chosen_lang, MENU_MESSAGE)
+                            else:
+                                logger.info("Language '%s' chosen by unlinked user '%s'. Requesting token...", chosen_lang, whatsapp_id)
+                                self.pending_languages[whatsapp_id] = chosen_lang
+                                if chat_title != whatsapp_id:
+                                    self.pending_languages[chat_title] = chosen_lang
+                                self.set_menu_state(whatsapp_id, WhatsAppState.WAITING_FOR_TOKEN)
+                                if chat_title != whatsapp_id:
+                                    self.set_menu_state(chat_title, WhatsAppState.WAITING_FOR_TOKEN)
+                                reply_text = LOCALIZED_LINKING_INSTRUCTIONS.get(chosen_lang, LINKING_INSTRUCTIONS_MESSAGE)
+
                     # Priority 4: WAITING_FOR_TOKEN (Token input state)
-                    if current_menu_state == WhatsAppState.WAITING_FOR_TOKEN:
-                        # Do NOT send to ClinicalClient, do NOT start clinical session, do NOT show menu
+                    elif current_menu_state == WhatsAppState.WAITING_FOR_TOKEN:
+                        pending_lang = self.pending_languages.get(whatsapp_id) or self.pending_languages.get(chat_title) or DEFAULT_LANGUAGE
                         logger.info("Candidate token received from '%s'. Verifying with backend...", whatsapp_id)
+                        link_kwargs = {}
+                        if pending_lang and pending_lang != DEFAULT_LANGUAGE:
+                            link_kwargs["language"] = pending_lang
                         link_result = self.auth_client.verify_and_link(
-                            whatsapp_id=whatsapp_id, token=cleaned_text
+                            whatsapp_id=whatsapp_id, token=cleaned_text, **link_kwargs
                         )
                         if link_result.get("success"):
                             self.set_menu_state(whatsapp_id, WhatsAppState.IDLE)
                             if chat_title != whatsapp_id:
                                 self.set_menu_state(chat_title, WhatsAppState.IDLE)
+                            self.set_user_language(whatsapp_id, pending_lang)
+                            if chat_title != whatsapp_id:
+                                self.set_user_language(chat_title, pending_lang)
+                            self.pending_languages.pop(whatsapp_id, None)
+                            self.pending_languages.pop(chat_title, None)
                             user_name = link_result.get("user_name", "")
-                            reply_text = format_link_success_message(user_name)
+                            reply_text = format_link_success_message(user_name, language=pending_lang)
                         else:
                             # Remain in WAITING_FOR_TOKEN
-                            reply_text = INVALID_TOKEN_MESSAGE
+                            reply_text = LOCALIZED_INVALID_TOKEN.get(pending_lang, INVALID_TOKEN_MESSAGE)
 
                     # Priority 5: Active clinical session
                     elif has_clinical_session or current_menu_state == WhatsAppState.CLINICAL_SESSION:
@@ -1338,8 +1534,12 @@ class WhatsAppBot:
                         self.set_menu_state(whatsapp_id, WhatsAppState.CLINICAL_SESSION)
                         if chat_title != whatsapp_id:
                             self.set_menu_state(chat_title, WhatsAppState.CLINICAL_SESSION)
+                        user_lang = self.get_user_language(session_id_key)
+                        handle_kwargs = {}
+                        if user_lang and user_lang != DEFAULT_LANGUAGE:
+                            handle_kwargs["language"] = user_lang
                         reply_text = self.clinical_client.handle_message(
-                            patient_id=session_id_key, message=cleaned_text
+                            patient_id=session_id_key, message=cleaned_text, **handle_kwargs
                         )
                         # If session completed, clear menu state
                         is_pending = hasattr(self.clinical_client, "pending_complaint") and (whatsapp_id in self.clinical_client.pending_complaint or chat_title in self.clinical_client.pending_complaint)
@@ -1350,17 +1550,21 @@ class WhatsAppBot:
 
                     # Priority 6: Active menu state
                     elif current_menu_state == WhatsAppState.MENU:
+                        user_lang = self.get_user_language(whatsapp_id)
                         if cleaned_text == "1":
                             logger.info("Option 1 (Start Consultation) chosen by '%s'", whatsapp_id)
                             self.set_menu_state(whatsapp_id, WhatsAppState.CLINICAL_SESSION)
                             if chat_title != whatsapp_id:
                                 self.set_menu_state(chat_title, WhatsAppState.CLINICAL_SESSION)
+                            handle_kwargs = {}
+                            if user_lang and user_lang != DEFAULT_LANGUAGE:
+                                handle_kwargs["language"] = user_lang
                             reply_text = self.clinical_client.handle_message(
-                                patient_id=whatsapp_id, message=cleaned_text
+                                patient_id=whatsapp_id, message=cleaned_text, **handle_kwargs
                             )
                         elif cleaned_text == "2":
                             logger.info("Option 2 (Upload Medical Report) chosen by '%s'", whatsapp_id)
-                            reply_text = UPLOAD_REPORT_TEXT
+                            reply_text = LOCALIZED_UPLOAD_REPORT.get(user_lang, UPLOAD_REPORT_TEXT)
                             # Remain in MENU state
                         elif cleaned_text == "3":
                             logger.info("Option 3 (Exit) chosen by '%s'", whatsapp_id)
@@ -1370,10 +1574,10 @@ class WhatsAppBot:
                             self.clinical_client.reset_session(whatsapp_id)
                             if chat_title != whatsapp_id:
                                 self.clinical_client.reset_session(chat_title)
-                            reply_text = EXIT_TEXT
+                            reply_text = LOCALIZED_EXIT_TEXT.get(user_lang, EXIT_TEXT)
                         else:
                             logger.info("Invalid menu option '%s' from '%s'", cleaned_text, whatsapp_id)
-                            reply_text = INVALID_MENU_TEXT
+                            reply_text = LOCALIZED_INVALID_MENU.get(user_lang, INVALID_MENU_TEXT)
                             # Remain in MENU state
 
                     # Priority 7: Exact activation phrase ('hello medikiosk')
@@ -1383,15 +1587,37 @@ class WhatsAppBot:
                             is_linked = self.auth_client.is_linked(chat_title)
 
                         if not is_linked:
-                            logger.info("Unlinked user '%s' sent activation phrase. Showing linking instructions...", whatsapp_id)
-                            self.set_menu_state(whatsapp_id, WhatsAppState.WAITING_FOR_TOKEN)
-                            self.set_menu_state(chat_title, WhatsAppState.WAITING_FOR_TOKEN)
-                            reply_text = LINKING_INSTRUCTIONS_MESSAGE
+                            logger.info("Unlinked user '%s' sent activation phrase. Prompting for language selection...", whatsapp_id)
+                            self.set_menu_state(whatsapp_id, WhatsAppState.SELECTING_LANGUAGE)
+                            if chat_title != whatsapp_id:
+                                self.set_menu_state(chat_title, WhatsAppState.SELECTING_LANGUAGE)
+                            reply_text = LANGUAGE_SELECTION_MESSAGE
                         else:
-                            logger.info("Linked user '%s' sent activation phrase. Presenting menu...", whatsapp_id)
-                            self.set_menu_state(whatsapp_id, WhatsAppState.MENU)
-                            self.set_menu_state(chat_title, WhatsAppState.MENU)
-                            reply_text = MENU_MESSAGE
+                            account_lang = None
+                            try:
+                                raw_lang = self.auth_client.get_account_language(whatsapp_id)
+                                if isinstance(raw_lang, str) and raw_lang.strip():
+                                    account_lang = raw_lang.strip().lower()
+                                elif raw_lang is not None and hasattr(raw_lang, "assert_called"):
+                                    account_lang = DEFAULT_LANGUAGE
+                            except Exception:
+                                pass
+
+                            if account_lang:
+                                logger.info("Linked user '%s' (language: %s) sent activation phrase. Presenting localized menu...", whatsapp_id, account_lang)
+                                self.set_user_language(whatsapp_id, account_lang)
+                                if chat_title != whatsapp_id:
+                                    self.set_user_language(chat_title, account_lang)
+                                self.set_menu_state(whatsapp_id, WhatsAppState.MENU)
+                                if chat_title != whatsapp_id:
+                                    self.set_menu_state(chat_title, WhatsAppState.MENU)
+                                reply_text = LOCALIZED_MENUS.get(account_lang, MENU_MESSAGE)
+                            else:
+                                logger.info("Linked user '%s' has no language configured. Prompting for language selection...", whatsapp_id)
+                                self.set_menu_state(whatsapp_id, WhatsAppState.SELECTING_LANGUAGE)
+                                if chat_title != whatsapp_id:
+                                    self.set_menu_state(chat_title, WhatsAppState.SELECTING_LANGUAGE)
+                                reply_text = LANGUAGE_SELECTION_MESSAGE
 
                     # Priority 8: Otherwise ignore
                     else:

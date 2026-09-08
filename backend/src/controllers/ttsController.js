@@ -40,7 +40,7 @@ async function synthesizeSpeech(req, res, next) {
         const ttsResult = await mlService.synthesizeSpeech(
             cleanText,
             mappedLang,
-            speaker || "shubh",
+            speaker || "simran",
             pace || 1.0
         );
 

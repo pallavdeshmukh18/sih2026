@@ -1711,9 +1711,10 @@ async function getWhatsAppStatus(req, res) {
         const normalizedId = whatsappId.trim();
 
         const result = await pool.query(
-            `SELECT w.user_id, u.first_name, u.last_name, u.role
+            `SELECT w.user_id, u.first_name, u.last_name, u.role, p.preferred_language AS language
              FROM whatsapp_accounts w
              JOIN users u ON w.user_id = u.id
+             LEFT JOIN patient_profiles p ON w.user_id = p.user_id
              WHERE w.whatsapp_id = $1;`,
             [normalizedId]
         );
@@ -1730,6 +1731,7 @@ async function getWhatsAppStatus(req, res) {
             user_id: account.user_id,
             user_name: account.first_name || "Patient",
             role: account.role,
+            language: account.language || null,
         });
     } catch (error) {
         console.error("Error in getWhatsAppStatus:", error.message);
@@ -1743,11 +1745,11 @@ async function getWhatsAppStatus(req, res) {
 /**
  * Link WhatsApp ID using a valid verification token
  * POST /api/auth/whatsapp/link
- * Body: { "whatsapp_id": "string", "token": "string" }
+ * Body: { "whatsapp_id": "string", "token": "string", "language": Optional["string"] }
  */
 async function linkWhatsAppAccount(req, res) {
     try {
-        const { whatsapp_id, token } = req.body;
+        const { whatsapp_id, token, language } = req.body;
 
         if (!whatsapp_id || !token) {
             return res.status(400).json({
@@ -1797,10 +1799,39 @@ async function linkWhatsAppAccount(req, res) {
             [record.user_id, normalizedId]
         );
 
+        // If language was chosen during linking, persist to patient_profiles.preferred_language
+        let finalLanguage = null;
+        if (language && typeof language === "string") {
+            const cleanLang = language.trim().toLowerCase();
+            const allowedLangs = ["en", "hi", "mr", "gu", "bn", "ta", "te", "kn", "ml", "pa", "or", "as"];
+            if (allowedLangs.includes(cleanLang)) {
+                await pool.query(
+                    `INSERT INTO patient_profiles (user_id, preferred_language)
+                     VALUES ($1, $2)
+                     ON CONFLICT (user_id) DO UPDATE
+                     SET preferred_language = EXCLUDED.preferred_language, updated_at = NOW();`,
+                    [record.user_id, cleanLang]
+                );
+                finalLanguage = cleanLang;
+            }
+        }
+
+        // If not explicitly set via linking payload, retrieve existing language if any
+        if (!finalLanguage) {
+            const profileRes = await pool.query(
+                `SELECT preferred_language FROM patient_profiles WHERE user_id = $1;`,
+                [record.user_id]
+            );
+            if (profileRes.rows.length > 0) {
+                finalLanguage = profileRes.rows[0].preferred_language || null;
+            }
+        }
+
         return res.status(200).json({
             success: true,
             user_id: record.user_id,
             user_name: record.first_name || "Patient",
+            language: finalLanguage,
             message: "WhatsApp account linked successfully",
         });
     } catch (error) {
@@ -1808,6 +1839,70 @@ async function linkWhatsAppAccount(req, res) {
         return res.status(500).json({
             success: false,
             message: "Internal server error during WhatsApp linking",
+        });
+    }
+}
+
+/**
+ * Update Language for Linked WhatsApp User
+ * POST /api/auth/whatsapp/language or POST /api/whatsapp/language
+ * Body: { "whatsapp_id": "string", "language": "en" | "hi" | "mr" | "gu" }
+ */
+async function updateWhatsAppLanguage(req, res) {
+    try {
+        const { whatsapp_id, language } = req.body;
+
+        if (!whatsapp_id || !language) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required fields: whatsapp_id, language",
+            });
+        }
+
+        const normalizedId = whatsapp_id.trim();
+        const cleanLang = language.trim().toLowerCase();
+        const allowedLangs = ["en", "hi", "mr", "gu", "bn", "ta", "te", "kn", "ml", "pa", "or", "as"];
+        if (!allowedLangs.includes(cleanLang)) {
+            return res.status(400).json({
+                success: false,
+                message: `Invalid language '${cleanLang}'. Allowed: [${allowedLangs.join(", ")}]`,
+            });
+        }
+
+        // Resolve user_id from whatsapp_accounts
+        const accountRes = await pool.query(
+            `SELECT user_id FROM whatsapp_accounts WHERE whatsapp_id = $1;`,
+            [normalizedId]
+        );
+
+        if (accountRes.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "WhatsApp account is not linked to any user.",
+            });
+        }
+
+        const userId = accountRes.rows[0].user_id;
+
+        // Persist language to patient_profiles
+        await pool.query(
+            `INSERT INTO patient_profiles (user_id, preferred_language)
+             VALUES ($1, $2)
+             ON CONFLICT (user_id) DO UPDATE
+             SET preferred_language = EXCLUDED.preferred_language, updated_at = NOW();`,
+            [userId, cleanLang]
+        );
+
+        return res.status(200).json({
+            success: true,
+            language: cleanLang,
+            message: "Account language updated successfully.",
+        });
+    } catch (error) {
+        console.error("Error in updateWhatsAppLanguage:", error.message);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error updating WhatsApp language.",
         });
     }
 }
@@ -1889,6 +1984,7 @@ module.exports = {
     generateWhatsAppToken,
     getWhatsAppStatus,
     linkWhatsAppAccount,
+    updateWhatsAppLanguage,
     getWhatsAppMe,
     unlinkWhatsApp,
 };

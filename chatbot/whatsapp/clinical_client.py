@@ -16,6 +16,8 @@ try:
         DEFAULT_CONSULTATION_TYPE,
         DEFAULT_LANGUAGE,
         ERROR_MESSAGE,
+        LOCALIZED_CHIEF_COMPLAINT_PROMPT,
+        LOCALIZED_COMPLETION_MESSAGE,
         WHATSAPP_SERVICE_KEY,
     )
 except (ImportError, ValueError):
@@ -30,6 +32,8 @@ except (ImportError, ValueError):
         DEFAULT_CONSULTATION_TYPE,
         DEFAULT_LANGUAGE,
         ERROR_MESSAGE,
+        LOCALIZED_CHIEF_COMPLAINT_PROMPT,
+        LOCALIZED_COMPLETION_MESSAGE,
         WHATSAPP_SERVICE_KEY,
     )
 
@@ -226,13 +230,15 @@ class ClinicalClient:
             logger.error("Failed to fetch clinical summary for session %s: %s", session_id, exc)
             raise ClinicalAPIError(f"Clinical summary generation failed: {exc}") from exc
 
-    def handle_message(self, patient_id: str, message: str) -> str:
-        """
-        High-level entry point called by the WhatsApp Selenium bot.
+    def handle_message(self, patient_id: str, message: str, language: Optional[str] = None) -> str:
+        """Alias for process_message for backwards compatibility."""
+        return self.process_message(patient_id, message, language=language)
 
-        Orchestrates:
-        1. Prompting for chief complaint upon Option 1 selection.
-        2. Starting the session using the patient's symptom description.
+    def process_message(self, patient_id: str, message: str, language: Optional[str] = None) -> str:
+        """
+        Processes an incoming patient message by:
+        1. Starting a clinical session if none exists (via Option 1 or symptom description).
+        2. Validating the chief complaint to reject noise/single words.
         3. Advancing the clinical session through the shared backend pipeline.
         4. Safety red-flag logging.
         5. Triggering physician summary generation upon completion and saving to PostgreSQL.
@@ -241,6 +247,8 @@ class ClinicalClient:
         cleaned = message.strip()
         if not cleaned:
             return ""
+
+        lang = language.lower().strip() if (isinstance(language, str) and language.strip()) else DEFAULT_LANGUAGE
 
         # Allow user to manually restart their clinical intake
         if cleaned.lower() in ("/reset", "/restart", "reset", "restart"):
@@ -255,15 +263,19 @@ class ClinicalClient:
                 # Option 1 from menu -> prompt for chief complaint
                 if cleaned == "1":
                     self.pending_complaint.add(patient_id)
-                    return CHIEF_COMPLAINT_PROMPT
+                    return LOCALIZED_CHIEF_COMPLAINT_PROMPT.get(lang, CHIEF_COMPLAINT_PROMPT)
 
                 # Never accept bot prompts or prompt instructions as a patient chief complaint
                 cleaned_lower = cleaned.lower()
+                all_prompts = [CHIEF_COMPLAINT_PROMPT.lower()] + [p.lower() for p in LOCALIZED_CHIEF_COMPLAINT_PROMPT.values()]
                 if (
-                    cleaned_lower == CHIEF_COMPLAINT_PROMPT.lower()
+                    any(cleaned_lower == p for p in all_prompts)
                     or "let's begin your clinical assessment" in cleaned_lower
                     or "describe your main health concern" in cleaned_lower
                     or "example: \"i have had chest pain since this morning\"" in cleaned_lower
+                    or "नैदानिक मूल्यांकन शुरू करें" in cleaned_lower
+                    or "आरोग्य तपासणी सुरू करूया" in cleaned_lower
+                    or "આરોગ્ય મૂલ્યાંકન શરૂ કરીએ" in cleaned_lower
                 ):
                     logger.warning(
                         "Prompt text echo detected as chief complaint for patient '%s': '%s'. Ignoring.",
@@ -271,14 +283,31 @@ class ClinicalClient:
                     )
                     return ""
 
-                # Patient sent symptom description (or directly provided first text)
+                # Check if input is obvious noise, menu digit, or non-symptom filler before treating as chief complaint
+                clean_lower = cleaned.lower()
+                is_noise = False
+                if len(cleaned) < 3:
+                    is_noise = True
+                elif clean_lower in {"na", "ok", "okay", "no", "yes", "none", "nothing", "nil", "hi", "hello", "hey", "test", "bye", "iii", "aaa"}:
+                    is_noise = True
+                elif cleaned.isdigit():
+                    is_noise = True
+                elif not any(c.isalnum() for c in cleaned):
+                    is_noise = True
+
+                if is_noise:
+                    self.pending_complaint.add(patient_id)
+                    logger.info("Noise/invalid chief complaint detected from patient '%s': '%s'. Re-prompting.", patient_id, cleaned)
+                    return LOCALIZED_CHIEF_COMPLAINT_PROMPT.get(lang, CHIEF_COMPLAINT_PROMPT)
+
+                # Patient sent valid symptom description
                 chief_complaint = cleaned
                 self.pending_complaint.discard(patient_id)
 
                 logger.info("New WhatsApp patient detected: '%s'. Starting clinical intake with complaint: '%s'", patient_id, chief_complaint)
                 start_data = self.start_session(
                     patient_id=patient_id,
-                    language=DEFAULT_LANGUAGE,
+                    language=lang,
                     consultation_type=DEFAULT_CONSULTATION_TYPE,
                     chief_complaint=chief_complaint,
                 )
@@ -323,7 +352,7 @@ class ClinicalClient:
                 self.sessions.pop(patient_id, None)
                 self.pending_complaint.discard(patient_id)
 
-                return COMPLETION_MESSAGE
+                return LOCALIZED_COMPLETION_MESSAGE.get(lang, COMPLETION_MESSAGE)
 
             # 4. NEXT QUESTION: Continue the adaptive questioning flow
             next_q = respond_data.get("next_question") or respond_data.get("nextQuestion")
@@ -333,7 +362,7 @@ class ClinicalClient:
             # Fallback if no next question and session not marked complete
             self.sessions.pop(patient_id, None)
             self.pending_complaint.discard(patient_id)
-            return COMPLETION_MESSAGE
+            return LOCALIZED_COMPLETION_MESSAGE.get(lang, COMPLETION_MESSAGE)
 
         except ClinicalAPIError as exc:
             logger.error("Clinical AI API error for patient '%s': %s", patient_id, exc)

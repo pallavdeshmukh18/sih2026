@@ -58,103 +58,441 @@ ACTIVATION_PHRASE: str = "hello medikiosk"
 # WhatsApp Menu & Authentication States
 class WhatsAppState:
     IDLE = "IDLE"
+    SELECTING_LANGUAGE = "SELECTING_LANGUAGE"
     WAITING_FOR_TOKEN = "WAITING_FOR_TOKEN"
     MENU = "MENU"
     CLINICAL_SESSION = "CLINICAL_SESSION"
 
+# Supported Languages for WhatsApp Menu & Intake
+LANGUAGE_MAP: dict = {
+    "1": "en",
+    "2": "hi",
+    "3": "mr",
+    "4": "gu",
+}
+
+# Single WhatsApp message for Language Selection
+LANGUAGE_SELECTION_MESSAGE: str = (
+    "━━━━━━━━━━━━━━━━━━\n"
+    "🌐 *Select Language*\n"
+    "━━━━━━━━━━━━━━━━━━\n\n"
+    "Please select your preferred language:\n\n"
+    "1️⃣ *English*\n"
+    "2️⃣ *हिंदी*\n"
+    "3️⃣ *मराठी*\n"
+    "4️⃣ *ગુજરાતી*\n\n"
+    "━━━━━━━━━━━━━━━━━━\n"
+    "💬 *Reply with 1, 2, 3, or 4*\n"
+    "━━━━━━━━━━━━━━━━━━"
+)
+
 # Authentication & Linking Messages (Single WhatsApp Messages)
-LINKING_INSTRUCTIONS_MESSAGE: str = (
-    "━━━━━━━━━━━━━━━━━━\n"
-    "🏥 *MediKiosk*\n"
-    "━━━━━━━━━━━━━━━━━━\n\n"
-    "👋 Welcome to MediKiosk!\n\n"
-    "🔐 *Your WhatsApp account is not linked yet.*\n\n"
-    "To continue, link your WhatsApp number to your MediKiosk account.\n\n"
-    "🌐 *How to link:*\n\n"
-    "1️⃣ Open the MediKiosk website.\n"
-    "2️⃣ Log in to your MediKiosk account.\n"
-    "3️⃣ Go to *Link WhatsApp*.\n"
-    "4️⃣ Click *Generate WhatsApp Token*.\n"
-    "5️⃣ Copy the generated token.\n"
-    "6️⃣ Send that token here.\n\n"
-    "🔑 *Where do I find the token?*\n"
-    "You can find it on the MediKiosk website under:\n\n"
-    "*Account → Link WhatsApp*\n\n"
-    "⚠️ Do not share this token with anyone.\n\n"
-    "💬 Once you send the token here, your WhatsApp account will be linked.\n\n"
-    "━━━━━━━━━━━━━━━━━━"
-)
+LOCALIZED_LINKING_INSTRUCTIONS: dict = {
+    "en": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🏥 *MediKiosk*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "👋 Welcome to MediKiosk!\n\n"
+        "🔐 *Your WhatsApp account is not linked yet.*\n\n"
+        "To continue, link your WhatsApp number to your MediKiosk account.\n\n"
+        "🌐 *How to link:*\n\n"
+        "1️⃣ Open the MediKiosk website.\n"
+        "2️⃣ Log in to your MediKiosk account.\n"
+        "3️⃣ Go to *Link WhatsApp*.\n"
+        "4️⃣ Click *Generate WhatsApp Token*.\n"
+        "5️⃣ Copy the generated token.\n"
+        "6️⃣ Send that token here.\n\n"
+        "🔑 *Where do I find the token?*\n"
+        "You can find it on the MediKiosk website under:\n\n"
+        "*Account → Link WhatsApp*\n\n"
+        "⚠️ Do not share this token with anyone.\n\n"
+        "💬 Once you send the token here, your WhatsApp account will be linked.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "hi": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🏥 *मेडीकियोस्क*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "👋 मेडीकियोस्क में आपका स्वागत है!\n\n"
+        "🔐 *आपका व्हाट्सएप अकाउंट अभी लिंक नहीं है।*\n\n"
+        "आगे बढ़ने के लिए अपने व्हाट्सएप नंबर को अपने मेडीकियोस्क अकाउंट से लिंक करें।\n\n"
+        "🌐 *लिंक कैसे करें:*\n\n"
+        "1️⃣ मेडीकियोस्क वेबसाइट खोलें।\n"
+        "2️⃣ अपने मेडीकियोस्क अकाउंट में लॉग इन करें।\n"
+        "3️⃣ *व्हाट्सएप लिंक करें* पर जाएं।\n"
+        "4️⃣ *व्हाट्सएप टोकन जेनरेट करें* पर क्लिक करें।\n"
+        "5️⃣ जेनरेट किया गया टोकन कॉपी करें।\n"
+        "6️⃣ वह टोकन यहाँ भेजें।\n\n"
+        "🔑 *टोकन कहाँ मिलेगा?*\n"
+        "वेबसाइट पर: *अकाउंट → व्हाट्सएप लिंक करें*\n\n"
+        "⚠️ यह टोकन किसी के साथ साझा न करें।\n\n"
+        "💬 टोकन भेजते ही आपका अकाउंट लिंक हो जाएगा।\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "mr": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🏥 *मेडीकियोस्क*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "👋 मेडीकियोस्क मध्ये आपले स्वागत आहे!\n\n"
+        "🔐 *तुमचे व्हॉट्सॲप खाते अद्याप लिंक केलेले नाही.*\n\n"
+        "पुढे जाण्यासाठी तुमचा व्हॉट्सॲप नंबर तुमच्या मेडीकियोस्क खात्याशी लिंक करा.\n\n"
+        "🌐 *लिंक कसे करावे:*\n\n"
+        "1️⃣ मेडीकियोस्क वेबसाइट उघडा.\n"
+        "2️⃣ तुमच्या मेडीकियोस्क खात्यामध्ये लॉग इन करा.\n"
+        "3️⃣ *व्हॉट्सॲप लिंक करा* वर जा.\n"
+        "4️⃣ *व्हॉट्सॲप टोकन तयार करा* वर क्लिक करा.\n"
+        "5️⃣ मिळालेला टोकन कॉपी करा.\n"
+        "6️⃣ तो टोकन येथे पाठवा.\n\n"
+        "🔑 *टोकन कुठे मिळेल?*\n"
+        "वेबसाइटवर: *खाते → व्हॉट्सॲप लिंक करा*\n\n"
+        "⚠️ हा टोकन कोणाशीही शेअर करू नका.\n\n"
+        "💬 टोकन पाठवताच तुमचे खाते लिंक होईल.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "gu": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🏥 *મેડીકિયોસ્ક*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "👋 મેડીકિયોસ્કમાં આપનું સ્વાગત છે!\n\n"
+        "🔐 *તમારું વ્હોટ્સએપ ખાતું હજી લિંક થયેલ નથી.*\n\n"
+        "આગળ વધવા માટે તમારો વ્હોટ્સએપ નંબર મેડીકિયોસ્ક ખાતા સાથે લિંક કરો.\n\n"
+        "🌐 *કેવી રીતે લિંક કરવું:*\n\n"
+        "1️⃣ મેડીકિયોસ્ક વેબસાઇટ ખોલો.\n"
+        "2️⃣ તમારા મેડીકિયોસ્ક એકાઉન્ટમાં લૉગ ઇન કરો.\n"
+        "3️⃣ *લિંક વ્હોટ્સએપ* પર જાઓ.\n"
+        "4️⃣ *વ્હોટ્સએપ ટોકન બનાવો* પર ક્લિક કરો.\n"
+        "5️⃣ બનાવેલ ટોકન કૉપી કરો.\n"
+        "6️⃣ તે ટોકન અહીં મોકલો.\n\n"
+        "🔑 *ટોકન ક્યાં મળશે?*\n"
+        "વેબસાઇટ પર: *એકાઉન્ટ → લિંક વ્હોટ્સએપ*\n\n"
+        "⚠️ આ ટોકન કોઈની સાથે શેર કરશો નહીં.\n\n"
+        "💬 ટોકન મોકલતા જ તમારું એકાઉન્ટ લિંક થઈ જશે.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+}
+LINKING_INSTRUCTIONS_MESSAGE = LOCALIZED_LINKING_INSTRUCTIONS["en"]
 
-INVALID_TOKEN_MESSAGE: str = (
-    "━━━━━━━━━━━━━━━━━━\n"
-    "❌ *Token Not Valid*\n"
-    "━━━━━━━━━━━━━━━━━━\n\n"
-    "The token you entered could not be verified.\n\n"
-    "Please:\n\n"
-    "1️⃣ Log in to the MediKiosk website.\n"
-    "2️⃣ Open *Account → Link WhatsApp*.\n"
-    "3️⃣ Generate/copy a valid WhatsApp token.\n"
-    "4️⃣ Send the token here.\n\n"
-    "💡 Make sure you copied the complete token without extra spaces.\n\n"
-    "━━━━━━━━━━━━━━━━━━"
-)
+LOCALIZED_INVALID_TOKEN: dict = {
+    "en": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "❌ *Token Not Valid*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "The token you entered could not be verified.\n\n"
+        "Please:\n\n"
+        "1️⃣ Log in to the MediKiosk website.\n"
+        "2️⃣ Open *Account → Link WhatsApp*.\n"
+        "3️⃣ Generate/copy a valid WhatsApp token.\n"
+        "4️⃣ Send the token here.\n\n"
+        "💡 Make sure you copied the complete token without extra spaces.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "hi": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "❌ *टोकन अमान्य है*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "दर्ज किया गया टोकन सत्यापित नहीं हो सका।\n\n"
+        "कृपया:\n\n"
+        "1️⃣ मेडीकियोस्क वेबसाइट पर लॉग इन करें।\n"
+        "2️⃣ *अकाउंट → व्हाट्सएप लिंक करें* खोलें।\n"
+        "3️⃣ वैध टोकन कॉपी करके यहाँ भेजें।\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "mr": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "❌ *टोकन अमान्य आहे*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "दाखल केलेला टोकन पडताळला गेला नाही.\n\n"
+        "कृपया:\n\n"
+        "1️⃣ मेडीकियोस्क वेबसाइटवर लॉग इन करा.\n"
+        "2️⃣ *खाते → व्हॉट्सॲप लिंक करा* उघडा.\n"
+        "3️⃣ वैध टोकन कॉपी करून येथे पाठवा.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "gu": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "❌ *ટોકન અમાન્ય છે*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "દાખલ કરેલ ટોકન ચકાસી શકાયું નથી.\n\n"
+        "કૃપા કરીને:\n\n"
+        "1️⃣ મેડીકિયોસ્ક વેબસાઇટ પર લૉગ ઇન કરો.\n"
+        "2️⃣ *એકાઉન્ટ → લિંક વ્હોટ્સએપ* ખોલો.\n"
+        "3️⃣ માન્ય ટોકન કૉપી કરીને અહીં મોકલો.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+}
+INVALID_TOKEN_MESSAGE = LOCALIZED_INVALID_TOKEN["en"]
 
-def format_link_success_message(user_name: str = "") -> str:
+def format_link_success_message(user_name: str = "", language: str = "en") -> str:
     """Formats the single WhatsApp confirmation message upon successful account linking."""
-    greeting = f"Welcome to MediKiosk, *{user_name.strip()}* 👋" if user_name and user_name.strip() else "Welcome to MediKiosk 👋"
+    name_clean = user_name.strip() if user_name else ""
+    lang = (language or "en").lower()
+    if lang == "hi":
+        greeting = f"मेडीकियोस्क में आपका स्वागत है, *{name_clean}* 👋" if name_clean else "मेडीकियोस्क में आपका स्वागत है 👋"
+        return (
+            "━━━━━━━━━━━━━━━━━━\n"
+            "✅ *व्हाट्सएप सफलतापूर्वक लिंक हो गया!*\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            f"{greeting}\n\n"
+            "आपका व्हाट्सएप अकाउंट अब आपके मेडीकियोस्क खाते से जुड़ गया है।\n\n"
+            "━━━━━━━━━━━━━━━━━━"
+        )
+    elif lang == "mr":
+        greeting = f"मेडीकियोस्क मध्ये आपले स्वागत आहे, *{name_clean}* 👋" if name_clean else "मेडीकियोस्क मध्ये आपले स्वागत आहे 👋"
+        return (
+            "━━━━━━━━━━━━━━━━━━\n"
+            "✅ *व्हॉट्सॲप यशस्वीरित्या लिंक झाले!*\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            f"{greeting}\n\n"
+            "तुमचे व्हॉट्सॲप खाते आता तुमच्या मेडीकियोस्क खात्याशी जोडले गेले आहे.\n\n"
+            "━━━━━━━━━━━━━━━━━━"
+        )
+    elif lang == "gu":
+        greeting = f"મેડીકિયોસ્કમાં આપનું સ્વાગત છે, *{name_clean}* 👋" if name_clean else "મેડીકિયોસ્કમાં આપનું સ્વાગત છે 👋"
+        return (
+            "━━━━━━━━━━━━━━━━━━\n"
+            "✅ *વ્હોટ્સએપ સફળતાપૂર્વક લિંક થયું!*\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            f"{greeting}\n\n"
+            "તમારું વ્હોટ્સએપ ખાતું હવે તમારા મેડીકિયોસ્ક ખાતા સાથે જોડાઈ ગયું છે.\n\n"
+            "━━━━━━━━━━━━━━━━━━"
+        )
+    greeting = f"Welcome to MediKiosk, *{name_clean}* 👋" if name_clean else "Welcome to MediKiosk 👋"
     return (
         "━━━━━━━━━━━━━━━━━━\n"
         "✅ *WhatsApp Linked Successfully!*\n"
         "━━━━━━━━━━━━━━━━━━\n\n"
         f"{greeting}\n\n"
         "Your WhatsApp account is now linked to your MediKiosk account.\n\n"
-        "You can now use MediKiosk directly from WhatsApp.\n\n"
-        "💬 Send *hello medikiosk* to begin.\n\n"
         "━━━━━━━━━━━━━━━━━━"
     )
 
-
-# User-facing standard menu messages
-# Complete single-message menu string sent as EXACTLY ONE WhatsApp message
-MENU_MESSAGE: str = (
-    "━━━━━━━━━━━━━━━━━━\n"
-    "🏥 *MediKiosk*\n"
-    "🩺 *AI Patient Assistant*\n"
-    "━━━━━━━━━━━━━━━━━━\n\n"
-    "👋 *Welcome to MediKiosk!*\n\n"
-    "How can I help you today?\n\n"
-    "1️⃣ 🩺 *Start Consultation*\n"
-    "   Begin your AI-guided health consultation.\n\n"
-    "2️⃣ 📄 *Upload Medical Report*\n"
-    "   Digitize and analyze your medical documents.\n\n"
-    "3️⃣ 🚪 *Exit*\n"
-    "   End the current interaction.\n\n"
-    "━━━━━━━━━━━━━━━━━━\n"
-    "💬 *Reply with 1, 2, or 3*\n"
-    "━━━━━━━━━━━━━━━━━━"
-)
-# Alias for backwards compatibility
+# Localized standard main menus
+LOCALIZED_MENUS: dict = {
+    "en": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🏥 *MediKiosk*\n"
+        "🩺 *AI Patient Assistant*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "👋 *Welcome to MediKiosk!*\n\n"
+        "How can I help you today?\n\n"
+        "1️⃣ 🩺 *Start Consultation*\n"
+        "   Begin your AI-guided health consultation.\n\n"
+        "2️⃣ 📄 *Upload Medical Report*\n"
+        "   Digitize and analyze your medical documents.\n\n"
+        "3️⃣ 🚪 *Exit*\n"
+        "   End the current interaction.\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "💬 *Reply with 1, 2, or 3*\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "hi": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🏥 *मेडीकियोस्क*\n"
+        "🩺 *एआई स्वास्थ्य सहायक*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "👋 *मेडीकियोस्क में आपका स्वागत है!*\n\n"
+        "आज मैं आपकी क्या सहायता कर सकता हूँ?\n\n"
+        "1️⃣ 🩺 *परामर्श शुरू करें*\n"
+        "   अपना एआई-निर्देशित स्वास्थ्य परामर्श शुरू करें।\n\n"
+        "2️⃣ 📄 *मेडिकल रिपोर्ट अपलोड करें*\n"
+        "   अपने मेडिकल दस्तावेज़ जांचें और डिजिटल करें।\n\n"
+        "3️⃣ 🚪 *बाहर निकलें*\n"
+        "   बातचीत समाप्त करें।\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "💬 *1, 2 या 3 लिखकर उत्तर दें*\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "mr": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🏥 *मेडीकियोस्क*\n"
+        "🩺 *एआय आरोग्य सहाय्यक*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "👋 *मेडीकियोस्क मध्ये आपले स्वागत आहे!*\n\n"
+        "मी आज आपली काय मदत करू शकतो?\n\n"
+        "1️⃣ 🩺 *सल्लामसलत सुरू करा*\n"
+        "   तुमची एआय-मार्गदर्शित आरोग्य तपासणी सुरू करा।\n\n"
+        "2️⃣ 📄 *वैद्यकीय अहवाल अपलोड करा*\n"
+        "   तुमचे वैद्यकीय अहवाल तपासा आणि जतन करा।\n\n"
+        "3️⃣ 🚪 *बाहेर पडा*\n"
+        "   सत्र समाप्त करा।\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "💬 *1, 2 किंवा 3 पाठवून उत्तर द्या*\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "gu": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🏥 *મેડીકિયોસ્ક*\n"
+        "🩺 *એઆઈ આરોગ્ય સહાયક*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "👋 *મેડીકિયોસ્કમાં આપનું સ્વાગત છે!*\n\n"
+        "હું આજે આપની શું મદદ કરી શકું?\n\n"
+        "1️⃣ 🩺 *પરામર્શ શરૂ કરો*\n"
+        "   તમારી એઆઈ-માર્ગદર્શિત આરોગ્ય તપાસ શરૂ કરો.\n\n"
+        "2️⃣ 📄 *મેડિકલ રિપોર્ટ અપલોડ કરો*\n"
+        "   તમારા મેડિકલ દસ્તાવેજો ચકાસો અને ડિજિટાઈઝ કરો.\n\n"
+        "3️⃣ 🚪 *બહાર નીકળો*\n"
+        "   સત્ર પૂર્ણ કરો.\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "💬 *1, 2 અથવા 3 મોકલીને જવાબ આપો*\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+}
+MENU_MESSAGE: str = LOCALIZED_MENUS["en"]
 MENU_TEXT: str = MENU_MESSAGE
 
-UPLOAD_REPORT_TEXT: str = (
-    "📄 Medical report upload will be available soon.\n\n"
-    "Please choose:\n"
-    "1️⃣ Start Consultation\n"
-    "2️⃣ Upload Medical Report\n"
-    "3️⃣ Exit"
-)
+# Localized Chief Complaint Prompts
+LOCALIZED_CHIEF_COMPLAINT_PROMPT: dict = {
+    "en": (
+        "🩺 *Let's begin your clinical assessment.*\n\n"
+        "Please describe your main health concern or symptom.\n\n"
+        '_Example: "I have had chest pain since this morning."_'
+    ),
+    "hi": (
+        "🩺 *आइए आपका नैदानिक मूल्यांकन शुरू करें।*\n\n"
+        "कृपया अपने मुख्य लक्षण या स्वास्थ्य समस्या का संक्षेप में वर्णन करें।\n\n"
+        '_उदाहरण: "मुझे आज सुबह से सीने में दर्द हो रहा है।"_'
+    ),
+    "mr": (
+        "🩺 *चला तुमची आरोग्य तपासणी सुरू करूया.*\n\n"
+        "कृपया तुमच्या मुख्य त्रासाचे किंवा लक्षणांचे थोडक्यात वर्णन करा.\n\n"
+        '_उदाहरण: "मला आज सकाळपासून छातीत दुखत आहे."_'
+    ),
+    "gu": (
+        "🩺 *ચાલો તમારું આરોગ્ય મૂલ્યાંકન શરૂ કરીએ.*\n\n"
+        "કૃપા કરીને તમારી મુખ્ય તકલીફ અથવા લક્ષણોનું ટૂંકમાં વર્ણન કરો.\n\n"
+        '_ઉદાહરણ: "મને સવારથી છાતીમાં દુખાવો થાય છે."_'
+    ),
+}
+CHIEF_COMPLAINT_PROMPT = LOCALIZED_CHIEF_COMPLAINT_PROMPT["en"]
 
-EXIT_TEXT: str = (
-    "Thank you for using MediKiosk. 👋\n\n"
-    'Send "hello medikiosk" anytime to start again.'
-)
+# Localized Completion Messages
+LOCALIZED_COMPLETION_MESSAGE: dict = {
+    "en": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "✅ *Clinical Assessment Complete*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "Your assessment has been recorded successfully.\n\n"
+        "🩺 Your physician-ready summary is now available in your MediKiosk account."
+    ),
+    "hi": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "✅ *नैदानिक मूल्यांकन पूर्ण हुआ*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "आपका मूल्यांकन सफलतापूर्वक दर्ज कर लिया गया है।\n\n"
+        "🩺 आपका डॉक्टर-तैयार सारांश अब आपके मेडीकियोस्क खाते में उपलब्ध है।"
+    ),
+    "mr": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "✅ *आरोग्य तपासणी पूर्ण झाली*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "तुमची तपासणी यशस्वीरित्या नोंदवली गेली आहे.\n\n"
+        "🩺 तुमचा वैद्यकीय सारांश आता तुमच्या मेडीकियोस्क खात्यात उपलब्ध आहे."
+    ),
+    "gu": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "✅ *આરોગ્ય મૂલ્યાંકન પૂર્ણ થયું*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "તમારું મૂલ્યાંકન સફળતાપૂર્વક રેકોર્ડ કરવામાં આવ્યું છે.\n\n"
+        "🩺 તમારો મેડિકલ સારાંશ હવે તમારા મેડીકિયોસ્ક ખાતામાં ઉપલબ્ધ છે."
+    ),
+}
+COMPLETION_MESSAGE = LOCALIZED_COMPLETION_MESSAGE["en"]
 
-INVALID_MENU_TEXT: str = (
-    "Please select a valid option:\n\n"
-    "1️⃣ Start Consultation\n"
-    "2️⃣ Upload Medical Report\n"
-    "3️⃣ Exit"
-)
+# Localized Exit Messages
+LOCALIZED_EXIT_TEXT: dict = {
+    "en": (
+        "Thank you for using MediKiosk. 👋\n\n"
+        'Send "hello medikiosk" anytime to start again.'
+    ),
+    "hi": (
+        "मेडीकियोस्क का उपयोग करने के लिए धन्यवाद। 👋\n\n"
+        'पुनः शुरू करने के लिए कभी भी "hello medikiosk" भेजें।'
+    ),
+    "mr": (
+        "मेडीकियोस्क वापरल्याबद्दल धन्यवाद. 👋\n\n"
+        'पुन्हा सुरू करण्यासाठी कधीही "hello medikiosk" पाठवा.'
+    ),
+    "gu": (
+        "મેડીકિયોસ્કનો ઉપયોગ કરવા બદલ આભાર. 👋\n\n"
+        'ફરી શરૂ કરવા માટે ગમે ત્યારે "hello medikiosk" મોકલો.'
+    ),
+}
+EXIT_TEXT = LOCALIZED_EXIT_TEXT["en"]
+
+# Localized Invalid Menu Messages
+LOCALIZED_INVALID_MENU: dict = {
+    "en": (
+        "Please select a valid option:\n\n"
+        "1️⃣ Start Consultation\n"
+        "2️⃣ Upload Medical Report\n"
+        "3️⃣ Exit"
+    ),
+    "hi": (
+        "कृपया एक मान्य विकल्प चुनें:\n\n"
+        "1️⃣ परामर्श शुरू करें\n"
+        "2️⃣ मेडिकल रिपोर्ट अपलोड करें\n"
+        "3️⃣ बाहर निकलें"
+    ),
+    "mr": (
+        "कृपया एक योग्य पर्याय निवडा:\n\n"
+        "1️⃣ सल्लामसलत सुरू करा\n"
+        "2️⃣ वैद्यकीय अहवाल अपलोड करा\n"
+        "3️⃣ बाहेर पडा"
+    ),
+    "gu": (
+        "કૃપા કરીને માન્ય વિકલ્પ પસંદ કરો:\n\n"
+        "1️⃣ પરામર્શ શરૂ કરો\n"
+        "2️⃣ મેડિકલ રિપોર્ટ અપલોડ કરો\n"
+        "3️⃣ બહાર નીકળો"
+    ),
+}
+INVALID_MENU_TEXT = LOCALIZED_INVALID_MENU["en"]
+
+# Localized Upload Report Messages
+LOCALIZED_UPLOAD_REPORT: dict = {
+    "en": (
+        "📄 Medical report upload will be available soon.\n\n"
+        "Please choose:\n"
+        "1️⃣ Start Consultation\n"
+        "2️⃣ Upload Medical Report\n"
+        "3️⃣ Exit"
+    ),
+    "hi": (
+        "📄 मेडिकल रिपोर्ट अपलोड जल्द ही उपलब्ध होगा।\n\n"
+        "कृपया चुनें:\n"
+        "1️⃣ परामर्श शुरू करें\n"
+        "2️⃣ मेडिकल रिपोर्ट अपलोड करें\n"
+        "3️⃣ बाहर निकलें"
+    ),
+    "mr": (
+        "📄 वैद्यकीय अहवाल अपलोड लवकरच उपलब्ध होईल.\n\n"
+        "कृपया निवडा:\n"
+        "1️⃣ सल्लामसलत सुरू करा\n"
+        "2️⃣ वैद्यकीय अहवाल अपलोड करा\n"
+        "3️⃣ बाहेर पडा"
+    ),
+    "gu": (
+        "📄 મેડિકલ રિપોર્ટ અપલોડ ટૂંક સમયમાં ઉપલબ્ધ થશે.\n\n"
+        "કૃપા કરીને પસંદ કરો:\n"
+        "1️⃣ પરામર્શ શરૂ કરો\n"
+        "2️⃣ મેડિકલ રિપોર્ટ અપલોડ કરો\n"
+        "3️⃣ બહાર નીકળો"
+    ),
+}
+UPLOAD_REPORT_TEXT = LOCALIZED_UPLOAD_REPORT["en"]
+
+# Localized Reset Messages
+LOCALIZED_RESET_MESSAGE: dict = {
+    "en": 'Session reset. Send "hello medikiosk" to begin a consultation.',
+    "hi": 'सत्र रीसेट किया गया। परामर्श शुरू करने के लिए "hello medikiosk" भेजें।',
+    "mr": 'सत्र रीसेट केले. सल्लामसलत सुरू करण्यासाठी "hello medikiosk" पाठवा.',
+    "gu": 'સત્ર રીસેટ થયું. પરામર્શ શરૂ કરવા માટે "hello medikiosk" મોકલો.',
+}
+
+def get_localized_message(catalog: dict, language: str = "en", default: str = "") -> str:
+    """Retrieves a message from a dictionary by language with English fallback."""
+    lang = (language or "en").lower().strip()
+    return catalog.get(lang, catalog.get("en", default))
 
 # Bot Default Trigger & Response (legacy fallback)
 TRIGGER_KEYWORD: str = "hello"

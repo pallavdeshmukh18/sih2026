@@ -2,6 +2,10 @@ const express = require("express");
 const router = express.Router();
 const whatsappAuthMiddleware = require("../middleware/whatsappAuthMiddleware");
 const whatsappClinicalController = require("../controllers/whatsappClinicalController");
+const authController = require("../controllers/authController");
+
+// Language Update Endpoint for Linked WhatsApp User (Requires X-WhatsApp-Service-Key)
+router.post("/language", whatsappAuthMiddleware, authController.updateWhatsAppLanguage);
 
 // All WhatsApp clinical routes require valid server-to-server X-WhatsApp-Service-Key authentication
 router.use("/clinical", whatsappAuthMiddleware);
