@@ -15,7 +15,7 @@ function authenticateToken(req, res, next) {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.user = {
-            id: decoded.sub,
+            id: decoded.sub || decoded.id,
             role: decoded.role,
         };
         next();

@@ -1,15 +1,66 @@
+import logging
 from .state import ClinicalSession
+
+try:
+    from groq import Groq
+except ImportError:
+    Groq = None
+
+from config import GROQ_API_KEY, GROQ_TEXT_MODEL
+
+logger = logging.getLogger("medikiosk.clinical.summarizer")
+
+groq_client = None
+if GROQ_API_KEY and Groq is not None:
+    groq_client = Groq(api_key=GROQ_API_KEY)
+
+LANGUAGE_NAMES = {
+    "en": "English", "hi": "Hindi", "mr": "Marathi", "gu": "Gujarati",
+    "bn": "Bengali", "ta": "Tamil", "te": "Telugu", "kn": "Kannada",
+    "ml": "Malayalam", "pa": "Punjabi", "or": "Odia", "as": "Assamese"
+}
 
 def generate_summary(session: ClinicalSession, document_data: dict = None) -> str:
     """
     Generates a structured, physician-ready Markdown summary of the clinical session.
-    Incorporates conversational state and optionally structured OCR document data.
+    Incorporates conversational state, language preferences, and optional OCR document data.
     """
-    
+    lang_name = LANGUAGE_NAMES.get(session.language.lower(), "English")
+
+    if groq_client:
+        prompt = f"""
+        You are a clinical AI medical intake documentation specialist.
+        Generate a comprehensive, physician-ready intake summary in Markdown format.
+
+        Patient ID: {session.patient_id}
+        Consultation Type: {session.consultation_type}
+        Chief Complaint: {session.chief_complaint}
+        Session Language: {lang_name} ({session.language})
+        Answered Clinical Fields: {session.answered_fields}
+        Red Flags Identified: {session.red_flags}
+        Document/OCR Data: {document_data if document_data else 'None'}
+
+        Formatting Guidelines:
+        - Include sections: Chief Complaint, History of Presenting Illness, Key Symptoms, Red Flags (if any), and Document Findings (if any).
+        - Format neatly with markdown headers and bullet points.
+        - Primary summary should be in English for medical staff, followed by a 2-3 sentence patient-friendly summary in {lang_name}.
+        """
+        try:
+            res = groq_client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model=GROQ_TEXT_MODEL,
+            )
+            summary_out = res.choices[0].message.content.strip()
+            if summary_out:
+                return summary_out
+        except Exception as e:
+            logger.error(f"Failed to generate LLM summary: {e}")
+
     summary = f"# Clinical Intake Summary\n\n"
     summary += f"**Patient ID**: {session.patient_id}\n"
     summary += f"**Consultation Type**: {session.consultation_type.title()}\n"
-    summary += f"**Chief Complaint**: {session.chief_complaint}\n\n"
+    summary += f"**Chief Complaint**: {session.chief_complaint}\n"
+    summary += f"**Language**: {lang_name}\n\n"
     
     if session.red_flags:
         summary += "## 🚨 RED FLAGS\n"
@@ -19,13 +70,11 @@ def generate_summary(session: ClinicalSession, document_data: dict = None) -> st
         
     summary += "## Structured History\n"
     for field, value in session.answered_fields.items():
-        # Clean up field names for display
         display_field = field.replace('_', ' ').title()
         summary += f"**{display_field}**: {value}\n"
         
     if document_data:
         summary += "\n## Document Extraction (OCR)\n"
-        
         meds = document_data.get("medications", [])
         if meds:
             summary += "### Medications\n"

@@ -26,12 +26,16 @@ const ProtectedRoute = ({ role, allowIncompleteOnboarding = false, children }) =
         return <Navigate to="/auth" replace />;
     }
 
-    if (role && user?.role !== role) {
+    const isRoleAllowed = !role || (Array.isArray(role) ? role.includes(user?.role) : user?.role === role);
+
+    if (!isRoleAllowed) {
         // Safe redirect to user's authorized role dashboard
         if (user?.role === "patient") {
             return <Navigate to="/patient/dashboard" replace />;
         } else if (user?.role === "doctor") {
             return <Navigate to="/doctor/dashboard" replace />;
+        } else if (["receptionist", "admin", "nurse"].includes(user?.role)) {
+            return <Navigate to="/receptionist/dashboard" replace />;
         } else {
             return <Navigate to="/auth" replace />;
         }

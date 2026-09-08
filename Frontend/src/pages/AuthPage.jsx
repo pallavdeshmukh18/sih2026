@@ -16,6 +16,7 @@ import {
     verifyPatientEmailRegistration,
     loginDoctor,
     registerDoctor,
+    loginStaff,
 } from "../services/api";
 import styles from "./AuthPage.module.css";
 
@@ -24,7 +25,7 @@ const AuthPage = () => {
     const navigate = useNavigate();
 
     // Primary Auth States
-    const [role, setRole] = useState("patient"); // 'patient' | 'doctor'
+    const [role, setRole] = useState("patient"); // 'patient' | 'doctor' | 'receptionist'
     const [mode, setMode] = useState("login"); // 'login' | 'register'
     const [doctorMode, setDoctorMode] = useState("login"); // 'login' | 'register'
     const [method, setMethod] = useState("phone"); // 'phone' | 'email' | 'google'
@@ -72,6 +73,22 @@ const AuthPage = () => {
     };
 
     // --- FORM SUBMISSION HANDLERS ---
+
+    // Receptionist / Staff Login Submit
+    const handleReceptionistLogin = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const res = await loginStaff(email, password);
+            login(res.token, res.user);
+            toast.success(`Welcome to Front Desk, ${res.user.firstName}!`);
+            navigate("/receptionist/dashboard");
+        } catch (err) {
+            toast.error(err.message || "Invalid receptionist credentials.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Doctor Login Submit
     const handleDoctorLogin = async (e) => {
@@ -215,7 +232,7 @@ const AuthPage = () => {
                 <div className={styles.formSection}>
                     <div className={styles.formHeader}>
                         <h1>MediKiosk</h1>
-                        <p>{role === "patient" ? (mode === "login" ? "Patient Sign In" : "Patient Registration") : (doctorMode === "login" ? "Doctor Portal Sign In" : "Doctor Registration")}</p>
+                        <p>{role === "patient" ? (mode === "login" ? "Patient Sign In" : "Patient Registration") : role === "doctor" ? (doctorMode === "login" ? "Doctor Portal Sign In" : "Doctor Registration") : "Receptionist & Front-Desk Sign In"}</p>
                     </div>
 
                     {/* Role Selector Tabs */}
@@ -233,6 +250,13 @@ const AuthPage = () => {
                             onClick={() => handleRoleChange("doctor")}
                         >
                             Doctor
+                        </button>
+                        <button
+                            type="button"
+                            className={`${styles.roleTab} ${role === "receptionist" ? styles.roleTabActive : ""}`}
+                            onClick={() => handleRoleChange("receptionist")}
+                        >
+                            Receptionist
                         </button>
                     </div>
 
@@ -725,6 +749,82 @@ const AuthPage = () => {
                                         )}
                                     </p>
                                 )}
+                            </motion.div>
+                        )}
+
+                        {/* RECEPTIONIST & FRONT-DESK AUTHENTICATION FORM */}
+                        {role === "receptionist" && (
+                            <motion.div
+                                key="receptionist-form"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                transition={{ duration: 0.3 }}
+                            >
+                                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '14px 16px', marginBottom: '20px', fontSize: '13px', color: '#166534', lineHeight: '1.5' }}>
+                                    <strong>Front-Desk & Staff Portal:</strong><br />
+                                    Sign in using the staff credentials created by your supervising Doctor or clinic administrator.
+                                    <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #a7f3d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                        <span><strong>Demo Account:</strong> <code>receptionist.demo@medikiosk.com</code> / <code>Password123!</code></span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setEmail("receptionist.demo@medikiosk.com");
+                                                setPassword("Password123!");
+                                            }}
+                                            style={{ background: "#166534", color: "#ffffff", border: "none", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}
+                                        >
+                                            Auto-Fill Demo Credentials
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <form className={styles.form} onSubmit={handleReceptionistLogin}>
+                                    <div className={styles.inputGroup}>
+                                        <span className={styles.icon}>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                                <polyline points="22,6 12,13 2,6"></polyline>
+                                            </svg>
+                                        </span>
+                                        <input
+                                            type="email"
+                                            placeholder="Staff / Receptionist Email"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div className={styles.inputGroup}>
+                                        <span className={styles.icon}>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                            </svg>
+                                        </span>
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="Password"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            className={styles.eyeIcon}
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            aria-label="Toggle password visibility"
+                                        >
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                <circle cx="12" cy="12" r="3"></circle>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <button type="submit" className={styles.submitBtn} disabled={loading}>
+                                        {loading ? "Authenticating..." : "SIGN IN AS RECEPTIONIST"}
+                                    </button>
+                                </form>
                             </motion.div>
                         )}
                     </AnimatePresence>

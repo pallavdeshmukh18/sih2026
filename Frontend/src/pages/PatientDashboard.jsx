@@ -26,6 +26,7 @@ import {
   deleteMedicalDocument,
 } from "../services/api";
 import DocumentDetailModal from "../components/DocumentDetailModal";
+import MedicalIdCard from "../components/patient/MedicalIdCard";
 import careImage from "../assets/indian-care-dashboard.png";
 import styles from "./PatientDashboard.module.css";
 
@@ -220,6 +221,11 @@ export default function PatientDashboard() {
             </button>
           </div>
         </header>
+
+        {/* MEDICAL ID CORE CARD */}
+        <section>
+          <MedicalIdCard />
+        </section>
 
         {/* 1. CLINICAL ASSESSMENT — PRIMARY CTA CARD */}
         <section>

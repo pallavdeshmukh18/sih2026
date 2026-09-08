@@ -1,11 +1,10 @@
-import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./layouts/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
 import LandingPage from "./pages/LandingPage";
-import AuthPage from "./pages/AuthPage";
+import SignupPage from "./pages/Signup/SignupPage";
 import GoogleCallback from "./pages/GoogleCallback";
 import DashboardLayout from "./layouts/dashboard/DashboardLayout";
 
@@ -17,6 +16,7 @@ import ClinicalAssessment from "./pages/patient/ClinicalAssessment";
 import PatientDashboard from "./pages/PatientDashboard";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import MedicalHistory from "./pages/patient/MedicalHistory";
+import MedicalID from "./pages/patient/MedicalID";
 import Appointments from "./pages/patient/Appointments";
 import Documents from "./pages/patient/Documents";
 import DoctorAppointments from "./pages/doctor/DoctorAppointments";
@@ -33,6 +33,11 @@ import BedManager from "./pages/shared/BedManager";
 import Payment from "./pages/shared/Payment";
 import Mail from "./pages/shared/Mail";
 
+// Receptionist Pages
+import ReceptionistDashboard from "./pages/ReceptionistDashboard";
+import ReceptionistAppointments from "./pages/receptionist/ReceptionistAppointments";
+import ReceptionistPatients from "./pages/receptionist/ReceptionistPatients";
+
 import "./App.css";
 
 function App() {
@@ -43,7 +48,8 @@ function App() {
         <ScrollToTop />
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/auth" element={<SignupPage />} />
+          <Route path="/signup" element={<Navigate to="/auth" replace />} />
           <Route path="/auth/google/callback" element={<GoogleCallback />} />
 
           {/* Dedicated Patient Onboarding Route */}
@@ -53,18 +59,17 @@ function App() {
           <Route path="/patient" element={<ProtectedRoute role="patient"><DashboardLayout /></ProtectedRoute>}>
             <Route path="dashboard" element={<PatientDashboard />} />
             <Route path="assessment" element={<ClinicalAssessment />} />
+            <Route path="medical-id" element={<MedicalID />} />
             <Route path="history" element={<MedicalHistory />} />
             <Route path="appointments" element={<Appointments />} />
             <Route path="documents" element={<Documents />} />
             
-            {/* Account & WhatsApp Linking Routes */}
+            {/* Patient Application Routes */}
             <Route path="account" element={<Account />} />
             <Route path="account/link-whatsapp" element={<Account />} />
             <Route path="account/whatsapp" element={<Account />} />
             <Route path="doctor" element={<DoctorDirectory />} />
-            <Route path="departments" element={<Departments />} />
             <Route path="schedule" element={<PatientSchedule />} />
-            <Route path="bed" element={<BedManager />} />
             <Route path="payment" element={<Payment />} />
             <Route path="mail" element={<Mail />} />
 
@@ -91,6 +96,25 @@ function App() {
             <Route path="mail" element={<Mail />} />
 
             <Route path="" element={<Navigate to="/doctor/dashboard" replace />} />
+            <Route path="*" element={<ComingSoon />} />
+          </Route>
+
+          {/* Protected Receptionist / Front-Desk Routes */}
+          <Route path="/receptionist" element={<ProtectedRoute role="receptionist"><DashboardLayout /></ProtectedRoute>}>
+            <Route path="dashboard" element={<ReceptionistDashboard />} />
+            <Route path="appointments" element={<ReceptionistAppointments />} />
+            <Route path="patients" element={<ReceptionistPatients />} />
+            
+            {/* Shared Hospital Modules */}
+            <Route path="doctor" element={<DoctorDirectory />} />
+            <Route path="departments" element={<Departments />} />
+            <Route path="schedule" element={<ReceptionistAppointments />} />
+            <Route path="bed" element={<BedManager />} />
+            <Route path="payment" element={<Payment />} />
+            <Route path="account" element={<Account />} />
+            <Route path="mail" element={<Mail />} />
+
+            <Route path="" element={<Navigate to="/receptionist/dashboard" replace />} />
             <Route path="*" element={<ComingSoon />} />
           </Route>
 

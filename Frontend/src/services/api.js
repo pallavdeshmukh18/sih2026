@@ -109,6 +109,51 @@ export async function loginDoctor(email, password) {
     return apiRequest("/api/auth/doctor/login", "POST", { email, password });
 }
 
+/** Staff email + password login (receptionist, nurse, admin) */
+export async function loginStaff(email, password) {
+    return apiRequest("/api/auth/staff/login", "POST", { email, password });
+}
+
+// ==================================================
+// RECEPTIONIST FRONT-DESK API CALLS
+// ==================================================
+
+/** Fetch Receptionist Live Dashboard Stats */
+export async function fetchReceptionistStats(token) {
+    return apiRequest("/api/receptionist/stats", "GET", null, token);
+}
+
+/** Fetch Hospital-wide Appointments for Front-Desk */
+export async function fetchReceptionistAppointments(params = {}, token) {
+    const query = new URLSearchParams();
+    if (params.date) query.append("date", params.date);
+    if (params.doctorId) query.append("doctorId", params.doctorId);
+    if (params.status) query.append("status", params.status);
+    if (params.search) query.append("search", params.search);
+    const queryString = query.toString() ? `?${query.toString()}` : "";
+    return apiRequest(`/api/receptionist/appointments${queryString}`, "GET", null, token);
+}
+
+/** Check-in Patient for Appointment */
+export async function checkInAppointment(appointmentId, token) {
+    return apiRequest(`/api/receptionist/check-in/${appointmentId}`, "POST", null, token);
+}
+
+/** Register Walk-In Patient and Optionally Book Appointment */
+export async function registerWalkInPatient(patientData, token) {
+    return apiRequest("/api/receptionist/patients/walk-in", "POST", patientData, token);
+}
+
+/** Fetch Patients Directory for Front-Desk */
+export async function fetchReceptionistPatients(params = {}, token) {
+    const query = new URLSearchParams();
+    if (params.search) query.append("search", params.search);
+    if (params.limit) query.append("limit", params.limit);
+    if (params.offset) query.append("offset", params.offset);
+    const queryString = query.toString() ? `?${query.toString()}` : "";
+    return apiRequest(`/api/receptionist/patients${queryString}`, "GET", null, token);
+}
+
 // ==================================================
 // SHARED AUTH USER PROFILE API CALL
 // ==================================================
@@ -135,6 +180,21 @@ export async function getStaffList(token) {
 /** Delete a staff account */
 export async function deleteStaffAccount(staffId, token) {
     return apiRequest(`/api/doctor/staff/${staffId}`, "DELETE", null, token);
+}
+
+/** Fetch Doctor's Live Patient & Triage Queue */
+export async function fetchDoctorQueue(token) {
+    return apiRequest("/api/doctor/queue", "GET", null, token);
+}
+
+/** Fetch Unified Patient History for Doctor Consultation */
+export async function fetchPatientUnifiedHistory(patientId, token) {
+    return apiRequest(`/api/doctor/patient/${patientId}/unified-history`, "GET", null, token);
+}
+
+/** Confirm & Record Doctor Consultation Diagnosis & Notes */
+export async function confirmConsultation(appointmentId, consultationData, token) {
+    return apiRequest(`/api/doctor/consultations/${appointmentId}/confirm`, "POST", consultationData, token);
 }
 
 // ==================================================
@@ -195,6 +255,11 @@ export async function fetchPublicDoctors(token) {
     return apiRequest("/api/doctor/directory", "GET", null, token);
 }
 
+/** Fetch Available Appointment Slots for a Doctor on a Date */
+export async function getAvailableAppointmentSlots(doctorId, date, token) {
+    return apiRequest(`/api/appointments/available?doctorId=${doctorId}&date=${date}`, "GET", null, token);
+}
+
 /** Create / Book a New Appointment */
 export async function createAppointment(appointmentData, token) {
     return apiRequest("/api/appointments", "POST", appointmentData, token);
@@ -203,6 +268,11 @@ export async function createAppointment(appointmentData, token) {
 /** Get Authenticated Patient's Appointments */
 export async function getPatientAppointments(token) {
     return apiRequest("/api/appointments/patient", "GET", null, token);
+}
+
+/** Get Authenticated Doctor's Queue / Appointments */
+export async function getDoctorQueue(token) {
+    return apiRequest("/api/doctor/queue", "GET", null, token);
 }
 
 // ==================================================
@@ -240,6 +310,11 @@ export async function getPatientDocuments(patientId, token) {
 /** Search Patient Medical Documents / Ask History Question */
 export async function searchMedicalDocuments(query, token) {
     return apiRequest("/api/documents/search", "POST", { query }, token);
+}
+
+/** Ask Grounded Question About Specific Medical Record */
+export async function askDocumentQuestion(documentId, question, language = "en", history = [], token) {
+    return apiRequest(`/api/documents/${documentId}/ask`, "POST", { question, language, history }, token);
 }
 
 /** Delete Medical Document */
@@ -280,6 +355,11 @@ export async function getPatientMedicalHistory(token) {
     return apiRequest("/api/patient/history", "GET", null, token);
 }
 
+/** Fetch Authenticated Patient Medical ID */
+export async function getMedicalId(token) {
+    return apiRequest("/api/patient/medical-id", "GET", null, token);
+}
+
 /** Get Document View / Download Signed URL */
 export async function getDocumentDownloadUrl(documentId, token) {
     return apiRequest(`/api/documents/${documentId}/url`, "GET", null, token);
@@ -294,4 +374,4 @@ export async function synthesizeTTS(text, languageCode = "en", token = null) {
     return apiRequest("/api/tts/synthesize", "POST", { text, languageCode }, token);
 }
 
-
+export const synthesizeSpeech = synthesizeTTS;

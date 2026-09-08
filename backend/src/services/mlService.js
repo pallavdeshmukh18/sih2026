@@ -168,6 +168,36 @@ async function searchDocuments(patientId, query, topK = 5) {
     }
 }
 
+/**
+ * 8. Ask Document-Specific Grounded Question
+ */
+async function askDocumentQuestion(patientId, documentId, filename, question, ocrText, extractedEntities, aiSummary, language = "en", history = []) {
+    try {
+        const payload = {
+            patient_id: patientId,
+            document_id: documentId,
+            filename: filename || "document.pdf",
+            question: question,
+            ocr_text: ocrText || "",
+            extracted_entities: extractedEntities || null,
+            ai_summary: aiSummary || null,
+            language: language || "en",
+            history: history || []
+        };
+
+        const response = await axios.post(`${ML_BASE_URL}/documents/ask`, payload, {
+            headers: {
+                "Content-Type": "application/json",
+            },
+            timeout: 45000,
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error calling ML document QA service:", error.response?.data || error.message);
+        throw new Error(error.response?.data?.detail || "Document Q&A AI processing failed");
+    }
+}
+
 module.exports = {
     transcribeAudio,
     synthesizeSpeech,
@@ -176,4 +206,5 @@ module.exports = {
     summarizeClinicalSession,
     processDocumentOCR,
     searchDocuments,
+    askDocumentQuestion,
 };

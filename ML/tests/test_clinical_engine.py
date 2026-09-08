@@ -72,9 +72,9 @@ def test_process_patient_response(mock_generate_next, mock_extract):
     mock_extract.return_value = ExtractionResult(
         entities=[ExtractedEntity(field="onset", value="2 days ago", confidence="High")]
     )
-    mock_generate_next.return_value = "How long has it been?"
+    mock_generate_next.return_value = ("How long has it been?", [])
     
-    updated_session = process_patient_response(session, "It started 2 days ago")
+    updated_session, next_q, options = process_patient_response(session, "It started 2 days ago")
     
     # Assert missing fields updated
     assert "onset" not in updated_session.missing_fields

@@ -12,5 +12,6 @@ router.patch("/profile", patientController.updatePatientProfile);
 router.patch("/profile/onboarding", patientController.saveOnboardingPreferences);
 router.get("/profile/onboarding", patientController.getOnboardingPreferences);
 router.get("/history", patientController.getPatientMedicalHistory);
+router.get("/medical-id", patientController.getPatientMedicalId);
 
 module.exports = router;

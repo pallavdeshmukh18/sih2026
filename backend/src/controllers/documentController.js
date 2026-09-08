@@ -445,11 +445,131 @@ async function searchDocuments(req, res, next) {
     }
 }
 
+/**
+ * 6. Get Single Document By ID
+ * GET /api/documents/:id
+ */
+async function getDocumentById(req, res, next) {
+    try {
+        const documentId = req.params.id;
+        const userId = req.user.id;
+
+        const docRes = await pool.query(
+            `SELECT d.*, 
+                    o.extracted_text, o.extracted_entities, o.status AS ocr_status,
+                    s.summary AS ai_summary
+             FROM documents d
+             LEFT JOIN document_ocr o ON d.id = o.document_id
+             LEFT JOIN ai_summaries s ON d.id = s.document_id
+             WHERE d.id = $1;`,
+            [documentId]
+        );
+
+        if (docRes.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Medical document not found.",
+            });
+        }
+
+        const document = docRes.rows[0];
+
+        if (req.user.role === "patient" && document.patient_id !== userId) {
+            return res.status(403).json({
+                success: false,
+                message: "Access denied: You do not own this document.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            document,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * 7. Ask Document-Specific Grounded Question
+ * POST /api/documents/:documentId/ask
+ */
+async function askDocumentQuestion(req, res, next) {
+    try {
+        const { documentId } = req.params;
+        const { question, language, history } = req.body;
+        const patientId = req.user.id; // Enforce strict JWT ownership
+
+        if (!question || typeof question !== "string" || !question.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "Question is required.",
+            });
+        }
+
+        // Verify document ownership & fetch record context
+        const docRes = await pool.query(
+            `SELECT d.id, d.patient_id, d.file_name, d.file_type, d.document_type,
+                    o.extracted_text, o.extracted_entities, o.status AS ocr_status,
+                    s.summary AS ai_summary
+             FROM documents d
+             LEFT JOIN document_ocr o ON d.id = o.document_id
+             LEFT JOIN ai_summaries s ON d.id = s.document_id
+             WHERE d.id = $1;`,
+            [documentId]
+        );
+
+        if (docRes.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Medical record not found.",
+            });
+        }
+
+        const doc = docRes.rows[0];
+
+        // Security check: Must belong to authenticated patient
+        if (req.user.role === "patient" && doc.patient_id !== patientId) {
+            return res.status(403).json({
+                success: false,
+                message: "Access denied: You do not own this medical document.",
+            });
+        }
+
+        let entities = doc.extracted_entities;
+        if (typeof entities === "string") {
+            try { entities = JSON.parse(entities); } catch (e) { entities = {}; }
+        }
+
+        // Call ML service for grounded document explanation
+        const qaResult = await mlService.askDocumentQuestion(
+            patientId,
+            documentId,
+            doc.file_name,
+            question.trim(),
+            doc.extracted_text,
+            entities,
+            doc.ai_summary,
+            language || "en",
+            history || []
+        );
+
+        return res.status(200).json({
+            success: true,
+            ...qaResult
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     uploadDocument,
     getPatientDocuments,
     getDocumentDownloadUrl,
     deleteDocument,
     searchDocuments,
+    getDocumentById,
+    askDocumentQuestion,
 };
 

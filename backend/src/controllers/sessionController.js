@@ -12,7 +12,8 @@ const {
  */
 async function startSession(req, res, next) {
     try {
-        const { appointmentId, chiefComplaint, language = "en", consultationType = "allopathic" } = req.body;
+        const { appointmentId, chiefComplaint, consultationType = "allopathic" } = req.body;
+        const language = req.body.language || req.user?.onboarding?.preferredLanguage || req.user?.preferred_language || "en";
         const patientId = req.user.role === "patient" ? req.user.id : req.body.patientId;
 
         const result = await startSessionCore({
@@ -21,6 +22,7 @@ async function startSession(req, res, next) {
             language,
             consultationType,
             chiefComplaint,
+            cancelIfDifferentComplaint: true,
         });
 
         if (result.isExisting) {
@@ -28,15 +30,19 @@ async function startSession(req, res, next) {
                 success: true,
                 message: "Active session already exists.",
                 sessionId: result.sessionId,
+                session: result.session,
                 state: result.state,
                 nextQuestion: result.nextQuestion,
+                options: result.options || [],
             });
         }
 
         return res.status(201).json({
             success: true,
             sessionId: result.sessionId,
+            session: result.session,
             nextQuestion: result.nextQuestion,
+            options: result.options || [],
             state: result.state,
         });
     } catch (error) {
@@ -161,6 +167,7 @@ async function processVoiceTurn(req, res, next) {
             success: true,
             transcript: patientText,
             nextQuestion: clinicalAiResult.next_question,
+            options: clinicalAiResult.options || [],
             audioBase64,
             extractedEntities: clinicalAiResult.extracted_entities,
             redFlags: currentState.red_flags || [],
@@ -190,6 +197,7 @@ async function processTextTurn(req, res, next) {
         return res.status(200).json({
             success: true,
             nextQuestion: result.nextQuestion,
+            options: result.options || [],
             extractedEntities: result.extractedEntities,
             redFlags: result.redFlags,
             isComplete: result.isComplete,

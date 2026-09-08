@@ -4,10 +4,15 @@ const pool = require("../config/db");
  * 1. Create a new Appointment
  * POST /api/appointments
  */
+/**
+ * 1. Create a new Appointment
+ * POST /api/appointments
+ */
 async function createAppointment(req, res, next) {
     try {
-        const { doctorId, scheduledAt, durationMinutes = 30, appointmentType = "in_person", reason, notes } = req.body;
+        const { doctorId, scheduledAt, durationMinutes = 30, appointmentType = "in_person", reason, notes, sessionId, clinicalSessionId } = req.body;
         const patientId = req.user.role === "patient" ? req.user.id : req.body.patientId;
+        const activeSessionId = sessionId || clinicalSessionId;
 
         if (!patientId || !doctorId || !scheduledAt) {
             return res.status(400).json({
@@ -16,15 +21,56 @@ async function createAppointment(req, res, next) {
             });
         }
 
-        // Verify doctor exists and has doctor profile
+        // REQUIREMENT 5 & 12: Enforce completed AI clinical assessment before booking
+        if (!activeSessionId) {
+            return res.status(400).json({
+                success: false,
+                message: "An AI clinical intake assessment must be completed before booking an appointment.",
+            });
+        }
+
+        // Verify clinical session exists, belongs to patient, and is completed
+        const sessionCheck = await pool.query(
+            `SELECT id, patient_id, status, chief_complaint FROM clinical_sessions WHERE id = $1;`,
+            [activeSessionId]
+        );
+        if (sessionCheck.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Clinical intake assessment session not found.",
+            });
+        }
+
+        const session = sessionCheck.rows[0];
+        if (session.patient_id !== patientId) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized: Clinical intake session belongs to another patient.",
+            });
+        }
+
+        if (session.status !== "completed") {
+            return res.status(400).json({
+                success: false,
+                message: "Clinical intake assessment is incomplete. Please finish the assessment before booking.",
+            });
+        }
+
+        // REQUIREMENT 2: Verify doctor exists, is active, and verified
         const doctorCheck = await pool.query(
-            `SELECT user_id FROM doctor_profiles WHERE user_id = $1 AND verification_status = 'verified';`,
+            `SELECT u.id
+             FROM users u
+             JOIN doctor_profiles d ON u.id = d.user_id
+             WHERE u.id = $1
+               AND u.role = 'doctor'
+               AND u.is_active = true
+               AND d.verification_status = 'verified';`,
             [doctorId]
         );
         if (doctorCheck.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                message: "Verified doctor not found with the provided ID.",
+                message: "Verified active doctor not found with the provided ID.",
             });
         }
 
@@ -40,25 +86,165 @@ async function createAppointment(req, res, next) {
             });
         }
 
-        const insertQuery = `
-            INSERT INTO appointments (patient_id, doctor_id, scheduled_at, duration_minutes, appointment_type, reason, notes, status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, 'scheduled')
-            RETURNING *;
-        `;
-        const result = await pool.query(insertQuery, [
-            patientId,
-            doctorId,
-            scheduledAt,
-            durationMinutes,
-            appointmentType,
-            reason || null,
-            notes || null,
-        ]);
+        // REQUIREMENT 13: Prevent double booking for same doctor and scheduled_at
+        const scheduledDate = new Date(scheduledAt);
+        const conflictCheck = await pool.query(
+            `SELECT id FROM appointments
+             WHERE doctor_id = $1
+               AND scheduled_at = $2
+               AND status IN ('scheduled', 'confirmed');`,
+            [doctorId, scheduledDate.toISOString()]
+        );
+        if (conflictCheck.rows.length > 0) {
+            return res.status(409).json({
+                success: false,
+                message: "That appointment slot is no longer available.",
+            });
+        }
 
-        return res.status(201).json({
+        const activeReason = reason || session.chief_complaint || "Clinical Consultation";
+
+        const client = await pool.connect();
+        try {
+            await client.query("BEGIN;");
+
+            const insertQuery = `
+                INSERT INTO appointments (patient_id, doctor_id, scheduled_at, duration_minutes, appointment_type, reason, notes, status)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, 'scheduled')
+                RETURNING *;
+            `;
+            const result = await client.query(insertQuery, [
+                patientId,
+                doctorId,
+                scheduledDate.toISOString(),
+                durationMinutes,
+                appointmentType,
+                activeReason,
+                notes || null,
+            ]);
+
+            const newAppointment = result.rows[0];
+
+            // Link clinical session to new appointment
+            await client.query(
+                `UPDATE clinical_sessions SET appointment_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2;`,
+                [newAppointment.id, activeSessionId]
+            );
+
+            await client.query("COMMIT;");
+
+            return res.status(201).json({
+                success: true,
+                message: "Appointment booked successfully",
+                appointment: newAppointment,
+            });
+        } catch (dbErr) {
+            await client.query("ROLLBACK;");
+            if (dbErr.code === "23505") { // unique constraint violation
+                return res.status(409).json({
+                    success: false,
+                    message: "That appointment slot is no longer available.",
+                });
+            }
+            throw dbErr;
+        } finally {
+            client.release();
+        }
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * 2. Get Available Slots for a Doctor on a Date
+ * GET /api/appointments/available?doctorId=...&date=YYYY-MM-DD
+ */
+async function getAvailableSlots(req, res, next) {
+    try {
+        const { doctorId, date } = req.query;
+
+        if (!doctorId || !date) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required query parameters: doctorId and date (YYYY-MM-DD) are required.",
+            });
+        }
+
+        // Verify doctor
+        const docCheck = await pool.query(
+            `SELECT u.id
+             FROM users u
+             JOIN doctor_profiles d ON u.id = d.user_id
+             WHERE u.id = $1
+               AND u.role = 'doctor'
+               AND u.is_active = true
+               AND d.verification_status = 'verified';`,
+            [doctorId]
+        );
+        if (docCheck.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Verified doctor not found.",
+            });
+        }
+
+        // Standard clinic hours: 09:00 to 17:00, 30-min slots
+        const standardSlotTimes = [
+            "09:00", "09:30", "10:00", "10:30",
+            "11:00", "11:30", "12:00", "12:30",
+            "14:00", "14:30", "15:00", "15:30", "16:00", "16:30"
+        ];
+
+        // Query existing booked appointments for doctor on target date
+        const bookedRes = await pool.query(
+            `SELECT scheduled_at
+             FROM appointments
+             WHERE doctor_id = $1
+               AND DATE(scheduled_at) = $2
+               AND status IN ('scheduled', 'confirmed');`,
+            [doctorId, date]
+        );
+
+        const bookedSet = new Set(
+            bookedRes.rows.map(r => {
+                const d = new Date(r.scheduled_at);
+                const hours = String(d.getHours()).padStart(2, "0");
+                const mins = String(d.getMinutes()).padStart(2, "0");
+                return `${hours}:${mins}`;
+            })
+        );
+
+        const now = new Date();
+        const targetDate = new Date(date);
+        const isToday = targetDate.toDateString() === now.toDateString();
+
+        const slots = standardSlotTimes.map(timeStr => {
+            const [h, m] = timeStr.split(":").map(Number);
+            const slotDateTime = new Date(targetDate);
+            slotDateTime.setHours(h, m, 0, 0);
+
+            const isPast = isToday && slotDateTime <= now;
+            const isBooked = bookedSet.has(timeStr);
+            const available = !isPast && !isBooked;
+
+            const period = h >= 12 ? "PM" : "AM";
+            const displayH = h % 12 === 0 ? 12 : h % 12;
+            const time12 = `${String(displayH).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
+
+            return {
+                time: timeStr,
+                time24: timeStr,
+                time12,
+                scheduledAt: slotDateTime.toISOString(),
+                available,
+            };
+        });
+
+        return res.status(200).json({
             success: true,
-            message: "Appointment booked successfully",
-            appointment: result.rows[0],
+            doctorId,
+            date,
+            slots,
         });
     } catch (error) {
         next(error);
@@ -74,7 +260,7 @@ async function getPatientAppointments(req, res, next) {
         const patientId = req.user.id;
 
         const result = await pool.query(
-            `SELECT a.*, 
+            `SELECT a.id, a.patient_id, a.doctor_id, a.scheduled_at, a.duration_minutes, a.appointment_type, a.status, a.reason, a.notes,
                     u.first_name AS doctor_first_name, u.last_name AS doctor_last_name,
                     d.specialization, d.department,
                     cs.id AS clinical_session_id, cs.status AS clinical_session_status
@@ -87,9 +273,33 @@ async function getPatientAppointments(req, res, next) {
             [patientId]
         );
 
+        const appointments = result.rows.map(row => ({
+            id: row.id,
+            patientId: row.patient_id,
+            doctorId: row.doctor_id,
+            scheduledAt: row.scheduled_at,
+            durationMinutes: row.duration_minutes,
+            appointmentType: row.appointment_type,
+            status: row.status,
+            reason: row.reason,
+            notes: row.notes,
+            doctor: {
+                id: row.doctor_id,
+                firstName: row.doctor_first_name,
+                lastName: row.doctor_last_name,
+                name: `Dr. ${row.doctor_first_name || ''} ${row.doctor_last_name || ''}`.trim(),
+                specialization: row.specialization,
+                department: row.department,
+            },
+            clinicalSession: {
+                id: row.clinical_session_id,
+                status: row.clinical_session_status,
+            }
+        }));
+
         return res.status(200).json({
             success: true,
-            appointments: result.rows,
+            appointments,
         });
     } catch (error) {
         next(error);
@@ -195,6 +405,7 @@ async function updateAppointmentStatus(req, res, next) {
 
 module.exports = {
     createAppointment,
+    getAvailableSlots,
     getPatientAppointments,
     getAppointmentById,
     updateAppointmentStatus,

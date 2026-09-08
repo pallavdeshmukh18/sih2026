@@ -22,32 +22,43 @@ const COMMON_CHIEF_COMPLAINTS = [
   "Skin Rash",
 ];
 
-const getDynamicOptions = (question) => {
-  const q = (question || "").toLowerCase();
-  if (q.includes("onset") || q.includes("start") || q.includes("begin") || q.includes("how long") || q.includes("duration")) {
-    return ["Today / Suddenly", "2–3 days ago", "1–2 weeks ago", "More than a month"];
+const getDynamicOptions = (question, language = "en") => {
+  const lang = (language || "en").toLowerCase();
+  if (lang === "hi") {
+    return [
+      { id: "opt_1", label: "आज ही शुरू हुआ" },
+      { id: "opt_2", label: "2–3 दिन पहले" },
+      { id: "opt_3", label: "1–2 सप्ताह से" },
+      { id: "opt_4", label: "लंबे समय से / पुराना" }
+    ];
   }
-  if (q.includes("severe") || q.includes("severity") || q.includes("how bad") || q.includes("intensity")) {
-    return ["Mild / Manageable", "Moderate / Intermittent", "Severe / Continuous"];
+  if (lang === "mr") {
+    return [
+      { id: "opt_1", label: "आजच सुरू झाले" },
+      { id: "opt_2", label: "2–3 दिवसांपूर्वी" },
+      { id: "opt_3", label: "1–2 आठवड्यांपासून" },
+      { id: "opt_4", label: "दीर्घकालीन / जुना त्रास" }
+    ];
   }
-  if (q.includes("where") || q.includes("location") || q.includes("area") || q.includes("part")) {
-    return ["Chest / Upper Body", "Abdomen / Stomach", "Head / Neck", "Back / Joint / Muscle"];
+  if (lang === "gu") {
+    return [
+      { id: "opt_1", label: "આજે જ શરૂ થયું" },
+      { id: "opt_2", label: "2–3 દિવસ પહેલાં" },
+      { id: "opt_3", label: "1–2 અઠવાડિયાથી" },
+      { id: "opt_4", label: "લાંબા સમયથી / જૂનું" }
+    ];
   }
-  if (q.includes("character") || q.includes("describe") || q.includes("feeling") || q.includes("sensation")) {
-    return ["Sharp / Piercing", "Dull / Aching", "Throbbing / Pulsating", "Burning / Tightness"];
-  }
-  if (q.includes("worse") || q.includes("better") || q.includes("relief") || q.includes("aggravat") || q.includes("reliev")) {
-    return ["Movement / Exertion", "Eating / Deep Breath", "Rest brings relief", "Medication brings relief"];
-  }
-  if (q.includes("other") || q.includes("associated") || q.includes("symptom")) {
-    return ["Fever & Chills", "Nausea & Dizziness", "Cough & Cold", "No other symptoms"];
-  }
-  return ["Mild / Manageable", "Moderate / Intermittent", "Severe", "Unsure / Gradual"];
+  return [
+    { id: "opt_1", label: "Just started today" },
+    { id: "opt_2", label: "A few days" },
+    { id: "opt_3", label: "A few weeks" },
+    { id: "opt_4", label: "Long term / Chronic" }
+  ];
 };
 
 export default function ClinicalAssessment() {
   const { user, token } = useAuth();
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -60,6 +71,7 @@ export default function ClinicalAssessment() {
 
   const [sessionId, setSessionId] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState("");
+  const [options, setOptions] = useState([]);
   const [conversationHistory, setConversationHistory] = useState([]);
   const [customAnswerText, setCustomAnswerText] = useState("");
 
@@ -101,14 +113,17 @@ export default function ClinicalAssessment() {
       const payload = {
         chiefComplaint: activeComplaint,
         appointmentId: selectedAppointmentId || undefined,
+        language: currentLanguage || "en",
       };
 
       const res = await startClinicalSession(payload, token);
       if (res.success && res.sessionId) {
+        const firstQ = res.nextQuestion || res.firstQuestion;
         setSessionId(res.sessionId);
-        setCurrentQuestion(res.firstQuestion);
+        setCurrentQuestion(firstQ);
+        setOptions(res.options || []);
         setConversationHistory([
-          { role: "system", content: res.firstQuestion },
+          { role: "system", content: firstQ },
         ]);
       } else {
         throw new Error(res.message || "Failed to start clinical assessment.");
@@ -143,6 +158,7 @@ export default function ClinicalAssessment() {
           setSummary(res.summary || "");
         } else if (res.nextQuestion) {
           setCurrentQuestion(res.nextQuestion);
+          setOptions(res.options || []);
           setConversationHistory([
             ...newHistory,
             { role: "system", content: res.nextQuestion },
@@ -281,17 +297,24 @@ export default function ClinicalAssessment() {
 
             {/* Option-based choices */}
             <div className={styles.optionsGrid}>
-              {getDynamicOptions(currentQuestion).map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  className={styles.optionBtn}
-                  onClick={() => handleSendResponse(opt)}
-                  disabled={loading}
-                >
-                  {opt}
-                </button>
-              ))}
+              {(options && options.length > 0
+                ? options
+                : getDynamicOptions(currentQuestion, currentLanguage)
+              ).map((opt, idx) => {
+                const label = typeof opt === "string" ? opt : opt.label || opt.id;
+                const key = typeof opt === "string" ? `${opt}-${idx}` : opt.id || idx;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={styles.optionBtn}
+                    onClick={() => handleSendResponse(label)}
+                    disabled={loading}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Custom typed response option */}

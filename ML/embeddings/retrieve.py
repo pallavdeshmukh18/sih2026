@@ -4,22 +4,29 @@ from embeddings.embed_store import _model, _collection
 def semantic_search(
     patient_id: str,
     query: str,
-    top_k: int = 5
+    top_k: int = 5,
+    document_id: str = None
 ) -> list[dict]:
-
+    if _model is None or _collection is None:
+        return []
 
     query_embedding = _model.encode(
         [query]
     ).tolist()
 
+    where_filter = {"patient_id": patient_id}
+    if document_id:
+        where_filter = {"document_id": document_id}
 
-    results = _collection.query(
-        query_embeddings=query_embedding,
-        n_results=top_k,
-        where={
-            "patient_id": patient_id
-        }
-    )
+    try:
+        results = _collection.query(
+            query_embeddings=query_embedding,
+            n_results=top_k,
+            where=where_filter
+        )
+    except Exception as e:
+        print(f"ChromaDB retrieval error: {e}")
+        return []
 
     retrieved_results = []
 

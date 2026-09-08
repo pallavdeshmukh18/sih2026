@@ -7,21 +7,21 @@ import styles from './TopBar.module.css';
 export default function TopBar() {
  const {user} = useAuth();
  const {pathname} = useLocation();
- const {language, changeLanguage} = useLanguage();
- const role=user?.role || 'patient';
- const page=pathname.split('/').pop().replaceAll('-', ' ');
+ const {language, changeLanguage, t} = useLanguage();
+ const role = user?.role || 'patient';
+ const pageKey = pathname.split('/').pop().replaceAll('-', ' ');
 
  return <header className={styles.topbar}>
   <Link to={`/${role}/dashboard`} className={styles.logo}><span className={styles.logoIcon}><Activity size={20}/></span><span className={styles.brandWords}>MediKiosk<span className={styles.logoDot}>.</span></span></Link>
-  <div className={styles.breadcrumb}><span>Workspace</span><ChevronRight size={13}/><strong>{page}</strong></div>
+  <div className={styles.breadcrumb}><span>{t("common.workspace", "Workspace")}</span><ChevronRight size={13}/><strong>{t(`navigation.${pageKey}`, pageKey)}</strong></div>
   <div className={styles.actions}>
     <div className={styles.langSelectorWrapper}>
       <Globe size={16} className={styles.globeIcon} />
       <select 
         className={styles.langSelect}
-        value={language}
+        value={language || "en"}
         onChange={(e) => changeLanguage(e.target.value)}
-        aria-label="Select language"
+        aria-label={t("common.selectLanguage", "Select language")}
       >
         {LANGUAGE_OPTIONS.map((opt) => (
           <option key={opt.code} value={opt.code}>
@@ -30,10 +30,10 @@ export default function TopBar() {
         ))}
       </select>
     </div>
-    <span className={styles.portal}>{role} portal</span>
-    <Link aria-label="Messages" className={styles.iconButton} to={`/${role}/mail`}><Mail size={19}/></Link>
-    <Link aria-label="Account settings" className={styles.iconButton} to={`/${role}/account`}><Settings size={19}/></Link>
-    <Link className={styles.profile} to={`/${role}/account`}><span className={styles.avatar}>{user?.firstName?.[0] || 'U'}{user?.lastName?.[0]}</span><span className={styles.userName}>{user?.firstName || 'Your account'}<small>{role}</small></span></Link>
+    <span className={styles.portal}>{role === "patient" ? t("common.patientPortal", "patient portal") : role === 'receptionist' ? 'Front Desk' : role === 'doctor' ? 'Doctor Portal' : `${role} portal`}</span>
+    <Link aria-label={t("common.messages", "Messages")} className={styles.iconButton} to={`/${role}/mail`}><Mail size={19}/></Link>
+    <Link aria-label={t("common.settings", "Account settings")} className={styles.iconButton} to={`/${role}/account`}><Settings size={19}/></Link>
+    <Link className={styles.profile} to={`/${role}/account`}><span className={styles.avatar}>{user?.firstName?.[0] || 'U'}{user?.lastName?.[0]}</span><span className={styles.userName}>{user?.firstName || t("navigation.account", "Your account")}<small>{role === 'receptionist' ? 'Front Desk' : role}</small></span></Link>
   </div>
  </header>;
 }

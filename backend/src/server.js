@@ -10,6 +10,7 @@ const sessionRoutes = require("./routes/sessionRoutes");
 const documentRoutes = require("./routes/documentRoutes");
 const doctorRoutes = require("./routes/doctorRoutes");
 const staffRoutes = require("./routes/staffRoutes");
+const receptionistRoutes = require("./routes/receptionistRoutes");
 const patientRoutes = require("./routes/patientRoutes");
 const ttsRoutes = require("./routes/ttsRoutes");
 const whatsappRoutes = require("./routes/whatsappRoutes");
@@ -29,6 +30,7 @@ app.use("/api/sessions", sessionRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/doctor", doctorRoutes);
 app.use("/api/doctor/staff", staffRoutes);
+app.use("/api/receptionist", receptionistRoutes);
 app.use("/api/tts", ttsRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 

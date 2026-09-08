@@ -14,6 +14,8 @@ class ClinicalSession(BaseModel):
     clinical_entities: List[Dict[str, str]] = Field(default_factory=list)
     red_flags: List[str] = Field(default_factory=list)
     conversation_history: List[Dict[str, str]] = Field(default_factory=list)
+    current_question: Optional[str] = None
+    current_options: List[Dict[str, str]] = Field(default_factory=list)
     status: str = "active"
 
     def get_highest_priority_missing_field(self) -> Optional[str]:
