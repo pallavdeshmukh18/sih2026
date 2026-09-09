@@ -154,23 +154,12 @@ export default function useAgoraRTC() {
                 setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid));
             });
 
-            // Join Channel with fallback retry
+            // Join Channel
             const targetUid = uid ? Number(uid) : null;
             console.log(`[Agora RTC] Attempting to join channel '${channelName}' with UID: ${targetUid}, token present: ${Boolean(token)}`);
 
-            let joinedUid;
-            try {
-                joinedUid = await client.join(appId, channelName, token || null, targetUid);
-                console.log(`[Agora RTC] 🎉 Joined successfully with UID: ${joinedUid}`);
-            } catch (joinErr) {
-                if (token && (joinErr.code === "CAN_NOT_GET_GATEWAY_SERVER" || joinErr.code === "DYNAMIC_KEY_TIMEOUT" || joinErr.message?.includes("token") || joinErr.message?.includes("key"))) {
-                    console.warn("[Agora RTC] Token auth issue, attempting fallback join in App ID mode...", joinErr.message);
-                    joinedUid = await client.join(appId, channelName, null, targetUid);
-                    console.log(`[Agora RTC] 🎉 Joined successfully via App ID fallback with UID: ${joinedUid}`);
-                } else {
-                    throw joinErr;
-                }
-            }
+            const joinedUid = await client.join(appId, channelName, token || null, targetUid);
+            console.log(`[Agora RTC] 🎉 Joined successfully with UID: ${joinedUid}`);
 
             // Check if remote users already exist in channel
             if (client.remoteUsers && client.remoteUsers.length > 0) {
