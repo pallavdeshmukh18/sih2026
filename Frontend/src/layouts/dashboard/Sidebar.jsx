@@ -62,6 +62,10 @@ const Sidebar = ({ onHoverChange }) => {
 
                     {role === 'patient' && (
                         <>
+                            <NavLink to="/patient/assessment" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                                <Stethoscope size={20} />
+                                <span>{t('navigation.assessment', 'Clinical Assessment')}</span>
+                            </NavLink>
                             <NavLink to="/patient/medical-id" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                                 <ShieldCheck size={20} />
                                 <span>{t('medicalId.title') || 'Medical ID'}</span>

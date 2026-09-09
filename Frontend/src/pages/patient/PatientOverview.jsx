@@ -124,8 +124,17 @@ const PatientOverview = () => {
           <div className={styles.profileAvatar}>{user?.firstName?.[0] || 'U'}</div>
           <div className={styles.profileName}>
             <h3>{user?.firstName} {user?.lastName}</h3>
-            <p>ID: #492817349</p>
-            <button className={styles.editBtn}>Edit Profile</button>
+            <p>ID: #{user?.id ? user.id.slice(0, 8) : '49281734'}</p>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+              <button className={styles.editBtn} onClick={() => window.location.href = '/patient/account'}>Edit Profile</button>
+              <button
+                className={styles.editBtn}
+                style={{ background: 'linear-gradient(135deg, #0d9488 0%, #059669 100%)', color: '#ffffff', border: 'none' }}
+                onClick={() => window.location.href = '/patient/assessment'}
+              >
+                Intake Assessment
+              </button>
+            </div>
           </div>
         </div>
 

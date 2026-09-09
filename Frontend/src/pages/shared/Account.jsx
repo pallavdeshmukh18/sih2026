@@ -295,10 +295,31 @@ export default function Account() {
           <section className={styles.detailsCard}>
           <div className={styles.cardTitle}>
             <h2>{t("account.profileDetails", "Profile Details")}</h2>
-            <button onClick={() => setEditing((value) => !value)}>
-              {editing ? <X /> : <Pencil />}
-              {editing ? t("account.cancel", "Cancel") : t("account.edit", "Edit")}
-            </button>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={() => window.location.href = "/patient/assessment"}
+                style={{
+                  background: "#e6fffa",
+                  color: "#0d9488",
+                  border: "1px solid #99f6e4",
+                  padding: "6px 14px",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}
+              >
+                <ShieldCheck size={16} /> {t("navigation.assessment", "Clinical Assessment")}
+              </button>
+              <button onClick={() => setEditing((value) => !value)}>
+                {editing ? <X /> : <Pencil />}
+                {editing ? t("account.cancel", "Cancel") : t("account.edit", "Edit")}
+              </button>
+            </div>
           </div>
 
           <div className={styles.identity}>

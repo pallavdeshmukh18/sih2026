@@ -341,7 +341,7 @@ async function getPatientMedicalHistory(req, res, next) {
 
         // 4. Fetch Clinical AI Intake Sessions
         const sessionsRes = await pool.query(
-            `SELECT id, chief_complaint, status, summary, current_state, created_at, updated_at
+            `SELECT id, chief_complaint, status, summary, conversation_history, current_state, created_at, updated_at
              FROM clinical_sessions
              WHERE patient_id = $1
              ORDER BY created_at DESC;`,
@@ -350,6 +350,13 @@ async function getPatientMedicalHistory(req, res, next) {
 
         const assessments = sessionsRes.rows.map((row) => {
             const state = row.current_state || {};
+            let history = row.conversation_history;
+            if (typeof history === "string") {
+                try { history = JSON.parse(history); } catch (e) { history = []; }
+            }
+            if (!Array.isArray(history) && state.conversation_history) {
+                history = state.conversation_history;
+            }
             return {
                 id: row.id,
                 chiefComplaint: row.chief_complaint,
@@ -357,7 +364,9 @@ async function getPatientMedicalHistory(req, res, next) {
                 summary: row.summary || (row.status === "completed" ? "Intake session completed." : "Intake session in progress."),
                 date: row.created_at,
                 redFlags: state.red_flags || [],
-                source: "MediKiosk Clinical Assessment",
+                answeredFields: state.answered_fields || {},
+                chatHistory: Array.isArray(history) ? history : [],
+                source: "MediKiosk Clinical AI Assessment",
             };
         });
 
@@ -525,9 +534,11 @@ async function getPatientMedicalHistory(req, res, next) {
             category: "assessment",
             verificationStatus: "ai_extracted",
             title: `Clinical Intake: ${a.chiefComplaint || "General Intake"}`,
-            subtitle: `Status: ${a.status}`,
+            subtitle: `Status: ${a.status.toUpperCase()}`,
             details: a.summary,
             redFlags: a.redFlags,
+            answeredFields: a.answeredFields,
+            chatHistory: a.chatHistory,
             source: a.source,
         }));
 
