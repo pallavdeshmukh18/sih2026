@@ -126,14 +126,13 @@ export default function MedicalHistory() {
   ];
 
   return <motion.main className={`${styles.page} workspacePage`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35 }}>
+    <header className={styles.hero}>
+      <img src={heroImage} alt="Patient viewing a connected medical history" />
+      <div className={styles.heroCopy}><span>MEDICAL HISTORY</span><h1>Longitudinal Medical History</h1><p>Your complete chronological health timeline aggregating consultations, lab tests, prescriptions, clinical assessments, and uploaded records.</p></div>
+    </header>
+
     <div className={styles.layout}>
       <section className={styles.mainColumn}>
-        <header className={styles.hero}>
-          <img src={heroImage} alt="Patient viewing a connected medical history" />
-          <div className={styles.heroCopy}><span>MEDICAL HISTORY</span><h1>Longitudinal Medical History</h1><p>Your complete chronological health timeline aggregating consultations, lab tests, prescriptions, clinical assessments, and uploaded records.</p></div>
-          <blockquote>“Small Details.<br /><b>Bigger Care.</b>”</blockquote>
-        </header>
-
         <section className={styles.stats}>{statCards.map(({ label, detail, count, icon: Icon, tone }) => <article className={styles[tone]} key={label}><span><Icon /></span><div><strong>{count}</strong><h2>{label}</h2><p>{detail}</p></div></article>)}</section>
 
         <div className={styles.searchRow}><label><Search /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search medical timeline by title, doctor, medication, or diagnosis..." />{searchQuery && <button onClick={() => setSearchQuery("")} aria-label="Clear search"><X /></button>}</label><label className={styles.timeFilter}><Calendar /><select value={timeRange} onChange={(event) => setTimeRange(event.target.value)}><option value="all">All time</option><option value="6">Last 6 months</option><option value="12">Last year</option></select><ChevronDown /></label></div>

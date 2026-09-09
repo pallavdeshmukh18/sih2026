@@ -193,7 +193,21 @@ export default function SignupPage() {
 
       <section className="signup-panel-wrap">
         <div className="signup-mobile-brand"><Brand /></div>
-        <div className="signup-language">EN <span>⌄</span></div>
+        <div className="signup-language">
+          <select aria-label="Select language" defaultValue="EN">
+            <option value="EN">English</option>
+            <option value="HI">हिन्दी</option>
+            <option value="MR">मराठी</option>
+            <option value="TA">தமிழ்</option>
+            <option value="TE">తెలుగు</option>
+            <option value="BN">বাংলা</option>
+            <option value="GU">ગુજરાતી</option>
+            <option value="KN">ಕನ್ನಡ</option>
+            <option value="ML">മലയാളം</option>
+            <option value="PA">ਪੰਜਾਬੀ</option>
+          </select>
+          <span>⌄</span>
+        </div>
         <div className={`signup-card signup-card--${mode} signup-card--${role}`}>
           <header>
             <AnimatePresence mode="wait" initial={false}>
@@ -305,6 +319,9 @@ export default function SignupPage() {
           )}
           {mode === "register" && <p className="signup-legal">By creating an account, you agree to our <a href="#terms">Terms of Service</a> and <a href="#privacy">Privacy Policy</a>.</p>}
           <p className="signup-signin">{mode === "login" ? "New to MediKiosk?" : "Already have an account?"} <button type="button" onClick={() => selectMode(mode === "login" ? "register" : "login")}>{mode === "login" ? "Create account" : "Sign in"}</button></p>
+          <div className="signup-back-home">
+            <Link to="/">← Back to Home</Link>
+          </div>
             </motion.div>
           </AnimatePresence>
         </div>

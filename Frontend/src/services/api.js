@@ -250,6 +250,29 @@ export async function unlinkWhatsApp(token) {
 // PATIENT APPOINTMENTS & DOCTOR DIRECTORY API CALLS
 // ==================================================
 
+/** Upload Profile Photo (Multipart / FormData) */
+export async function uploadProfilePhoto(formData, token) {
+    const headers = {};
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/users/profile-photo`, {
+        method: "POST",
+        headers,
+        body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const error = new Error(data.message || `Profile photo upload failed with status ${response.status}`);
+        error.status = response.status;
+        error.data = data;
+        throw error;
+    }
+    return data;
+}
+
 /** Fetch Public Verified Doctor Directory */
 export async function fetchPublicDoctors(token) {
     return apiRequest("/api/doctor/directory", "GET", null, token);

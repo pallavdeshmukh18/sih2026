@@ -138,6 +138,8 @@ const TeamManagement = () => {
             transition={{ duration: 0.35 }}
         >
             {/* Header */}
+            <div className={styles.layout}>
+            {/* Header */}
             <div className={styles.header}>
                 <div>
                     <h1 className={styles.title}>Team Management</h1>
@@ -167,80 +169,93 @@ const TeamManagement = () => {
             </div>
 
             {/* Stats Row */}
-            <div className={styles.statsRow}>
+            <section className={styles.stats}>
                 {[
-                    { label: 'Total Members', value: team.length, icon: Users, color: '#6366f1' },
-                    { label: 'Active', value: team.filter(m => m.status === 'active').length, icon: Check, color: '#10b981' },
-                    { label: 'Pending', value: team.filter(m => m.status === 'pending').length, icon: ClipboardList, color: '#f59e0b' },
-                ].map(({ label, value, icon: Icon, color }) => (
-                    <div key={label} className={styles.statCard}>
-                        <div className={styles.statIcon} style={{ background: `${color}15`, color }}><Icon size={18} /></div>
+                    { label: 'Total Members', value: team.length, icon: Users, colorClass: styles.blue },
+                    { label: 'Active', value: team.filter(m => m.status === 'active').length, icon: Check, colorClass: styles.green },
+                    { label: 'Pending', value: team.filter(m => m.status === 'pending').length, icon: ClipboardList, colorClass: styles.gold },
+                ].map(({ label, value, icon: Icon, colorClass }) => (
+                    <article key={label} className={colorClass}>
+                        <span><Icon /></span>
                         <div>
-                            <div className={styles.statValue}>{value}</div>
-                            <div className={styles.statLabel}>{label}</div>
+                            <strong>{String(value).padStart(2, '0')}</strong>
+                            <p>{label}</p>
                         </div>
-                    </div>
+                    </article>
                 ))}
-            </div>
+            </section>
 
-            {/* Team Table */}
-            <div className={styles.tableCard}>
-                <div className={styles.tableHeader}>
-                    <h3>Current Team ({team.length})</h3>
-                </div>
-                <div className={styles.table}>
-                    <div className={styles.tableHead}>
-                        <div>Member</div>
-                        <div>Role</div>
-                        <div>Contact</div>
-                        <div>Status</div>
-                        <div></div>
-                    </div>
-                    {team.map((member) => (
-                        <motion.div
-                            key={member.id}
-                            className={styles.tableRow}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            layout
-                        >
-                            <div className={styles.memberCell}>
-                                <div className={styles.avatar} style={{ background: ROLE_CONFIG[member.role]?.color || '#888' }}>
-                                    {member.initials}
-                                </div>
-                                <div>
-                                    <div className={styles.memberName}>{member.name}</div>
-                                    <div className={styles.memberEmail}>{member.email}</div>
-                                </div>
-                            </div>
-                            <div><RoleBadge role={member.role} /></div>
-                            <div className={styles.contactCell}>
-                                <span><Mail size={12} /> {member.email}</span>
-                                {member.phone && <span><Phone size={12} /> {member.phone}</span>}
-                            </div>
-                            <div>
-                                <span className={`${styles.statusBadge} ${member.status === 'active' ? styles.statusActive : styles.statusPending}`}>
-                                    {member.status === 'active' ? 'Active' : 'Pending'}
-                                </span>
-                            </div>
-                            <div className={styles.actionsCell}>
-                                {member.role !== 'superadmin' && (
-                                    deleteConfirm === member.id ? (
-                                        <div className={styles.confirmDelete}>
-                                            <span>Remove?</span>
-                                            <button onClick={() => handleDelete(member.id)} className={styles.confirmYes}>Yes</button>
-                                            <button onClick={() => setDeleteConfirm(null)} className={styles.confirmNo}>No</button>
+                        {/* Team Table */}
+            <section className={styles.history}>
+                <header>
+                    <h2>Current Team ({team.length})</h2>
+                </header>
+                <div className={styles.tableWrap}>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Member</th>
+                                <th>Role</th>
+                                <th>Contact</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <AnimatePresence>
+                            {team.map((member) => (
+                                <motion.tr
+                                    key={member.id}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9 }}
+                                    layout
+                                >
+                                    <td>
+                                        <div className={styles.doctor}>
+                                            <span style={{ background: ROLE_CONFIG[member.role]?.color + '20', color: ROLE_CONFIG[member.role]?.color }}>{member.initials}</span>
+                                            <div>
+                                                <b>{member.name}</b>
+                                                <small>{member.email}</small>
+                                            </div>
                                         </div>
-                                    ) : (
-                                        <button className={styles.deleteBtn} onClick={() => setDeleteConfirm(member.id)}>
-                                            <Trash2 size={14} />
-                                        </button>
-                                    )
-                                )}
-                            </div>
-                        </motion.div>
-                    ))}
+                                    </td>
+                                    <td>
+                                        <RoleBadge role={member.role} />
+                                    </td>
+                                    <td>
+                                        <div className={styles.withIcon}>
+                                            <span><Mail /> {member.email}</span>
+                                            {member.phone && <span><Phone /> {member.phone}</span>}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className={`${styles.status} ${styles[member.status]}`}>
+                                            {member.status}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {member.role !== 'superadmin' && (
+                                            deleteConfirm === member.id ? (
+                                                <div className={styles.confirmDelete}>
+                                                    <span>Remove?</span>
+                                                    <button onClick={() => handleDelete(member.id)} className={styles.confirmYes}>Yes</button>
+                                                    <button onClick={() => setDeleteConfirm(null)} className={styles.confirmNo}>No</button>
+                                                </div>
+                                            ) : (
+                                                <button className={styles.deleteBtn} onClick={() => setDeleteConfirm(member.id)}>
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )
+                                        )}
+                                    </td>
+                                </motion.tr>
+                            ))}
+                            </AnimatePresence>
+                        </tbody>
+                    </table>
                 </div>
+            </section>
             </div>
 
             {/* Create Account Modal */}

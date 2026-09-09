@@ -30,13 +30,14 @@
 .hero blockquote { position: absolute; z-index: 3; right: 4%; top: 37px; width: 145px; margin: 0; color: #145f56; font: italic 18px/1.25 var(--font-serif); }
 .hero blockquote::after { content: ""; display: block; width: 30px; height: 2px; margin-top: 13px; background: #14685d; }
 
-.workspaceGrid { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: 15px; max-width: 1600px; margin: 0 auto; }
+.workspaceGrid { display: grid; grid-template-columns: minmax(0, 1fr) 248px; gap: 15px; max-width: 1600px; margin: 20px auto 0; }
 .mainColumn { min-width: 0; display: flex; flex-direction: column; gap: 13px; }
 .sideColumn { display: flex; flex-direction: column; gap: 13px; }
 
 .uploadCard {
   position: relative;
-  min-height: 134px;
+  min-height: 180px;
+  padding: 30px;
   margin-top: -1px;
   border: 1px solid #dfe7e3;
   border-radius: 14px;

@@ -72,7 +72,9 @@
 .signup-panel-wrap::before, .signup-panel-wrap::after { content: ""; position: absolute; width: 240px; height: 360px; pointer-events: none; opacity: .18; filter: blur(.2px); background: radial-gradient(ellipse at 50% 100%, transparent 0 44%, #315f49 45% 47%, transparent 48%), radial-gradient(ellipse at 50% 100%, transparent 0 59%, #315f49 60% 62%, transparent 63%); }
 .signup-panel-wrap::before { right: -105px; top: -145px; transform: rotate(-32deg); }
 .signup-panel-wrap::after { left: -130px; bottom: -220px; transform: rotate(24deg); }
-.signup-language { position: absolute; right: 5vw; top: 48px; padding: 9px 17px; border-radius: 24px; color: #244743; background: rgba(255,255,255,.85); box-shadow: 0 5px 22px rgba(35,48,42,.09); font-size: 13px; }
+.signup-language { position: absolute; right: 5vw; top: 48px; padding: 9px 17px; border-radius: 24px; color: #244743; background: rgba(255,255,255,.85); box-shadow: 0 5px 22px rgba(35,48,42,.09); font-size: 13px; display: flex; align-items: center; gap: 4px; }
+.signup-language select { appearance: none; background: transparent; border: none; color: inherit; font: inherit; cursor: pointer; outline: none; padding-right: 2px; }
+.signup-language span { pointer-events: none; }
 .signup-mobile-brand { display: none; }
 .signup-card { position: relative; z-index: 1; width: 100%; max-width: 650px; height: min(820px, calc(100svh - 56px)); min-height: 690px; display: flex; flex-direction: column; justify-content: flex-start; margin: 0 auto; padding: clamp(28px, 3.2vw, 42px); border: 1px solid rgba(45,66,61,.12); border-radius: 24px; background: rgba(255,255,255,.78); box-shadow: 0 24px 70px rgba(42,53,46,.11), inset 0 1px 0 #fff; backdrop-filter: blur(16px); }
 .signup-card--login { justify-content: flex-start; }
@@ -378,6 +380,23 @@
   .signup-signin {
     margin-top: 3px;
     font-size: 10px;
+  }
+
+  .signup-back-home {
+    margin-top: 24px;
+    text-align: center;
+  }
+
+  .signup-back-home a {
+    color: #4d6663;
+    font-size: 12px;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .signup-back-home a:hover {
+    color: var(--copper);
+    text-decoration: underline;
   }
 
   .signup-panel-wrap footer {

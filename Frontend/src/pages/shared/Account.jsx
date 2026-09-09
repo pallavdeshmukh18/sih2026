@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
 import { INDIAN_STATES_AND_UTS, SUPPORTED_LANGUAGES } from "../../constants/onboardingData";
-import { requestPhoneLink, updatePatientProfile, verifyPhoneLink } from "../../services/api";
+import { requestPhoneLink, updatePatientProfile, verifyPhoneLink, uploadProfilePhoto } from "../../services/api";
 import accountBanner from "../../assets/patient-gateway-banner.png";
 import styles from "./Account.module.css";
 
@@ -99,6 +99,24 @@ export default function Account() {
     setPhoneModal(true);
   };
 
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setPhoto(URL.createObjectURL(file));
+    
+    const formData = new FormData();
+    formData.append("photo", file);
+    
+    try {
+      await uploadProfilePhoto(formData, token);
+      await refreshUser();
+      toast.success("Profile photo updated successfully.");
+    } catch (error) {
+      toast.error(error.message || "Failed to upload photo.");
+    }
+  };
+
   return (
     <div className={`${styles.page} workspacePage`}>
       <header className={styles.hero}>
@@ -142,7 +160,7 @@ export default function Account() {
         </section>
 
         <aside className={styles.side}>
-          <section className={styles.photoCard}><h2>Profile Photo</h2><div className={styles.photo}>{photo ? <img src={photo} alt={fullName} /> : initials}</div><h3>Add a profile photo</h3><p>A recognizable photo helps healthcare providers.</p><label><Camera /> Upload Photo<input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && setPhoto(URL.createObjectURL(event.target.files[0]))} /></label></section>
+          <section className={styles.photoCard}><h2>Profile Photo</h2><div className={styles.photo}>{photo ? <img src={photo} alt={fullName} /> : initials}</div><h3>Add a profile photo</h3><p>A recognizable photo helps healthcare providers.</p><label><Camera /> Upload Photo<input type="file" accept="image/*" onChange={handlePhotoUpload} /></label></section>
           <section className={styles.security}><ShieldCheck /><div><h3>Your Information is Secure</h3><p>We use industry-standard encryption to keep your data safe and private.</p><a href="#privacy">Learn more <ArrowRight /></a></div></section>
         </aside>
       </div>

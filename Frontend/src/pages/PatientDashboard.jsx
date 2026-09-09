@@ -19,10 +19,12 @@ const actionCards = [
   { label: "AI Health Assistant", copy: "Get quick health insights", icon: Sparkles, to: "/patient/assessment", tone: "lilac" },
 ];
 
-const fallbackAppointments = [
-  { id: "sample-1", scheduled_at: "2026-09-14T11:00:00", doctor_first_name: "Ananya", doctor_last_name: "Sharma", specialization: "General Physician", location: "MediKiosk Clinic, Mumbai" },
-  { id: "sample-2", scheduled_at: "2026-09-28T16:30:00", doctor_first_name: "Rohan", doctor_last_name: "Mehta", specialization: "Dermatologist", location: "Apollo Hospital, Navi Mumbai" },
-  { id: "sample-3", scheduled_at: "2026-10-03T12:00:00", doctor_first_name: "Sneha", doctor_last_name: "Kulkarni", specialization: "Nutritionist", location: "Online Consultation" },
+const healthTips = [
+  { icon: "🍊", title: "Stay Hydrated", text: "Drinking enough water helps improve energy, digestion and skin health." },
+  { icon: "🚶", title: "Daily Movement", text: "Aim for at least 30 minutes of physical activity every day." },
+  { icon: "😴", title: "Quality Sleep", text: "Getting 7-8 hours of sleep helps your body recover and boosts immunity." },
+  { icon: "🥗", title: "Balanced Diet", text: "Incorporate more fruits and vegetables into your daily meals." },
+  { icon: "🧘", title: "Mental Health", text: "Take a few minutes each day to practice deep breathing or meditation." },
 ];
 
 export default function PatientDashboard() {
@@ -32,6 +34,7 @@ export default function PatientDashboard() {
   const fileInputRef = useRef(null);
   const [appointments, setAppointments] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [tipIndex, setTipIndex] = useState(0);
 
   useEffect(() => {
     const preferred = user?.onboarding?.preferredLanguage || user?.onboarding?.preferred_language || user?.preferredLanguage;
@@ -68,8 +71,11 @@ export default function PatientDashboard() {
     }
   };
 
-  const displayedAppointments = appointments.length ? appointments.slice(0, 3) : fallbackAppointments;
+  const displayedAppointments = appointments.slice(0, 3);
   const firstName = user?.firstName || user?.name || "Patient";
+
+  const nextTip = () => setTipIndex((prev) => (prev + 1) % healthTips.length);
+  const prevTip = () => setTipIndex((prev) => (prev - 1 + healthTips.length) % healthTips.length);
 
   return (
     <div className={`${styles.page} workspacePage`}>
@@ -109,23 +115,40 @@ export default function PatientDashboard() {
           <section className={styles.card}>
             <div className={styles.cardHeader}><h2>Upcoming Appointments</h2><Link to="/patient/appointments">View All <ArrowRight /></Link></div>
             <div className={styles.appointments}>
-              {displayedAppointments.map((appointment) => {
-                const date = new Date(appointment.scheduled_at);
-                return <article key={appointment.id}><time><small>{date.toLocaleString("en", { month: "short" })}</small><strong>{String(date.getDate()).padStart(2, "0")}</strong></time><div><strong>Dr. {appointment.doctor_first_name} {appointment.doctor_last_name}</strong><small>{appointment.specialization || appointment.department || "General Physician"}</small><span>{date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} &nbsp;•&nbsp; {appointment.location || "MediKiosk Clinic"}</span></div><MoreVertical /></article>;
-              })}
+              {displayedAppointments.length > 0 ? (
+                displayedAppointments.map((appointment) => {
+                  const date = new Date(appointment.scheduled_at);
+                  return <article key={appointment.id}><time><small>{date.toLocaleString("en", { month: "short" })}</small><strong>{String(date.getDate()).padStart(2, "0")}</strong></time><div><strong>Dr. {appointment.doctor_first_name} {appointment.doctor_last_name}</strong><small>{appointment.specialization || appointment.department || "General Physician"}</small><span>{date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} &nbsp;•&nbsp; {appointment.location || "MediKiosk Clinic"}</span></div><MoreVertical /></article>;
+                })
+              ) : (
+                <div style={{ textAlign: "center", padding: "20px 0", color: "#617471", fontSize: "13px" }}>No upcoming appointments.</div>
+              )}
             </div>
           </section>
 
           <section className={styles.card}>
             <div className={styles.cardHeader}><h2>Quick Actions</h2></div>
             <div className={styles.quickActions}>
-              <button><Share2 /><span>Share Records</span></button><button><Download /><span>Download Summary</span></button><button><Activity /><span>Add Vitals</span></button><button><ShieldCheck /><span>Insurance Claims</span></button>
+              <button onClick={() => navigate("/patient/documents")}><Share2 /><span>Share Records</span></button>
+              <button onClick={() => navigate("/patient/documents")}><Download /><span>Download Summary</span></button>
+              <button onClick={() => navigate("/patient/assessment")}><Activity /><span>Add Vitals</span></button>
+              <button onClick={() => toast("Insurance Claims module coming soon!", { icon: "🛡️" })}><ShieldCheck /><span>Insurance Claims</span></button>
             </div>
           </section>
 
           <section className={`${styles.card} ${styles.tipCard}`}>
-            <div className={styles.cardHeader}><h2>Health Tips</h2><small>1 / 5 &nbsp; ‹ &nbsp; ›</small></div>
-            <div><span>🍊</span><p><strong>Stay Hydrated</strong>Drinking enough water helps improve energy, digestion and skin health.</p></div>
+            <div className={styles.cardHeader}>
+              <h2>Health Tips</h2>
+              <small>
+                {tipIndex + 1} / {healthTips.length} &nbsp; 
+                <span style={{ cursor: 'pointer' }} onClick={prevTip}>‹</span> &nbsp; 
+                <span style={{ cursor: 'pointer' }} onClick={nextTip}>›</span>
+              </small>
+            </div>
+            <div>
+              <span>{healthTips[tipIndex].icon}</span>
+              <p><strong>{healthTips[tipIndex].title}</strong>{healthTips[tipIndex].text}</p>
+            </div>
           </section>
         </aside>
       </section>

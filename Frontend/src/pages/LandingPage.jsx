@@ -97,7 +97,21 @@ export default function LandingPage() {
           )}
         </nav>
         <div className={s.actions}>
-          <button>EN⌄</button>
+          <div className={s.langSelect}>
+            <select aria-label="Select language" defaultValue="EN">
+              <option value="EN">English</option>
+              <option value="HI">हिन्दी</option>
+              <option value="MR">मराठी</option>
+              <option value="TA">தமிழ்</option>
+              <option value="TE">తెలుగు</option>
+              <option value="BN">বাংলা</option>
+              <option value="GU">ગુજરાતી</option>
+              <option value="KN">ಕನ್ನಡ</option>
+              <option value="ML">മലയാളം</option>
+              <option value="PA">ਪੰਜਾਬੀ</option>
+            </select>
+            <span>⌄</span>
+          </div>
           <Link to="/auth">
             Get Started <ArrowRight />
           </Link>

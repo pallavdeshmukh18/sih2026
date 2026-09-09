@@ -19,6 +19,8 @@ import {
   FileText
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { Link } from "react-router-dom";
+import teleconsultHero from "../../assets/teleconsult-hero.png";
 import { useAuth } from "../../context/AuthContext";
 import { 
   fetchTeleconsultSessions, 
@@ -32,7 +34,7 @@ import TeleconsultRoom from "../../components/teleconsult/TeleconsultRoom";
 import styles from "./PatientTeleconsult.module.css";
 
 export default function PatientTeleconsult() {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
 
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,9 +60,9 @@ export default function PatientTeleconsult() {
   const [isSendingChat, setIsSendingChat] = useState(false);
 
   // Load patient teleconsultation sessions
-  const loadSessions = useCallback(async () => {
+  const loadSessions = useCallback(async (background = false) => {
     if (!token) return;
-    setLoading(true);
+    if (!background) setLoading(true);
     setError("");
     try {
       const res = await fetchTeleconsultSessions(token);
@@ -77,7 +79,7 @@ export default function PatientTeleconsult() {
 
   useEffect(() => {
     loadSessions();
-    const pollInterval = setInterval(loadSessions, 5000); // Polling for live doctor approval
+    const pollInterval = setInterval(() => loadSessions(true), 5000); // Polling for live doctor approval
     return () => clearInterval(pollInterval);
   }, [loadSessions]);
 
@@ -196,6 +198,8 @@ export default function PatientTeleconsult() {
   const pendingRequests = useMemo(() => sessions.filter((s) => s.status === "pending_approval"), [sessions]);
   const completedCalls = useMemo(() => sessions.filter((s) => s.status === "completed"), [sessions]);
 
+  const pastSessions = useMemo(() => sessions.filter((s) => !["approved", "in_call", "pending_approval"].includes(s.status)), [sessions]);
+
   // Render Active Agora Call Room
   if (activeCallSession) {
     return (
@@ -217,107 +221,97 @@ export default function PatientTeleconsult() {
 
   return (
     <div className={styles.page}>
-      {/* Header */}
-      <header className={styles.header}>
-        <div>
+      <header className={styles.hero}>
+        <img src={teleconsultHero} alt="" />
+        <div className={styles.heroCopy}>
           <div className={styles.eyebrow}>VIRTUAL HEALTHCARE</div>
           <h1>Teleconsultations & Live Calls</h1>
-          <p>Connect with your verified doctors for real-time video or audio consultations and secure direct messaging.</p>
+          <p>Connect with your doctors, share your concerns, and get care from the comfort of home.</p>
         </div>
-        <button className={styles.primaryBtn} onClick={() => setIsModalOpen(true)}>
-          <Plus size={16} /> Request Teleconsultation
-        </button>
+        <blockquote>“Closer to care.<br />Wherever you are.”</blockquote>
       </header>
 
+      <div className={styles.layout}>
+        <div className={styles.mainColumn}>
+          <section className={styles.requestCard}>
+            <div className={styles.requestCardLeft}>
+              <span className={styles.requestCardIcon}><Video size={20} color="#087b6d" /></span>
+              <div>
+                <h2>Your next consultation starts here</h2>
+                <p>Choose a doctor and request a video or voice call.</p>
+              </div>
+            </div>
+            <button className={styles.primaryBtn} onClick={() => setIsModalOpen(true)}>
+              <Plus size={14} /> Request Teleconsultation
+            </button>
+          </section>
+
       {/* Stats Overview */}
-      <section className={styles.statsGrid}>
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.iconTeal}`}><Video size={20} /></div>
+      <section className={styles.stats}>
+        <article className={styles.green}>
+          <span><Video /></span>
           <div>
             <strong>{String(approvedCalls.length).padStart(2, "0")}</strong>
-            <span>Approved & Ready</span>
+            <p>Approved & Ready</p>
           </div>
-        </div>
-
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.iconAmber}`}><Clock size={20} /></div>
+        </article>
+        <article className={styles.gold}>
+          <span><Clock /></span>
           <div>
             <strong>{String(pendingRequests.length).padStart(2, "0")}</strong>
-            <span>Pending Approvals</span>
+            <p>Pending Approvals</p>
           </div>
-        </div>
-
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.iconSky}`}><CheckCircle2 size={20} /></div>
+        </article>
+        <article className={styles.blue}>
+          <span><CheckCircle2 /></span>
           <div>
             <strong>{String(completedCalls.length).padStart(2, "0")}</strong>
-            <span>Completed Calls</span>
+            <p>Completed Calls</p>
           </div>
-        </div>
-
-        <div className={styles.statCard}>
-          <div className={`${styles.statIcon} ${styles.iconPurple}`}><Stethoscope size={20} /></div>
+        </article>
+        <article className={styles.purple}>
+          <span><Stethoscope /></span>
           <div>
             <strong>{String(sessions.length).padStart(2, "0")}</strong>
-            <span>Total Requests</span>
+            <p>Total Requests</p>
           </div>
-        </div>
+        </article>
       </section>
 
-      {/* Approved / Active Ready to Join Section */}
+            {/* Approved / Active Ready to Join Section */}
       {approvedCalls.length > 0 && (
-        <section className={styles.card} style={{ border: "2px solid #10b981" }}>
-          <div className={styles.cardHeader} style={{ background: "#f0fdf4" }}>
+        <section className={styles.readyCard}>
+          <div className={styles.readyHeader}>
+            <div className={styles.readyPulse} />
             <div>
-              <h2 style={{ color: "#166534", display: "flex", alignItems: "center", gap: "8px" }}>
-                <Radio size={18} color="#10b981" className={styles.pulsingIcon} /> Approved Calls Ready to Join
-              </h2>
-              <p style={{ color: "#15803d" }}>Doctor has approved your request. Click Join to start the live encrypted room.</p>
+              <h2>Ready for your consultation</h2>
+              <p>Your doctor has approved your request. Join whenever you’re ready.</p>
             </div>
           </div>
-
           <div className={styles.callsGrid}>
             {approvedCalls.map((session) => (
-              <div key={session.id} className={`${styles.callItem} ${styles.callItemApproved}`}>
-                <div className={styles.itemHeader}>
-                  <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    <div className={styles.doctorAvatar}>
+              <div key={session.id} className={styles.readyContent}>
+                <div className={styles.readyDoctorInfo}>
+                  <div className={styles.readyDoctorLeft}>
+                    <div className={styles.readyAvatar}>
                       {session.doctor?.firstName ? session.doctor.firstName[0] : "DR"}
                     </div>
                     <div>
-                      <strong style={{ fontSize: "15px", color: "#0f172a", display: "block" }}>
-                        {session.doctor?.name || "Medical Specialist"}
-                      </strong>
-                      <span style={{ fontSize: "12px", color: "#64748b" }}>
-                        {session.doctor?.specialization || "Clinical Care"}
-                      </span>
+                      <h3>{session.doctor?.name || "Medical Specialist"}</h3>
+                      <p>{session.doctor?.specialization || "Clinical Care"}</p>
                     </div>
                   </div>
-                  <span className={`${styles.badge} ${styles.badgeApproved}`}>
-                    {session.callType === "video" ? <Video size={12} /> : <Phone size={12} />}
+                  <span className={`${styles.status} ${styles.approved}`}>
                     {session.callType === "video" ? "Video Call" : "Voice Call"}
                   </span>
                 </div>
-
-                <div style={{ fontSize: "13px", color: "#334155", background: "#f8fafc", padding: "10px 12px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                  <strong>Reason:</strong> {session.reason}
-                </div>
-
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    className={styles.joinCallBtn}
-                    onClick={() => handleJoinCall(session)}
-                    disabled={isJoining}
-                  >
-                    {session.callType === "video" ? <Video size={16} /> : <Phone size={16} />}
-                    {isJoining ? "Connecting..." : `Join ${session.callType === "video" ? "Video" : "Voice"} Call Now`}
+                <p className={styles.readyReason}><strong>Reason:</strong> {session.reason}</p>
+                <div className={styles.readyActions}>
+                  <button className={styles.joinCallBtn} onClick={() => handleJoinCall(session)} disabled={isJoining}>
+                    {session.callType === "video" ? <Video size={14} /> : <Phone size={14} />}
+                    {isJoining ? "Connecting..." : `Join ${session.callType === "video" ? "Video" : "Voice"} Call`}
                   </button>
-                  <button
-                    className={styles.chatBtn}
-                    style={{ width: "48px" }}
-                    onClick={() => handleOpenChat(session)}
-                    title="Open Chat"
-                  >
+                  <button className={styles.chatBtn} onClick={() => handleOpenChat(session)} title="Open Chat">
                     <MessageSquare size={16} />
                   </button>
                 </div>
@@ -327,140 +321,160 @@ export default function PatientTeleconsult() {
         </section>
       )}
 
-      {/* Pending Doctor Approvals */}
+            {/* Pending Doctor Approvals */}
       {pendingRequests.length > 0 && (
-        <section className={styles.card}>
-          <div className={styles.cardHeader}>
+        <section className={styles.history}>
+          <header>
             <div>
               <h2>Pending Requests</h2>
               <p>Waiting for the doctor to review and accept your call request.</p>
             </div>
-            <span className={`${styles.badge} ${styles.badgePending}`}>
-              {pendingRequests.length} Pending
-            </span>
-          </div>
-
-          <div className={styles.callsGrid}>
-            {pendingRequests.map((session) => (
-              <div key={session.id} className={styles.callItem}>
-                <div className={styles.itemHeader}>
-                  <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    <div className={styles.doctorAvatar}>
-                      {session.doctor?.firstName ? session.doctor.firstName[0] : "DR"}
-                    </div>
-                    <div>
-                      <strong style={{ fontSize: "14px", color: "#0f172a", display: "block" }}>
-                        {session.doctor?.name || "Medical Specialist"}
-                      </strong>
-                      <span style={{ fontSize: "12px", color: "#64748b" }}>
-                        {session.doctor?.specialization || "General Medicine"}
-                      </span>
-                    </div>
-                  </div>
-                  <span className={`${styles.badge} ${styles.badgePending}`}>
-                    Awaiting Approval
-                  </span>
-                </div>
-
-                <div style={{ fontSize: "12px", color: "#475569" }}>
-                  <strong>Health Concern:</strong> {session.reason}
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px", color: "#94a3b8" }}>
-                  <span>Requested: {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                  <span style={{ textTransform: "capitalize" }}>{session.callType} Call</span>
-                </div>
-              </div>
-            ))}
+          </header>
+          <div className={styles.tableWrap}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Doctor</th>
+                  <th>Date & Time</th>
+                  <th>Type</th>
+                  <th>Reason</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingRequests.map((session) => (
+                  <tr key={session.id}>
+                    <td>
+                      <div className={styles.doctor}>
+                        <span>{session.doctor?.firstName ? session.doctor.firstName[0] : "D"}</span>
+                        <div>
+                          <b>{session.doctor?.name || "Doctor"}</b>
+                          <small>{session.doctor?.specialization || "Specialist"}</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className={styles.withIcon}>
+                        <Clock />
+                        <span>
+                          {new Date(session.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
+                          <small>{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className={styles.withIcon}>
+                        {session.callType === "video" ? <Video /> : <Phone />}
+                        <span>{session.callType === "video" ? "Video Call" : "Voice Call"}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className={styles.withIcon}>
+                        <span>{session.reason}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`${styles.status} ${styles.pending_approval}`}>Pending</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
       )}
 
-      {/* Past Teleconsultation History */}
-      <section className={styles.card}>
-        <div className={styles.cardHeader}>
+            {/* Past Teleconsultation History */}
+      <section className={styles.history}>
+        <header>
           <div>
             <h2>Teleconsultation History</h2>
             <p>Past completed sessions, doctor advice, and chat transcripts.</p>
           </div>
-        </div>
+        </header>
 
         {loading ? (
-          <div style={{ padding: "40px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
-            Loading teleconsultations...
-          </div>
+          <div style={{ padding: "40px", textAlign: "center", color: "#64748b", fontSize: "11px" }}>Loading teleconsultations...</div>
         ) : error ? (
-          <div style={{ padding: "30px", textAlign: "center", color: "#dc2626", fontSize: "13px" }}>
-            {error}
-          </div>
-        ) : sessions.length === 0 ? (
-          <div style={{ padding: "50px", textAlign: "center", color: "#64748b" }}>
-            <Video size={36} color="#94a3b8" style={{ marginBottom: "12px" }} />
-            <h3 style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a", margin: 0 }}>No Teleconsultations Yet</h3>
-            <p style={{ fontSize: "13px", margin: "6px 0 16px 0" }}>Request a remote video or voice consultation with any of our verified doctors.</p>
-            <button className={styles.primaryBtn} style={{ margin: "0 auto" }} onClick={() => setIsModalOpen(true)}>
-              <Plus size={16} /> Request First Call
-            </button>
+          <div style={{ padding: "30px", textAlign: "center", color: "#dc2626", fontSize: "11px" }}>{error}</div>
+        ) : pastSessions.length === 0 ? (
+          <div className={styles.empty}>
+            No past consultations yet. Your completed consultations will appear here.
           </div>
         ) : (
-          <div className={styles.callsGrid}>
-            {sessions.map((session) => {
-              const isCompleted = session.status === "completed";
-              const isRejected = session.status === "rejected";
-
-              return (
-                <div key={session.id} className={styles.callItem}>
-                  <div className={styles.itemHeader}>
-                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                      <div className={styles.doctorAvatar}>
-                        {session.doctor?.firstName ? session.doctor.firstName[0] : "DR"}
-                      </div>
-                      <div>
-                        <strong style={{ fontSize: "14px", color: "#0f172a" }}>
-                          {session.doctor?.name || "Doctor"}
-                        </strong>
-                        <div style={{ fontSize: "11px", color: "#64748b" }}>
-                          {session.doctor?.specialization || "Specialist"}
+          <div className={styles.tableWrap}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Doctor</th>
+                  <th>Date & Time</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pastSessions.map((session) => {
+                  const isCompleted = session.status === "completed";
+                  const isRejected = session.status === "rejected";
+                  return (
+                    <tr key={session.id}>
+                      <td>
+                        <div className={styles.doctor}>
+                          <span>{session.doctor?.firstName ? session.doctor.firstName[0] : "D"}</span>
+                          <div>
+                            <b>{session.doctor?.name || "Doctor"}</b>
+                            <small>{session.doctor?.specialization || "Specialist"}</small>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                    <span className={`${styles.badge} ${
-                      session.status === "approved" ? styles.badgeApproved :
-                      session.status === "pending_approval" ? styles.badgePending :
-                      session.status === "in_call" ? styles.badgeInCall :
-                      isCompleted ? styles.badgeCompleted : styles.badgeRejected
-                    }`}>
-                      {session.status.replace("_", " ")}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: "12px", color: "#334155" }}>
-                    <strong>Concern:</strong> {session.reason}
-                  </div>
-
-                  {session.prescription && (
-                    <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", padding: "8px 10px", borderRadius: "8px", fontSize: "12px", color: "#065f46" }}>
-                      <strong style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "2px" }}>
-                        <Pill size={13} /> Prescription:
-                      </strong>
-                      <span style={{ whiteSpace: "pre-line" }}>{session.prescription}</span>
-                    </div>
-                  )}
-
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px", color: "#94a3b8" }}>
-                    <span>{new Date(session.createdAt).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}</span>
-                    {session.durationSeconds > 0 && <span>Duration: {Math.ceil(session.durationSeconds / 60)}m</span>}
-                  </div>
-
-                  <button className={styles.chatBtn} onClick={() => handleOpenChat(session)}>
-                    <MessageSquare size={14} /> View Chat & Notes
-                  </button>
-                </div>
-              );
-            })}
+                      </td>
+                      <td>
+                        <div className={styles.withIcon}>
+                          <Calendar />
+                          <span>
+                            {new Date(session.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                            <small>{session.durationSeconds ? `Duration: ${Math.ceil(session.durationSeconds / 60)}m` : "—"}</small>
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className={styles.withIcon}>
+                          {session.callType === "video" ? <Video /> : <Phone />}
+                          <span>{session.callType === "video" ? "Video Call" : "Voice Call"}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`${styles.status} ${styles[session.status] || styles.completed}`}>
+                          {session.status.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td>
+                        <button className={styles.more} onClick={() => handleOpenChat(session)}>
+                          <MessageSquare />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
+        </div>
+
+        <aside className={styles.sideColumn}>
+          <section className={styles.quick}>
+            <h2>Quick Actions</h2>
+            <div>
+              <button onClick={() => setIsModalOpen(true)}><span><Video /></span>Consultation</button>
+              <button onClick={() => window.location.href='/patient/doctor'}><span><Stethoscope /></span>Find Doctor</button>
+              <button onClick={() => window.location.href='/patient/documents'}><span><FileText /></span>Documents</button>
+              <button onClick={() => window.location.href='/patient/appointments'}><span><Calendar /></span>Appointments</button>
+            </div>
+          </section>
+        </aside>
+      </div>
 
       {/* Request Call Modal */}
       <AnimatePresence>

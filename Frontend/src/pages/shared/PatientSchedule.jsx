@@ -90,11 +90,11 @@ export default function PatientSchedule() {
   };
 
   return <motion.main className={`${styles.page} workspacePage`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35 }}>
-    <header className={styles.hero}><img src={heroImage} alt="Care calendar with clock and reminder bell" /><div className={styles.heroCopy}><span>CARE CALENDAR</span><h1>Your Schedule</h1><p>Keep track of your appointments, reminders, and follow-ups.</p></div><blockquote>“Small<br />Details.<br /><b>Bigger Care.</b>”</blockquote><button onClick={openReminder}><PlusCircle /> Add Reminder</button></header>
+    <header className={styles.hero}><img src={heroImage} alt="Care calendar with clock and reminder bell" /><div className={styles.heroCopy}><span>CARE CALENDAR</span><h1>Your Schedule</h1><p>Keep track of your appointments, reminders, and follow-ups.</p></div></header>
 
     <div className={styles.scheduleLayout}>
       <section className={styles.calendarCard}>
-        <header><div><h2>{month.toLocaleString("en", { month: "long", year: "numeric" })}</h2><p>Select a date to view your scheduled care.</p></div><nav><button onClick={() => changeMonth(-1)} aria-label="Previous month"><ChevronLeft /></button><button onClick={goToday}>Today</button><button onClick={() => changeMonth(1)} aria-label="Next month"><ChevronRight /></button></nav></header>
+        <header><div><h2>{month.toLocaleString("en", { month: "long", year: "numeric" })}</h2><p>Select a date to view your scheduled care.</p></div><nav><button className={styles.addReminderBtn} onClick={openReminder}><PlusCircle /> Add Reminder</button><button onClick={() => changeMonth(-1)} aria-label="Previous month"><ChevronLeft /></button><button onClick={goToday}>Today</button><button onClick={() => changeMonth(1)} aria-label="Next month"><ChevronRight /></button></nav></header>
         <div className={styles.calendar}><div className={styles.week}>{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div><div className={styles.days}>{calendarDays.map(({ date, current }) => {
           const dayEvents = eventsByDate[dateKey(date)] || [];
           const selected = dateKey(date) === dateKey(selectedDate);
