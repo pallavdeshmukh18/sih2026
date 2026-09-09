@@ -440,3 +440,47 @@ export async function getDoctorPatients(token) {
 export async function revokePatientConnection(patientId, token) {
     return apiRequest(`/api/doctor/patients/${patientId}`, "DELETE", null, token);
 }
+
+// ==================================================
+// TELECONSULTATION (VIDEO/VOICE CALLS & MESSAGING) API CALLS
+// ==================================================
+
+/** Fetch Agora Public Config */
+export async function getAgoraConfig(token) {
+    return apiRequest("/api/teleconsult/config", "GET", null, token);
+}
+
+/** Patient Request Teleconsultation Call */
+export async function requestTeleconsult(callData, token) {
+    return apiRequest("/api/teleconsult/request", "POST", callData, token);
+}
+
+/** Get Teleconsultation Sessions for Authenticated User */
+export async function fetchTeleconsultSessions(token) {
+    return apiRequest("/api/teleconsult/sessions", "GET", null, token);
+}
+
+/** Doctor Respond to Teleconsultation Request (Approve / Reject) */
+export async function respondToTeleconsult(sessionId, action, doctorNotes = "", token) {
+    return apiRequest(`/api/teleconsult/${sessionId}/respond`, "PATCH", { action, doctorNotes }, token);
+}
+
+/** Join Teleconsultation Call (Generates Agora RTC Token) */
+export async function joinTeleconsultSession(sessionId, token) {
+    return apiRequest(`/api/teleconsult/${sessionId}/join`, "POST", null, token);
+}
+
+/** End Teleconsultation Call */
+export async function endTeleconsultSession(sessionId, endData = {}, token) {
+    return apiRequest(`/api/teleconsult/${sessionId}/end`, "POST", endData, token);
+}
+
+/** Fetch Consultation Thread Chat Messages */
+export async function fetchTeleconsultMessages(sessionId, token) {
+    return apiRequest(`/api/teleconsult/${sessionId}/messages`, "GET", null, token);
+}
+
+/** Send Message in Consultation Thread */
+export async function sendTeleconsultMessage(sessionId, message, messageType = "text", token) {
+    return apiRequest(`/api/teleconsult/${sessionId}/messages`, "POST", { message, messageType }, token);
+}

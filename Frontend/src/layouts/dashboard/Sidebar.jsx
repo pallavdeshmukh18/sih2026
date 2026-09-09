@@ -1,7 +1,8 @@
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
     LayoutDashboard, User, Stethoscope, Users, Building, Calendar, 
-    FileText, ClipboardList, Mail, LogOut, UserCog, ShieldCheck
+    FileText, ClipboardList, Video, Mail, LogOut, UserCog, ShieldCheck
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../context/AuthContext';
@@ -107,6 +108,10 @@ const Sidebar = ({ onHoverChange }) => {
                         </NavLink>
                     )}
 
+                    <NavLink to={`${basePath}/teleconsult`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                        <Video size={20} />
+                        <span>{t('navigation.teleconsult', 'Teleconsult')}</span>
+                    </NavLink>
                 </div>
 
                 <div className={styles.sectionTitle}>{t('navigation.others')}</div>

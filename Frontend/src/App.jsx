@@ -25,6 +25,10 @@ import PatientAccess from "./pages/doctor/PatientAccess";
 import TeamManagement from "./pages/doctor/TeamManagement";
 import ComingSoon from "./pages/ComingSoon";
 
+// Teleconsultation Video & Voice Calling Pages
+import PatientTeleconsult from "./pages/patient/PatientTeleconsult";
+import DoctorTeleconsult from "./pages/doctor/DoctorTeleconsult";
+
 // New Shared Pages
 import Account from "./pages/shared/Account";
 import DoctorDirectory from "./pages/shared/DoctorDirectory";
@@ -69,7 +73,9 @@ function App() {
             <Route path="account/link-whatsapp" element={<Account />} />
             <Route path="account/whatsapp" element={<Account />} />
             <Route path="doctor" element={<DoctorDirectory />} />
+            <Route path="teleconsult" element={<PatientTeleconsult />} />
             <Route path="schedule" element={<PatientSchedule />} />
+            <Route path="bed" element={<Navigate to="/patient/teleconsult" replace />} />
             <Route path="mail" element={<Mail />} />
 
             <Route path="" element={<Navigate to="/patient/dashboard" replace />} />
@@ -83,13 +89,15 @@ function App() {
             <Route path="patients" element={<PatientAccess />} />
             <Route path="team" element={<TeamManagement />} />
             
-            {/* Account & WhatsApp Linking Routes */}
+            {/* Doctor Teleconsultation & Shared Modules */}
             <Route path="account" element={<Account />} />
             <Route path="account/link-whatsapp" element={<Account />} />
             <Route path="account/whatsapp" element={<Account />} />
             <Route path="doctor" element={<DoctorDirectory />} />
+            <Route path="teleconsult" element={<DoctorTeleconsult />} />
             <Route path="departments" element={<Departments />} />
             <Route path="schedule" element={<DoctorAppointments />} />
+            <Route path="bed" element={<Navigate to="/doctor/teleconsult" replace />} />
             <Route path="mail" element={<Mail />} />
 
             <Route path="" element={<Navigate to="/doctor/dashboard" replace />} />

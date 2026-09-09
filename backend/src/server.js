@@ -14,6 +14,7 @@ const receptionistRoutes = require("./routes/receptionistRoutes");
 const patientRoutes = require("./routes/patientRoutes");
 const ttsRoutes = require("./routes/ttsRoutes");
 const whatsappRoutes = require("./routes/whatsappRoutes");
+const teleconsultRoutes = require("./routes/teleconsultRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -26,6 +27,7 @@ app.use(cookieParser());
 app.use("/api/auth", authRoutes);
 app.use("/api/patient", patientRoutes);
 app.use("/api/appointments", appointmentRoutes);
+app.use("/api/teleconsult", teleconsultRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/doctor", doctorRoutes);

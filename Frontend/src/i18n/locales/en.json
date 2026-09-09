@@ -23,6 +23,7 @@
     "history": "Medical History",
     "schedule": "Schedule",
     "appointments": "Appointments",
+    "teleconsult": "Teleconsult",
     "documents": "Documents",
     "bedManager": "Bed Manager",
     "payment": "Payment",

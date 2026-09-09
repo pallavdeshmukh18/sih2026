@@ -1,0 +1,448 @@
+.roomContainer {
+  position: fixed;
+  inset: 0;
+  background: #090d16;
+  color: #f8fafc;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+}
+
+.topBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 10;
+}
+
+.peerInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.peerAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0d9488, #0284c7);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
+}
+
+.peerDetails h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  font-family: var(--font-serif, "Playfair Display", serif);
+}
+
+.peerDetails p {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 2px 0 0 0;
+}
+
+.callStatusBadge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #34d399;
+}
+
+.pulsingDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.mainStage {
+  flex: 1;
+  position: relative;
+  display: flex;
+  overflow: hidden;
+}
+
+.videoGrid {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #020617;
+}
+
+.remoteVideoContainer {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.videoElement {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remotePlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.voiceAvatarLarge {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0d9488, #0369a1);
+  display: grid;
+  place-items: center;
+  font-size: 36px;
+  font-weight: 700;
+  color: #ffffff;
+  box-shadow: 0 0 40px rgba(13, 148, 136, 0.35);
+  border: 4px solid rgba(255, 255, 255, 0.15);
+}
+
+.localPip {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 220px;
+  height: 140px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #1e293b;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+  cursor: grab;
+}
+
+.localPipVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* Mirror camera */
+}
+
+.localPipMuted {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #1e293b;
+  color: #94a3b8;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.pipBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* Floating Control Dock */
+.controlDock {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 40px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.4);
+  z-index: 30;
+}
+
+.dockBtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.dockBtn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: scale(1.06);
+}
+
+.dockBtnActive {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.dockBtnDanger {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+}
+
+.dockBtnDanger:hover {
+  background: #dc2626;
+  transform: scale(1.08);
+}
+
+.badgeUnread {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: white;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+}
+
+/* Side Drawer (Chat / Doctor Clinical Notes) */
+.sideDrawer {
+  width: 360px;
+  background: #0f172a;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 25;
+}
+
+.drawerTabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.drawerTabBtn {
+  flex: 1;
+  padding: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.drawerTabBtnActive {
+  color: #38bdf8;
+  border-bottom-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.05);
+}
+
+.chatMessages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chatBubble {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.chatBubbleMe {
+  align-self: flex-end;
+  background: #0284c7;
+  color: #ffffff;
+  border-bottom-right-radius: 2px;
+}
+
+.chatBubblePeer {
+  align-self: flex-start;
+  background: #1e293b;
+  color: #e2e8f0;
+  border-bottom-left-radius: 2px;
+}
+
+.chatBubbleSystem {
+  align-self: center;
+  background: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+  font-size: 11px;
+  border-radius: 10px;
+  padding: 6px 12px;
+  text-align: center;
+}
+
+.chatBubblePrescription {
+  align-self: flex-start;
+  background: #064e3b;
+  border: 1px solid #059669;
+  color: #ecfdf5;
+  border-radius: 12px;
+}
+
+.chatMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.chatInputArea {
+  padding: 14px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.chatInput {
+  flex: 1;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 10px 16px;
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+}
+
+.chatInput:focus {
+  border-color: #38bdf8;
+}
+
+.chatSendBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #0284c7;
+  color: white;
+  border: none;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.chatSendBtn:hover {
+  transform: scale(1.08);
+  background: #0369a1;
+}
+
+/* Notes & Prescription View for Doctor */
+.clinicalDrawerContent {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.textarea {
+  width: 100%;
+  height: 90px;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px;
+  color: #ffffff;
+  font-size: 13px;
+  resize: vertical;
+  outline: none;
+}
+
+.textarea:focus {
+  border-color: #0d9488;
+}
+
+@media (max-width: 768px) {
+  .sideDrawer {
+    position: absolute;
+    right: 0;
+    top: 60px;
+    bottom: 0;
+    width: 100%;
+    max-width: 320px;
+  }
+  .localPip {
+    width: 120px;
+    height: 80px;
+    bottom: 90px;
+    right: 12px;
+  }
+  .controlDock {
+    bottom: 16px;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .dockBtn {
+    width: 40px;
+    height: 40px;
+  }
+}
