@@ -34,6 +34,77 @@
   --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+body.dark-theme {
+  --color-dark: #f8fafc;
+  --color-light: #0f172a;
+  --color-light-grey: #1e293b;
+  --color-border: #334155;
+  --color-text-muted: #94a3b8;
+  --color-text: #cbd5e1;
+  --color-bg: #0b0f19;
+  background-color: var(--color-bg) !important;
+  color: var(--color-dark) !important;
+}
+
+body.dark-theme header,
+body.dark-theme aside,
+body.dark-theme [class*="topbar"],
+body.dark-theme [class*="sidebar"],
+body.dark-theme [class*="patientSidebar"],
+body.dark-theme [class*="doctorSidebar"] {
+  background: #111827 !important;
+  border-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+body.dark-theme [class*="mainWrapper"],
+body.dark-theme [class*="mainContent"] {
+  background-color: #0b0f19 !important;
+  background-image: none !important;
+  color: #f3f4f6 !important;
+}
+
+body.dark-theme [class*="card"],
+body.dark-theme [class*="optionCard"],
+body.dark-theme [class*="langCard"],
+body.dark-theme [class*="workspaceCard"],
+body.dark-theme [class*="themeOption"] {
+  background: #111827 !important;
+  border-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+body.dark-theme [class*="optionTitle"],
+body.dark-theme [class*="langNative"],
+body.dark-theme [class*="toggleTitle"],
+body.dark-theme [class*="themeLabel"],
+body.dark-theme [class*="userName"],
+body.dark-theme h1,
+body.dark-theme h2,
+body.dark-theme h3,
+body.dark-theme h4 {
+  color: #f9fafb !important;
+}
+
+body.dark-theme [class*="optionDesc"],
+body.dark-theme [class*="langEnglish"],
+body.dark-theme [class*="toggleDesc"],
+body.dark-theme [class*="subtitle"],
+body.dark-theme [class*="breadcrumb"],
+body.dark-theme p,
+body.dark-theme span {
+  color: #9ca3af;
+}
+
+body.dark-theme [class*="langSelectorWrapper"] {
+  background: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+body.dark-theme [class*="langSelect"] {
+  color: #f3f4f6 !important;
+}
+
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 80px; /* Account for fixed navbar height */

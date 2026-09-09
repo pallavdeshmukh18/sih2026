@@ -3,20 +3,15 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Building2, Calendar, CheckCircle, ChevronDown, Heart, MapPin, Search, Stethoscope, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../i18n";
 import { createAppointment, fetchPublicDoctors } from "../../services/api";
+import { formatDoctorName, translateClinicalTerm, translateDepartment } from "../../utils/transliterate";
 import heroImage from "../../assets/doctor-directory-hero.png";
 import styles from "./DoctorDirectory.module.css";
 
-const specialties = ["All Specialties", "General Medicine", "Cardiology", "Dermatology", "Pediatrics", "Gynecology", "Orthopedics", "Neurology"];
-
-const formatDoctorName = (doctor) => {
-  const suppliedName = doctor?.name || [doctor?.firstName, doctor?.lastName].filter(Boolean).join(" ");
-  const nameWithoutTitle = suppliedName.replace(/^(?:dr\.?\s*)+/i, "").trim();
-  return `Dr. ${nameWithoutTitle || "Doctor"}`;
-};
-
 export default function DoctorDirectory() {
   const { token } = useAuth();
+  const { t, language } = useLanguage();
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,6 +26,17 @@ export default function DoctorDirectory() {
   const [reason, setReason] = useState("General Clinical Consultation");
   const [notes, setNotes] = useState("");
   const [booking, setBooking] = useState(false);
+
+  const specialtiesList = [
+    { key: "All Specialties", label: t("doctors.allSpecialties", "All Specialties") },
+    { key: "General Medicine", label: t("doctors.generalMedicine", "General Medicine") },
+    { key: "Cardiology", label: t("doctors.cardiology", "Cardiology") },
+    { key: "Dermatology", label: t("doctors.dermatology", "Dermatology") },
+    { key: "Pediatrics", label: t("doctors.pediatrics", "Pediatrics") },
+    { key: "Gynecology", label: t("doctors.gynecology", "Gynecology") },
+    { key: "Orthopedics", label: t("doctors.orthopedics", "Orthopedics") },
+    { key: "Neurology", label: t("doctors.neurology", "Neurology") },
+  ];
 
   useEffect(() => {
     fetchPublicDoctors(token).then((res) => setDoctors(res?.doctors || [])).catch(() => setError("Unable to load doctors right now.")).finally(() => setLoading(false));
@@ -61,7 +67,7 @@ export default function DoctorDirectory() {
     setBooking(true);
     try {
       await createAppointment({ doctorId: selectedDoctor.id, scheduledAt: new Date(scheduledAt).toISOString(), durationMinutes: 30, appointmentType, reason, notes }, token);
-      toast.success(`Appointment booked with ${formatDoctorName(selectedDoctor)}.`);
+      toast.success(t("doctors.bookingSuccess", "Appointment booked successfully!"));
       setSelectedDoctor(null);
     } catch (bookingError) {
       toast.error(bookingError.message || "Unable to book this appointment.");
@@ -76,47 +82,155 @@ export default function DoctorDirectory() {
     return next;
   });
 
+  const translateSpec = (spec) => {
+    if (!spec) return t("doctors.generalMedicine", "General Medicine");
+    const clinical = translateClinicalTerm(spec, "specializations", language);
+    if (clinical && clinical !== spec) return clinical;
+    const normalized = spec.toLowerCase().trim();
+    if (normalized === "horn" || normalized === "ent") return translateClinicalTerm("horn", "specializations", language);
+    if (normalized.includes("cardio")) return t("doctors.cardiology", "Cardiology");
+    if (normalized.includes("dent")) return translateClinicalTerm("dental", "specializations", language) || t("doctors.dental", "Dental");
+    if (normalized.includes("derma")) return t("doctors.dermatology", "Dermatology");
+    if (normalized.includes("pediat")) return t("doctors.pediatrics", "Pediatrics");
+    if (normalized.includes("gynec") || normalized.includes("obste")) return t("doctors.gynecology", "Gynecology");
+    if (normalized.includes("ortho")) return t("doctors.orthopedics", "Orthopedics");
+    if (normalized.includes("neuro")) return t("doctors.neurology", "Neurology");
+    if (normalized.includes("general") || normalized.includes("internal")) return t("doctors.generalMedicine", "General Medicine");
+    return spec;
+  };
+
   return (
     <div className={`${styles.page} workspacePage`}>
       <section className={styles.hero}>
-        <div className={styles.heroCopy}><span>Doctor Directory</span><h1>Find the Right Care, Near You</h1><p>Browse verified doctors, check availability and book appointments with ease.</p></div>
-        <img src={heroImage} alt="Doctor consulting with a patient" />
+        <div className={styles.heroCopy}>
+          <span>{t("navigation.doctors", "Doctor Directory")}</span>
+          <h1>{t("doctors.pageTitle", "Find Your Doctor")}</h1>
+          <p>{t("doctors.pageSub", "Browse verified specialists, check availability, and schedule in-person or video consultations.")}</p>
+        </div>
+        <img src={heroImage} alt="Doctor directory illustration" />
+      </section>
+
+      <section className={styles.searchSection}>
         <form className={styles.searchBar} onSubmit={(event) => event.preventDefault()}>
-          <label><Search /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by doctor name, specialty, or hospital..." /></label>
-          <label className={styles.compact}><MapPin /><select value={location} onChange={(event) => setLocation(event.target.value)}><option>Mumbai</option><option>Delhi</option><option>Bengaluru</option><option>Chennai</option></select><ChevronDown /></label>
-          <label className={styles.compact}><Calendar /><input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
-          <button>Search</button>
+          <label>
+            <Search />
+            <input type="text" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("doctors.searchPlaceholder", "Search doctors by name, specialty, or clinic...")} />
+          </label>
+          <label className={styles.compact}>
+            <MapPin />
+            <select value={location} onChange={(event) => setLocation(event.target.value)}>
+              <option value="Mumbai">{translateClinicalTerm("Mumbai", "locations", language) || "Mumbai"}</option>
+              <option value="Navi Mumbai">{translateClinicalTerm("Navi Mumbai", "locations", language) || "Navi Mumbai"}</option>
+              <option value="Thane">{translateClinicalTerm("Thane", "locations", language) || "Thane"}</option>
+              <option value="Pune">{translateClinicalTerm("Pune", "locations", language) || "Pune"}</option>
+            </select>
+            <ChevronDown />
+          </label>
+          <label className={styles.compact}>
+            <Calendar />
+            <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+          </label>
+          <button>{t("common.search", "Search")}</button>
         </form>
       </section>
 
       <section className={styles.directory}>
-        <div className={styles.filterHeader}><h2>Popular Specialties</h2><label>Sort by <select><option>Relevance</option><option>Experience</option><option>Rating</option></select></label></div>
-        <div className={styles.chips}>{specialties.map((item) => <button key={item} className={specialty === item ? styles.active : ""} onClick={() => setSpecialty(item)}><Stethoscope />{item}</button>)}</div>
+        <div className={styles.filterHeader}>
+          <h2>{t("doctors.allSpecialties", "Popular Specialties")}</h2>
+          <label>
+            {t("doctors.sortBy", "Sort by")}{" "}
+            <select>
+              <option>{t("doctors.relevance", "Relevance")}</option>
+              <option>{t("doctors.experienceSort", "Experience")}</option>
+              <option>{t("doctors.ratingSort", "Rating")}</option>
+            </select>
+          </label>
+        </div>
+        <div className={styles.chips}>
+          {specialtiesList.map(({ key, label }) => (
+            <button key={key} className={specialty === key ? styles.active : ""} onClick={() => setSpecialty(key)}>
+              <Stethoscope />{label}
+            </button>
+          ))}
+        </div>
 
-        {loading ? <div className={styles.doctorGrid}>{Array.from({ length: 8 }, (_, index) => <div key={index} className={`${styles.doctorCard} ${styles.skeleton}`} />)}</div>
-          : error ? <div className={styles.empty}>{error}</div>
-          : filteredDoctors.length === 0 ? <div className={styles.empty}>No verified doctors match your search.</div>
-          : <motion.div className={styles.doctorGrid} layout>
+        {loading ? (
+          <div className={styles.doctorGrid}>{Array.from({ length: 8 }, (_, index) => <div key={index} className={`${styles.doctorCard} ${styles.skeleton}`} />)}</div>
+        ) : error ? (
+          <div className={styles.empty}>{error}</div>
+        ) : filteredDoctors.length === 0 ? (
+          <div className={styles.empty}>{t("doctors.noDoctors", "No verified doctors match your search.")}</div>
+        ) : (
+          <motion.div className={styles.doctorGrid} layout>
             <AnimatePresence>
               {filteredDoctors.map((doctor, index) => {
                 const initials = `${doctor.firstName?.[0] || "D"}${doctor.lastName?.[0] || "R"}`.toUpperCase();
-                return <motion.article layout key={doctor.id} className={styles.doctorCard} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: Math.min(index * .025, .15) }}>
-                  <button className={`${styles.favorite} ${favorites.has(doctor.id) ? styles.liked : ""}`} onClick={() => toggleFavorite(doctor.id)} aria-label="Save doctor"><Heart /></button>
-                  <div className={styles.avatar}>{initials}</div>
-                  <div className={styles.doctorInfo}><span className={styles.availability}>{index % 3 === 2 ? "Available Tomorrow" : "Available Today"}</span><h3>{formatDoctorName(doctor)} <CheckCircle /></h3><p>{doctor.specialization || "General Medicine"}</p><small>{8 + index}+ years experience</small><small><Building2 /> {doctor.department || `${location} Medical Centre`}</small><small className={styles.rating}>★ <b>{(4.6 + (index % 4) / 10).toFixed(1)}</b> ({87 + index * 19} reviews)</small></div>
-                  <div className={styles.cardActions}><button>View Profile</button><button onClick={() => openBooking(doctor)}><Calendar /> Book Appointment</button></div>
-                </motion.article>;
+                return (
+                  <motion.article layout key={doctor.id} className={styles.doctorCard} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: Math.min(index * .025, .15) }}>
+                    <button className={`${styles.favorite} ${favorites.has(doctor.id) ? styles.liked : ""}`} onClick={() => toggleFavorite(doctor.id)} aria-label="Save doctor"><Heart /></button>
+                    <div className={styles.avatar}>{initials}</div>
+                    <div className={styles.doctorInfo}>
+                      <span className={styles.availability}>{index % 3 === 2 ? t("doctors.availableTomorrow", "Available Tomorrow") : t("doctors.availableToday", "Available Today")}</span>
+                      <h3>{formatDoctorName(doctor, language)} <CheckCircle /></h3>
+                      <p>{translateSpec(doctor.specialization)}</p>
+                      <small>{8 + index}+ {t("doctors.yearsExperience", "years experience")}</small>
+                      <small><Building2 /> {translateDepartment(doctor.department, language) || `${translateClinicalTerm(location, "locations", language) || location} ${t("doctors.medicalCentre", "Medical Centre")}`}</small>
+                      <small className={styles.rating}>★ <b>{(4.6 + (index % 4) / 10).toFixed(1)}</b> ({87 + index * 19} {t("doctors.reviews", "reviews")})</small>
+                    </div>
+                    <div className={styles.cardActions}>
+                      <button>{t("common.view", "View Profile")}</button>
+                      <button onClick={() => openBooking(doctor)}><Calendar /> {t("doctors.bookAppointment", "Book Appointment")}</button>
+                    </div>
+                  </motion.article>
+                );
               })}
             </AnimatePresence>
-          </motion.div>}
-        <footer className={styles.results}>Showing {filteredDoctors.length} of {doctors.length} doctors <span><button>‹</button><button className={styles.current}>1</button><button>2</button><button>3</button><button>›</button></span></footer>
+          </motion.div>
+        )}
+        <footer className={styles.results}>
+          {t("doctors.showingCount", `Showing ${filteredDoctors.length} of ${doctors.length} doctors`, { count: filteredDoctors.length, total: doctors.length })}
+        </footer>
       </section>
 
       <AnimatePresence>
-        {selectedDoctor && <motion.div className={styles.backdrop} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedDoctor(null)}><motion.div className={styles.modal} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }} onClick={(event) => event.stopPropagation()}>
-          <header><div><span>Book Appointment</span><h2>{formatDoctorName(selectedDoctor)}</h2><p>{selectedDoctor.specialization}</p></div><button onClick={() => setSelectedDoctor(null)}><X /></button></header>
-          <form onSubmit={confirmBooking}><label>Date & time<input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} required /></label><label>Consultation type<select value={appointmentType} onChange={(event) => setAppointmentType(event.target.value)}><option value="in_person">In-person consultation</option><option value="teleconsultation">Teleconsultation</option></select></label><label>Reason for visit<input value={reason} onChange={(event) => setReason(event.target.value)} required /></label><label>Additional notes<textarea value={notes} onChange={(event) => setNotes(event.target.value)} /></label><button className={styles.confirm} disabled={booking}>{booking ? "Booking…" : "Confirm Appointment"}</button></form>
-        </motion.div></motion.div>}
+        {selectedDoctor && (
+          <motion.div className={styles.backdrop} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedDoctor(null)}>
+            <motion.div className={styles.modal} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }} onClick={(event) => event.stopPropagation()}>
+              <header>
+                <div>
+                  <span>{t("doctors.bookingTitle", "Book Appointment")}</span>
+                  <h2>{formatDoctorName(selectedDoctor, language)}</h2>
+                  <p>{translateSpec(selectedDoctor.specialization)}</p>
+                </div>
+                <button onClick={() => setSelectedDoctor(null)}><X /></button>
+              </header>
+              <form onSubmit={confirmBooking}>
+                <label>
+                  {t("doctors.dateTimeLabel", "Date & time")}
+                  <input type="datetime-local" value={scheduledAt} onChange={(event) => setScheduledAt(event.target.value)} required />
+                </label>
+                <label>
+                  {t("doctors.consultationType", "Consultation type")}
+                  <select value={appointmentType} onChange={(event) => setAppointmentType(event.target.value)}>
+                    <option value="in_person">{t("doctors.inPersonType", "In-person consultation")}</option>
+                    <option value="teleconsultation">{t("doctors.teleconsultType", "Teleconsultation")}</option>
+                  </select>
+                </label>
+                <label>
+                  {t("doctors.reasonLabel", "Reason for visit")}
+                  <input value={reason} onChange={(event) => setReason(event.target.value)} required />
+                </label>
+                <label>
+                  {t("doctors.notesLabel", "Additional notes")}
+                  <textarea value={notes} onChange={(event) => setNotes(event.target.value)} />
+                </label>
+                <button className={styles.confirm} disabled={booking}>
+                  {booking ? t("doctors.booking", "Booking…") : t("doctors.confirmBooking", "Confirm Appointment")}
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

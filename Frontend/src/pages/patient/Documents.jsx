@@ -62,7 +62,7 @@ function formatDate(value) {
 export default function Documents() {
   const { user, token } = useAuth();
   const patientId = user?.id;
-  const { currentLanguage } = useLanguage();
+  const { currentLanguage, t } = useLanguage();
   const fileInputRef = useRef(null);
   const scanInputRef = useRef(null);
   const aiInputRef = useRef(null);
@@ -163,12 +163,12 @@ export default function Documents() {
     }
   };
 
-  const handleDelete = async (documentOrId) => {
+  const handleDelete = async (documentOrId, skipConfirm = false) => {
     const doc = typeof documentOrId === "object"
       ? documentOrId
       : documents.find((item) => item.id === documentOrId);
     if (!doc) return;
-    if (!window.confirm(`Delete “${doc.file_name}”? This cannot be undone.`)) return;
+    if (!skipConfirm && !window.confirm(`Delete “${doc.file_name}”? This cannot be undone.`)) return;
     try {
       await deleteMedicalDocument(doc.id, token);
       setDocuments((current) => current.filter((item) => item.id !== doc.id));
@@ -204,9 +204,9 @@ export default function Documents() {
     <motion.main className={`${styles.page} workspacePage`} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <header className={styles.hero}>
         <div className={styles.heroCopy}>
-          <span className={styles.eyebrow}>Medical documents</span>
-          <h1>Medical Documents &amp; Intelligence</h1>
-          <p>Upload, organize, and ask grounded questions about your prescriptions, lab reports, and medical records.</p>
+          <span className={styles.eyebrow}>{t("navigation.documents", "Medical documents")}</span>
+          <h1>{t("documents.vaultTitle", "Medical Documents & Intelligence")}</h1>
+          <p>{t("documents.vaultSubtitle", "Upload, organize, and ask grounded questions about your prescriptions, lab reports, and medical records.")}</p>
         </div>
         <img src={medicalDocsHero} alt="Illustrated medical records surrounded by leaves" />
         <blockquote>“Organized today.<br />Healthier tomorrow.”</blockquote>
@@ -225,8 +225,8 @@ export default function Documents() {
             onKeyDown={(event) => { if (event.key === "Enter") fileInputRef.current?.click(); }}
           >
             <UploadCloud className={styles.uploadIcon} size={34} strokeWidth={1.8} />
-            <strong>Upload Medical File</strong>
-            <span>Drag and drop your file here, or <u>click to browse</u></span>
+            <strong>{t("documents.uploadTitle", "Upload Medical File")}</strong>
+            <span>{t("documents.dropText", "Drag and drop your file here, or")} <u>{t("documents.browseFiles", "click to browse")}</u></span>
             <small>PDF, JPG, JPEG, or PNG · Maximum file size 15 MB</small>
             <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(event) => processUpload(event.target.files?.[0])} hidden />
             <AnimatePresence>
@@ -244,25 +244,25 @@ export default function Documents() {
           <div className={styles.filters}>
             <label className={styles.searchField}>
               <Search size={18} />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search documents by name, type, or description…" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("documents.searchPlaceholder", "Search documents by name, type, or description…")} />
             </label>
             <label className={styles.selectField}>
               <FileText size={17} />
               <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                <option value="all">All Types</option>
-                <option value="lab">Lab Reports</option>
-                <option value="prescription">Prescriptions</option>
-                <option value="imaging">Imaging</option>
-                <option value="discharge">Discharge</option>
-                <option value="other">Other Records</option>
+                <option value="all">{t("documents.filterAll", "All Types")}</option>
+                <option value="lab">{t("documents.filterLab", "Lab Reports")}</option>
+                <option value="prescription">{t("documents.filterPrescription", "Prescriptions")}</option>
+                <option value="imaging">{t("documents.filterScan", "Imaging")}</option>
+                <option value="discharge">{t("documents.filterDischarge", "Discharge")}</option>
+                <option value="other">{t("documents.filterOther", "Other Records")}</option>
               </select>
               <ChevronDown size={15} />
             </label>
             <label className={styles.selectField}>
               <FolderOpen size={17} />
               <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>
-                <option value="recent">Last Updated</option>
-                <option value="oldest">Oldest First</option>
+                <option value="recent">{t("appointments.statusCompleted", "Last Updated")}</option>
+                <option value="oldest">{t("appointments.rangeAll", "Oldest First")}</option>
               </select>
               <ChevronDown size={15} />
             </label>
@@ -271,21 +271,29 @@ export default function Documents() {
           <section className={styles.recordsCard}>
             <div className={styles.recordsHeader}>
               <div>
-                <h2>Your Document Records</h2>
-                <p>{visibleDocuments.length} {visibleDocuments.length === 1 ? "document" : "documents"} · {sortOrder === "recent" ? "Newest first" : "Oldest first"}</p>
+                <h2>{t("documents.recentDocuments", "Your Document Records")}</h2>
+                <p>{visibleDocuments.length} {visibleDocuments.length === 1 ? "document" : "documents"}</p>
               </div>
             </div>
 
             {loading ? (
-              <div className={styles.emptyState}><Loader2 className={styles.spin} /><strong>Loading your records…</strong></div>
+              <div className={styles.emptyState}><Loader2 className={styles.spin} /><strong>{t("common.loading", "Loading your records…")}</strong></div>
             ) : error ? (
-              <div className={`${styles.emptyState} ${styles.errorState}`}><AlertCircle /><strong>{error}</strong><button onClick={() => fetchDocuments()}>Try again</button></div>
+              <div className={`${styles.emptyState} ${styles.errorState}`}><AlertCircle /><strong>{error}</strong><button onClick={() => fetchDocuments()}>{t("common.retry", "Try again")}</button></div>
             ) : visibleDocuments.length === 0 ? (
-              <div className={styles.emptyState}><div className={styles.emptyIcon}><FileText /></div><strong>{documents.length ? "No matching documents" : "No documents uploaded yet"}</strong><span>{documents.length ? "Try adjusting your search or filters." : "Upload your first record to keep your health files in one secure place."}</span></div>
+              <div className={styles.emptyState}><div className={styles.emptyIcon}><FileText /></div><strong>{documents.length ? t("documents.noDocsFound", "No matching documents") : t("documents.noDocsYet", "No documents uploaded yet")}</strong><span>{documents.length ? "Try adjusting your search or filters." : "Upload your first record to keep your health files in one secure place."}</span></div>
             ) : (
               <div className={styles.tableWrap}>
                 <table>
-                  <thead><tr><th>Name</th><th>Type</th><th>Uploaded on</th><th>Size</th><th>Actions</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>{t("common.name", "Name")}</th>
+                      <th>{t("doctors.consultationType", "Type")}</th>
+                      <th>{t("appointments.date", "Uploaded on")}</th>
+                      <th>Size</th>
+                      <th>{t("common.actions", "Actions")}</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {visibleDocuments.map((doc) => {
                       const type = classifyDocument(doc);
@@ -293,17 +301,22 @@ export default function Documents() {
                       const isImage = doc.file_type?.includes("image");
                       return (
                         <tr key={doc.id}>
-                          <td><div className={styles.documentName}><span className={`${styles.fileIcon} ${styles[type.key]}`}>{isImage ? <FileImage /> : <FileText />}</span><span><strong>{doc.file_name || "Untitled document"}</strong><small>{doc.ocr_status === "completed" ? "Ready for AI questions" : "Processing document"}</small></span></div></td>
+                          <td><div className={styles.documentName}><span className={`${styles.fileIcon} ${styles[type.key]}`}>{isImage ? <FileImage /> : <FileText />}</span><span><strong>{doc.file_name || "Untitled document"}</strong><small>{doc.ocr_status === "completed" ? t("documents.ocrCompleted", "Ready for AI questions") : t("documents.processingOcr", "Processing document")}</small></span></div></td>
                           <td><span className={`${styles.typeBadge} ${styles[type.key]}`}>{type.label}</span></td>
                           <td><span className={styles.dateCell}>{date.date}<small>{date.time}</small></span></td>
                           <td className={styles.sizeCell}>{formatBytes(doc.file_size)}</td>
                           <td>
                             <div className={styles.rowActions}>
-                              <button className={styles.viewButton} onClick={() => setSelectedDoc(doc)}><Eye size={15} /> View</button>
+                              <button className={styles.viewButton} onClick={() => setSelectedDoc(doc)}><Eye size={15} /> {t("common.view", "View")}</button>
                               <div className={styles.menuWrap}>
                                 <button className={styles.iconButton} aria-label={`More actions for ${doc.file_name}`} onClick={() => setMenuDocId((current) => current === doc.id ? null : doc.id)}><MoreHorizontal size={18} /></button>
                                 <AnimatePresence>
-                                  {menuDocId === doc.id && <motion.div className={styles.rowMenu} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}><button onClick={() => { setSelectedDoc(doc); setMenuDocId(null); }}><Eye size={14} /> Open details</button><button className={styles.deleteAction} onClick={() => handleDelete(doc)}><Trash2 size={14} /> Delete</button></motion.div>}
+                                  {menuDocId === doc.id && (
+                                    <motion.div className={styles.rowMenu} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                                      <button onClick={() => { setSelectedDoc(doc); setMenuDocId(null); }}><Eye size={14} /> {t("documents.viewDetails", "Open details")}</button>
+                                      <button className={styles.deleteAction} onClick={() => handleDelete(doc)}><Trash2 size={14} /> {t("common.delete", "Delete")}</button>
+                                    </motion.div>
+                                  )}
                                 </AnimatePresence>
                               </div>
                             </div>
@@ -320,27 +333,27 @@ export default function Documents() {
 
         <aside className={styles.sideColumn}>
           <section className={styles.sideCard}>
-            <h2>Quick Actions</h2>
-            <button onClick={() => fileInputRef.current?.click()}><span><UploadCloud /></span>Upload Document<ChevronRight /></button>
-            <button onClick={() => scanInputRef.current?.click()}><span><FileScan /></span>Scan Document<ChevronRight /></button>
-            <button onClick={openAiPanel}><span><Sparkles /></span>Ask AI about Document<ChevronRight /></button>
-            <button onClick={() => setSortOrder("recent")}><span><FolderOpen /></span>Organize Files<ChevronRight /></button>
+            <h2>{t("dashboard.quickActions", "Quick Actions")}</h2>
+            <button onClick={() => fileInputRef.current?.click()}><span><UploadCloud /></span>{t("history.uploadRecord", "Upload Document")}<ChevronRight /></button>
+            <button onClick={() => scanInputRef.current?.click()}><span><FileScan /></span>{t("documents.filterScan", "Scan Document")}<ChevronRight /></button>
+            <button onClick={openAiPanel}><span><Sparkles /></span>{t("documents.askAi", "Ask AI about Document")}<ChevronRight /></button>
+            <button onClick={() => setSortOrder("recent")}><span><FolderOpen /></span>{t("documents.filterAll", "Organize Files")}<ChevronRight /></button>
             <input ref={scanInputRef} type="file" accept="image/*" capture="environment" onChange={(event) => processUpload(event.target.files?.[0])} hidden />
           </section>
 
           <AnimatePresence>
             {showAi && (
               <motion.section className={`${styles.sideCard} ${styles.aiCard}`} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                <div className={styles.aiHeader}><div><Sparkles size={18} /><h2>Ask your document</h2></div><button aria-label="Close AI panel" onClick={() => setShowAi(false)}><X size={16} /></button></div>
+                <div className={styles.aiHeader}><div><Sparkles size={18} /><h2>{t("documents.askAiDrawerTitle", "Ask your document")}</h2></div><button aria-label="Close AI panel" onClick={() => setShowAi(false)}><X size={16} /></button></div>
                 {documents.length ? (
                   <form onSubmit={handleAskAi}>
                     <select value={aiDocId} onChange={(event) => { setAiDocId(event.target.value); setAiAnswer(""); }}>
                       {documents.map((doc) => <option key={doc.id} value={doc.id}>{doc.file_name}</option>)}
                     </select>
-                    <div className={styles.aiQuestion}><input ref={aiInputRef} value={aiQuestion} onChange={(event) => setAiQuestion(event.target.value)} placeholder="What does this report mean?" /><button disabled={aiLoading || !aiQuestion.trim()}>{aiLoading ? <Loader2 className={styles.spin} /> : <Send />}</button></div>
+                    <div className={styles.aiQuestion}><input ref={aiInputRef} value={aiQuestion} onChange={(event) => setAiQuestion(event.target.value)} placeholder={t("documents.askPlaceholder", "What does this report mean?")} /><button disabled={aiLoading || !aiQuestion.trim()}>{aiLoading ? <Loader2 className={styles.spin} /> : <Send />}</button></div>
                     {aiAnswer && <p className={styles.aiAnswer}>{aiAnswer}</p>}
                   </form>
-                ) : <p className={styles.aiHint}>Upload a processed document before asking a question.</p>}
+                ) : <p className={styles.aiHint}>{t("documents.noRecordSelected", "Upload a processed document before asking a question.")}</p>}
               </motion.section>
             )}
           </AnimatePresence>

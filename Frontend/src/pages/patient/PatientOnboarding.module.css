@@ -257,6 +257,18 @@
   text-transform: uppercase;
 }
 
+.inlineRecBadge {
+  position: static;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
 /* Option Cards (Interaction & Accessibility) */
 .optionsList {
   display: flex;

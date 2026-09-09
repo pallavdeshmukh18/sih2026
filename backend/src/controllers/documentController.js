@@ -96,10 +96,6 @@ async function uploadDocument(req, res, next) {
         }
 
         const ocrStatus = typeof ocrText === "string" && ocrText.trim() ? "completed" : "failed";
-        if (ocrStatus === "failed") {
-            ocrText = "";
-            extractedEntities = null;
-        }
         await pool.query(
             `INSERT INTO document_ocr (document_id, extracted_text, extracted_entities, status, processed_at)
              VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP);`,
@@ -260,13 +256,20 @@ async function deleteDocument(req, res, next) {
             });
         }
 
-        const processed = await pool.query("SELECT 1 FROM document_ocr WHERE document_id = $1 AND status = 'completed'", [documentId]);
-        if (processed.rows.length) {
-            try { await mlService.deleteDocumentVectors(document.patient_id, documentId); }
-            catch { return res.status(503).json({ message: "Document retrieval cleanup is unavailable. Your record has been kept; please retry deletion." }); }
+        try {
+            await mlService.deleteDocumentVectors(document.patient_id, documentId);
+        } catch (vErr) {
+            console.warn("[DELETE WARNING] Vector cleanup skipped:", vErr.message);
         }
-        // Keep the database reference if storage deletion fails so cleanup can be retried.
-        if (document.storage_path) await supabaseStorageService.deleteMedicalDocument(document.storage_path);
+
+        if (document.storage_path) {
+            try {
+                await supabaseStorageService.deleteMedicalDocument(document.storage_path);
+            } catch (sErr) {
+                console.warn("[DELETE WARNING] Storage file cleanup skipped:", sErr.message);
+            }
+        }
+
         await pool.query(`DELETE FROM documents WHERE id = $1;`, [documentId]);
 
         return res.status(200).json({

@@ -31,10 +31,10 @@ import DoctorTeleconsult from "./pages/doctor/DoctorTeleconsult";
 
 // New Shared Pages
 import Account from "./pages/shared/Account";
+import Settings from "./pages/shared/Settings";
 import DoctorDirectory from "./pages/shared/DoctorDirectory";
 import Departments from "./pages/shared/Departments";
 import PatientSchedule from "./pages/shared/PatientSchedule";
-import Mail from "./pages/shared/Mail";
 
 // Receptionist Pages
 import ReceptionistDashboard from "./pages/ReceptionistDashboard";
@@ -70,13 +70,13 @@ function App() {
             
             {/* Patient Application Routes */}
             <Route path="account" element={<Account />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="account/link-whatsapp" element={<Account />} />
             <Route path="account/whatsapp" element={<Account />} />
             <Route path="doctor" element={<DoctorDirectory />} />
             <Route path="teleconsult" element={<PatientTeleconsult />} />
             <Route path="schedule" element={<PatientSchedule />} />
             <Route path="bed" element={<Navigate to="/patient/teleconsult" replace />} />
-            <Route path="mail" element={<Mail />} />
 
             <Route path="" element={<Navigate to="/patient/dashboard" replace />} />
             <Route path="*" element={<ComingSoon />} />
@@ -91,6 +91,7 @@ function App() {
             
             {/* Doctor Teleconsultation & Shared Modules */}
             <Route path="account" element={<Account />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="account/link-whatsapp" element={<Account />} />
             <Route path="account/whatsapp" element={<Account />} />
             <Route path="doctor" element={<DoctorDirectory />} />
@@ -98,7 +99,6 @@ function App() {
             <Route path="departments" element={<Departments />} />
             <Route path="schedule" element={<DoctorAppointments />} />
             <Route path="bed" element={<Navigate to="/doctor/teleconsult" replace />} />
-            <Route path="mail" element={<Mail />} />
 
             <Route path="" element={<Navigate to="/doctor/dashboard" replace />} />
             <Route path="*" element={<ComingSoon />} />
@@ -115,14 +115,15 @@ function App() {
             <Route path="departments" element={<Departments />} />
             <Route path="schedule" element={<ReceptionistAppointments />} />
             <Route path="account" element={<Account />} />
-            <Route path="mail" element={<Mail />} />
+            <Route path="settings" element={<Settings />} />
 
             <Route path="" element={<Navigate to="/receptionist/dashboard" replace />} />
             <Route path="*" element={<ComingSoon />} />
           </Route>
 
-          {/* Top-Level Authenticated Route Aliases for Direct Account / WhatsApp Navigation */}
+          {/* Top-Level Authenticated Route Aliases for Direct Account / Settings Navigation */}
           <Route path="/account" element={<ProtectedRoute><Navigate to="/patient/account" replace /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Navigate to="/patient/settings" replace /></ProtectedRoute>} />
           <Route path="/account/link-whatsapp" element={<ProtectedRoute><Navigate to="/patient/account/link-whatsapp" replace /></ProtectedRoute>} />
           <Route path="/account/whatsapp" element={<ProtectedRoute><Navigate to="/patient/account/whatsapp" replace /></ProtectedRoute>} />
           </Routes>

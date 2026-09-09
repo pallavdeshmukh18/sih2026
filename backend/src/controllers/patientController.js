@@ -340,16 +340,41 @@ async function getPatientMedicalHistory(req, res, next) {
         }));
 
         // 4. Fetch Clinical AI Intake Sessions
-        const sessionsRes = await pool.query(
-            `SELECT id, chief_complaint, status, summary, current_state, created_at, updated_at
-             FROM clinical_sessions
-             WHERE patient_id = $1
-             ORDER BY created_at DESC;`,
-            [patientId]
-        );
+        let sessionRows = [];
+        try {
+            const sessionsRes = await pool.query(
+                `SELECT id, chief_complaint, status, summary, conversation_history, current_state, created_at, updated_at
+                 FROM clinical_sessions
+                 WHERE patient_id = $1
+                 ORDER BY created_at DESC;`,
+                [patientId]
+            );
+            sessionRows = sessionsRes.rows;
+        } catch (sessErr) {
+            console.warn("[HISTORY WARNING] Could not query clinical_sessions history with conversation_history:", sessErr.message);
+            try {
+                const fallbackRes = await pool.query(
+                    `SELECT id, chief_complaint, status, summary, current_state, created_at, updated_at
+                     FROM clinical_sessions
+                     WHERE patient_id = $1
+                     ORDER BY created_at DESC;`,
+                    [patientId]
+                );
+                sessionRows = fallbackRes.rows;
+            } catch (e2) {
+                console.warn("[HISTORY WARNING] Fallback clinical_sessions query failed:", e2.message);
+            }
+        }
 
-        const assessments = sessionsRes.rows.map((row) => {
+        const assessments = sessionRows.map((row) => {
             const state = row.current_state || {};
+            let history = row.conversation_history;
+            if (typeof history === "string") {
+                try { history = JSON.parse(history); } catch (e) { history = []; }
+            }
+            if (!Array.isArray(history) && state.conversation_history) {
+                history = state.conversation_history;
+            }
             return {
                 id: row.id,
                 chiefComplaint: row.chief_complaint,
@@ -357,7 +382,9 @@ async function getPatientMedicalHistory(req, res, next) {
                 summary: row.summary || (row.status === "completed" ? "Intake session completed." : "Intake session in progress."),
                 date: row.created_at,
                 redFlags: state.red_flags || [],
-                source: "MediKiosk Clinical Assessment",
+                answeredFields: state.answered_fields || {},
+                chatHistory: Array.isArray(history) ? history : [],
+                source: "MediKiosk Clinical AI Assessment",
             };
         });
 
@@ -525,25 +552,28 @@ async function getPatientMedicalHistory(req, res, next) {
             category: "assessment",
             verificationStatus: "ai_extracted",
             title: `Clinical Intake: ${a.chiefComplaint || "General Intake"}`,
-            subtitle: `Status: ${a.status}`,
+            subtitle: `Status: ${(a.status || 'in_progress').toUpperCase()}`,
             details: a.summary,
             redFlags: a.redFlags,
+            answeredFields: a.answeredFields,
+            chatHistory: a.chatHistory,
             source: a.source,
         }));
 
         documents.forEach(d => {
+            const docType = d.documentType || "other";
             let cat = "document";
-            if (d.documentType === "prescription") cat = "prescription";
-            else if (d.documentType === "lab_report" || d.documentType === "scan") cat = "lab_test";
+            if (docType === "prescription") cat = "prescription";
+            else if (docType === "lab_report" || docType === "scan") cat = "lab_test";
 
             timelineEvents.push({
                 id: `timeline_doc_${d.id}`,
                 date: d.date,
-                type: d.documentType === "prescription" ? "Prescription" : (d.documentType === "lab_report" ? "Lab Test" : "Document"),
+                type: docType === "prescription" ? "Prescription" : (docType === "lab_report" ? "Lab Test" : "Document"),
                 category: cat,
                 verificationStatus: "ai_extracted",
                 title: d.fileName,
-                subtitle: `${d.documentType.replace('_', ' ').toUpperCase()} • ${d.ocrStatus === 'completed' ? 'OCR Processed' : d.ocrStatus}`,
+                subtitle: `${docType.replace('_', ' ').toUpperCase()} • ${d.ocrStatus === 'completed' ? 'OCR Processed' : (d.ocrStatus || 'pending')}`,
                 details: d.aiSummary || null,
                 documentId: d.id,
                 ocrStatus: d.ocrStatus,

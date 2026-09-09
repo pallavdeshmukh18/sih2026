@@ -27,6 +27,7 @@ import {
   sendTeleconsultMessage, 
   endTeleconsultSession 
 } from "../../services/api";
+import { useLanguage } from "../../i18n";
 import styles from "./TeleconsultRoom.module.css";
 
 /**
@@ -74,6 +75,7 @@ export default function TeleconsultRoom({
   token,
   onCallEnded,
 }) {
+  const { t } = useLanguage();
   const {
     joined,
     connecting,
@@ -228,7 +230,7 @@ export default function TeleconsultRoom({
             <h2>{peer?.name || "Consultation Participant"}</h2>
             <p>
               {peer?.specialization ? `${peer.specialization} · ` : ""}
-              {callType === "video" ? "HD Video Call" : "Voice Call"}
+              {callType === "video" ? t("teleconsult.hdVideoCall", "HD Video Call") : t("teleconsult.voiceCall", "Voice Call")}
             </p>
           </div>
         </div>
@@ -238,18 +240,18 @@ export default function TeleconsultRoom({
             <div className={styles.pulsingDot} />
             <span>
               {connecting
-                ? "Connecting..."
+                ? t("teleconsult.connecting", "Connecting...")
                 : joined
                 ? isRemoteUserConnected
-                  ? `Live · ${formattedDuration}`
-                  : `Waiting for ${isDoctor ? "Patient" : "Doctor"} · ${formattedDuration}`
-                : "Initializing"}
+                  ? `${t("teleconsult.live", "Live")} · ${formattedDuration}`
+                  : `${t("teleconsult.waitingFor", "Waiting for")} ${isDoctor ? t("teleconsult.patient", "Patient") : t("teleconsult.doctor", "Doctor")} · ${formattedDuration}`
+                : t("teleconsult.initializing", "Initializing")}
             </span>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#94a3b8" }}>
             <ShieldCheck size={16} color="#10b981" />
-            <span>End-to-End Encrypted</span>
+            <span>{t("teleconsult.encrypted", "End-to-End Encrypted")}</span>
           </div>
         </div>
       </header>
@@ -279,7 +281,7 @@ export default function TeleconsultRoom({
                     {peer?.name || "Participant"}
                   </h3>
                   <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(16, 185, 129, 0.2)", padding: "4px 12px", borderRadius: "12px", color: "#34d399", fontSize: "13px", fontWeight: "600" }}>
-                    <Volume2 size={16} /> Audio Connected
+                    <Volume2 size={16} /> {t("teleconsult.audioConnected", "Audio Connected")}
                   </div>
                 </div>
               </div>
@@ -291,13 +293,13 @@ export default function TeleconsultRoom({
                 </div>
                 <div style={{ maxWidth: "420px", padding: "0 20px" }}>
                   <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#f8fafc", margin: "0 0 8px 0" }}>
-                    You are in the room!
+                    {t("teleconsult.inRoom", "You are in the room!")}
                   </h3>
                   <p style={{ fontSize: "14px", color: "#94a3b8", margin: 0, lineHeight: 1.5 }}>
-                    Waiting for <strong>{peer?.name || "the other participant"}</strong> to join. Their live video and voice stream will connect automatically.
+                    {t("teleconsult.waitingPeer", "Waiting for participant to join. Their live video and voice stream will connect automatically.", { name: peer?.name || "the other participant" })}
                   </p>
                   <div style={{ marginTop: "14px", display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#38bdf8", background: "rgba(56, 189, 248, 0.1)", padding: "6px 14px", borderRadius: "16px", border: "1px solid rgba(56, 189, 248, 0.2)" }}>
-                    <Radio size={14} /> Room ID: {agoraConfig?.channelName}
+                    <Radio size={14} /> {t("teleconsult.roomId", "Room ID")}: {agoraConfig?.channelName}
                   </div>
                 </div>
               </div>
@@ -311,10 +313,10 @@ export default function TeleconsultRoom({
             ) : (
               <div className={styles.localPipMuted}>
                 <VideoOff size={24} />
-                <span>Camera Off</span>
+                <span>{t("teleconsult.cameraOff", "Camera Off")}</span>
               </div>
             )}
-            <div className={styles.pipBadge}>You {isAudioMuted ? "(Muted)" : ""}</div>
+            <div className={styles.pipBadge}>{t("teleconsult.you", "You")} {isAudioMuted ? t("teleconsult.muted", "(Muted)") : ""}</div>
           </div>
 
           {/* Floating Control Dock */}
@@ -323,7 +325,7 @@ export default function TeleconsultRoom({
             <button
               className={`${styles.dockBtn} ${isAudioMuted ? styles.dockBtnDanger : ""}`}
               onClick={toggleAudio}
-              title={isAudioMuted ? "Unmute Microphone" : "Mute Microphone"}
+              title={isAudioMuted ? t("teleconsult.unmuteMic", "Unmute Microphone") : t("teleconsult.muteMic", "Mute Microphone")}
             >
               {isAudioMuted ? <MicOff size={20} /> : <Mic size={20} />}
             </button>
@@ -332,7 +334,7 @@ export default function TeleconsultRoom({
             <button
               className={`${styles.dockBtn} ${isVideoMuted ? styles.dockBtnDanger : ""}`}
               onClick={toggleVideo}
-              title={isVideoMuted ? "Turn Camera On" : "Turn Camera Off"}
+              title={isVideoMuted ? t("teleconsult.videoOff", "Turn Camera On") : t("teleconsult.videoOn", "Turn Camera Off")}
             >
               {isVideoMuted ? <VideoOff size={20} /> : <Video size={20} />}
             </button>
@@ -341,7 +343,7 @@ export default function TeleconsultRoom({
             <button
               className={`${styles.dockBtn} ${isScreenSharing ? styles.dockBtnActive : ""}`}
               onClick={toggleScreenShare}
-              title={isScreenSharing ? "Stop Screen Share" : "Share Screen"}
+              title={isScreenSharing ? t("teleconsult.stopScreenShare", "Stop Screen Share") : t("teleconsult.screenShare", "Share Screen")}
             >
               <Share2 size={19} />
             </button>
@@ -357,7 +359,7 @@ export default function TeleconsultRoom({
                   setActiveTab("chat");
                 }
               }}
-              title="Open Chat"
+              title={t("teleconsult.openChat", "Open Chat")}
             >
               <MessageSquare size={19} />
               {unreadCount > 0 && <span className={styles.badgeUnread}>{unreadCount}</span>}
@@ -375,7 +377,7 @@ export default function TeleconsultRoom({
                     setActiveTab("clinical");
                   }
                 }}
-                title="Clinical Notes & Prescription"
+                title={t("teleconsult.clinicalNotesRx", "Clinical Notes & Prescription")}
               >
                 <FileText size={19} />
               </button>
@@ -386,7 +388,7 @@ export default function TeleconsultRoom({
               className={`${styles.dockBtn} ${styles.dockBtnDanger}`}
               onClick={handleEndCall}
               disabled={isEnding}
-              title="End Consultation"
+              title={t("teleconsult.endCall", "End Consultation")}
             >
               <PhoneOff size={20} />
             </button>
@@ -409,14 +411,14 @@ export default function TeleconsultRoom({
                   className={`${styles.drawerTabBtn} ${activeTab === "chat" ? styles.drawerTabBtnActive : ""}`}
                   onClick={() => setActiveTab("chat")}
                 >
-                  <MessageSquare size={15} /> Consultation Chat
+                  <MessageSquare size={15} /> {t("teleconsult.consultationChat", "Consultation Chat")}
                 </button>
                 {isDoctor && (
                   <button
                     className={`${styles.drawerTabBtn} ${activeTab === "clinical" ? styles.drawerTabBtnActive : ""}`}
                     onClick={() => setActiveTab("clinical")}
                   >
-                    <Stethoscope size={15} /> Notes & Rx
+                    <Stethoscope size={15} /> {t("teleconsult.notesAndRx", "Notes & Rx")}
                   </button>
                 )}
                 <button
@@ -433,7 +435,7 @@ export default function TeleconsultRoom({
                   <div className={styles.chatMessages}>
                     {messages.length === 0 ? (
                       <div style={{ textAlign: "center", color: "#64748b", fontSize: "13px", margin: "auto" }}>
-                        No messages yet. Send a secure message to start chatting.
+                        {t("teleconsult.noMessagesYet", "No messages yet. Send a secure message to start chatting.")}
                       </div>
                     ) : (
                       messages.map((msg) => {
@@ -449,7 +451,7 @@ export default function TeleconsultRoom({
                           return (
                             <div key={msg.id} className={`${styles.chatBubble} ${styles.chatBubblePrescription}`}>
                               <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: "700", fontSize: "12px", marginBottom: "4px" }}>
-                                <Pill size={14} /> Medical Prescription
+                                <Pill size={14} /> {t("teleconsult.medicalPrescription", "Medical Prescription")}
                               </div>
                               <p style={{ margin: 0, whiteSpace: "pre-line" }}>{msg.message}</p>
                               <div className={styles.chatMeta}>
@@ -467,7 +469,7 @@ export default function TeleconsultRoom({
                             className={`${styles.chatBubble} ${isMe ? styles.chatBubbleMe : styles.chatBubblePeer}`}
                           >
                             <div style={{ fontWeight: "600", fontSize: "11px", marginBottom: "2px", opacity: 0.85 }}>
-                              {isMe ? "You" : msg.senderName}
+                              {isMe ? t("teleconsult.you", "You") : msg.senderName}
                             </div>
                             <div>{msg.message}</div>
                             <div className={styles.chatMeta}>
@@ -487,7 +489,7 @@ export default function TeleconsultRoom({
                       className={styles.chatInput}
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="Type a secure message..."
+                      placeholder={t("teleconsult.typeSecureMessage", "Type a secure message...")}
                     />
                     <button type="submit" className={styles.chatSendBtn} disabled={!chatInput.trim() || isSendingMsg}>
                       <Send size={16} />
@@ -500,31 +502,31 @@ export default function TeleconsultRoom({
               {activeTab === "clinical" && isDoctor && (
                 <div className={styles.clinicalDrawerContent}>
                   <div>
-                    <label className={styles.label}>Consultation Clinical Notes</label>
+                    <label className={styles.label}>{t("teleconsult.clinicalNotesLabel", "Consultation Clinical Notes")}</label>
                     <textarea
                       className={styles.textarea}
                       value={doctorNotes}
                       onChange={(e) => setDoctorNotes(e.target.value)}
-                      placeholder="Clinical observations, diagnosis, and care plan..."
+                      placeholder={t("teleconsult.clinicalNotesPlaceholder", "Clinical observations, diagnosis, and care plan...")}
                     />
                   </div>
 
                   <div>
-                    <label className={styles.label}>Digital Prescription / Advice</label>
+                    <label className={styles.label}>{t("teleconsult.prescriptionLabel", "Digital Prescription / Advice")}</label>
                     <textarea
                       className={styles.textarea}
                       style={{ height: "120px" }}
                       value={prescription}
                       onChange={(e) => setPrescription(e.target.value)}
-                      placeholder="e.g. Paracetamol 500mg (1-0-1 for 3 days), Warm saline gargles"
+                      placeholder={t("teleconsult.prescriptionPlaceholder", "e.g. Paracetamol 500mg (1-0-1 for 3 days), Warm saline gargles")}
                     />
                   </div>
 
                   <div style={{ background: "rgba(13, 148, 136, 0.1)", padding: "12px", borderRadius: "10px", border: "1px solid rgba(13, 148, 136, 0.2)", fontSize: "12px", color: "#cbd5e1" }}>
                     <div style={{ fontWeight: "600", color: "#2dd4bf", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
-                      <Sparkles size={14} /> Auto-Saved on End
+                      <Sparkles size={14} /> {t("teleconsult.autoSaved", "Auto-Saved on End")}
                     </div>
-                    Clinical notes and digital prescription are securely stored in the patient's longitudinal record once you finish the call.
+                    {t("teleconsult.autoSavedDesc", "Clinical notes and digital prescription are securely stored in the patient's longitudinal record once you finish the call.")}
                   </div>
                 </div>
               )}

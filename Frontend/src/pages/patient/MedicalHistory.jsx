@@ -115,14 +115,22 @@ export default function MedicalHistory() {
   if (error && !history) return <div className={styles.state}><div className={styles.errorBox}><AlertCircle /><h3>{t("history.error") || "Unable to load medical history."}</h3><p>{error}</p><button onClick={fetchHistory}><RefreshCw /> {t("history.retry") || "Retry"}</button></div></div>;
 
   const statCards = [
-    { label: "Total Records", detail: "All your medical events", count: counts.all, icon: FileText, tone: "green" },
-    { label: "Consultations", detail: "Doctor visits", count: counts.consultation, icon: Stethoscope, tone: "blue" },
-    { label: "Prescriptions", detail: "Medicines prescribed", count: counts.prescription, icon: Pill, tone: "purple" },
-    { label: "Lab Tests", detail: "Reports & results", count: counts.lab_test, icon: FlaskConical, tone: "gold" },
-    { label: "Conditions", detail: "Diagnoses recorded", count: counts.diagnosis, icon: Heart, tone: "rose" },
+    { label: t("history.totalEvents", "Total Records"), detail: t("history.subtitle", "All your medical events"), count: counts.all, icon: FileText, tone: "green" },
+    { label: t("history.filterConsultation", "Consultations"), detail: t("history.consultations", "Doctor visits"), count: counts.consultation, icon: Stethoscope, tone: "blue" },
+    { label: t("history.prescriptionsCount", "Prescriptions"), detail: t("history.prescriptions", "Medicines prescribed"), count: counts.prescription, icon: Pill, tone: "purple" },
+    { label: t("history.labReportsCount", "Lab Tests"), detail: t("history.investigations", "Reports & results"), count: counts.lab_test, icon: FlaskConical, tone: "gold" },
+    { label: t("history.filterDiagnosis", "Conditions"), detail: t("history.conditions", "Diagnoses recorded"), count: counts.diagnosis, icon: Heart, tone: "rose" },
   ];
   const filters = [
-    ["all", "All Events"], ["consultation", "Consultations"], ["prescription", "Prescriptions"], ["lab_test", "Lab & Scans"], ["assessment", "Assessments"], ["diagnosis", "Diagnoses"], ["procedure", "Procedures"], ["allergy", "Allergies"], ["document", "Documents"],
+    ["all", t("history.filterAll", "All Events")],
+    ["consultation", t("history.filterConsultation", "Consultations")],
+    ["prescription", t("history.filterPrescription", "Prescriptions")],
+    ["lab_test", t("history.filterLab", "Lab & Scans")],
+    ["assessment", t("history.filterAssessment", "Assessments")],
+    ["diagnosis", t("history.filterDiagnosis", "Diagnoses")],
+    ["procedure", t("history.filterProcedure", "Procedures")],
+    ["allergy", t("history.filterAllergy", "Allergies")],
+    ["document", t("history.filterDocument", "Documents")],
   ];
 
   return <motion.main className={`${styles.page} workspacePage`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35 }}>
@@ -135,36 +143,141 @@ export default function MedicalHistory() {
       <section className={styles.mainColumn}>
         <section className={styles.stats}>{statCards.map(({ label, detail, count, icon: Icon, tone }) => <article className={styles[tone]} key={label}><span><Icon /></span><div><strong>{count}</strong><h2>{label}</h2><p>{detail}</p></div></article>)}</section>
 
-        <div className={styles.searchRow}><label><Search /><input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search medical timeline by title, doctor, medication, or diagnosis..." />{searchQuery && <button onClick={() => setSearchQuery("")} aria-label="Clear search"><X /></button>}</label><label className={styles.timeFilter}><Calendar /><select value={timeRange} onChange={(event) => setTimeRange(event.target.value)}><option value="all">All time</option><option value="6">Last 6 months</option><option value="12">Last year</option></select><ChevronDown /></label></div>
+        <div className={styles.searchRow}>
+          <label>
+            <Search />
+            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t("history.searchPlaceholder", "Search medical timeline by title, doctor, medication, or diagnosis...")} />
+            {searchQuery && <button onClick={() => setSearchQuery("")} aria-label="Clear search"><X /></button>}
+          </label>
+          <label className={styles.timeFilter}>
+            <Calendar />
+            <select value={timeRange} onChange={(event) => setTimeRange(event.target.value)}>
+              <option value="all">{t("history.timeAll", "All time")}</option>
+              <option value="6">{t("history.timePast3Months", "Last 6 months")}</option>
+              <option value="12">{t("history.timePastYear", "Last year")}</option>
+            </select>
+            <ChevronDown />
+          </label>
+        </div>
         <nav className={styles.filters}>{filters.map(([id, label]) => <button key={id} onClick={() => setActiveFilter(id)} className={activeFilter === id ? styles.active : ""}>{label}<span>{counts[id] || 0}</span></button>)}</nav>
 
         <section className={styles.timelinePanel}>
-          <header><span><Calendar /></span><div><h2>Longitudinal Health Record Timeline</h2><p>Showing {filteredTimeline.length} of {timeline.length} health records (newest first)</p></div></header>
-          {filteredTimeline.length === 0 ? <div className={styles.empty}><span><Calendar /></span><h3>No medical events found</h3><p>No timeline records match your search query or selected category filter.</p><button onClick={() => navigate("/patient/assessment")}><PlusCircle /> Start Clinical Intake</button></div>
-            : <div className={styles.timeline}>{filteredTimeline.map((event, index) => {
+          <header><span><Calendar /></span><div><h2>{t("history.timeline", "Longitudinal Health Record Timeline")}</h2><p>{filteredTimeline.length} / {timeline.length}</p></div></header>
+          {filteredTimeline.length === 0 ? (
+            <div className={styles.empty}>
+              <span><Calendar /></span>
+              <h3>{t("history.emptyTitle", "No medical events found")}</h3>
+              <p>{t("history.emptyDesc", "No timeline records match your search query or selected category filter.")}</p>
+              <button onClick={() => navigate("/patient/assessment")}><PlusCircle /> {t("history.startIntake", "Start Clinical Intake")}</button>
+            </div>
+          ) : (
+            <div className={styles.timeline}>{filteredTimeline.map((event, index) => {
               const key = eventCategory(event);
               const meta = categoryMeta[key];
               const Icon = meta.icon;
               const isExpanded = expandedId === (event.id ?? index);
               return <motion.article layout className={styles.event} key={event.id ?? index}>
                 <span className={`${styles.eventIcon} ${styles[meta.tone]}`}><Icon /></span>
-                <div className={styles.eventCard}><div className={styles.eventTop}><div><span className={`${styles.category} ${styles[meta.tone]}`}>{event.type || meta.label}</span><span className={styles.provenance}>{event.verificationStatus === "verified" || event.type === "Consultation" ? <CheckCircle2 /> : event.verificationStatus === "ai_extracted" ? <BrainCircuit /> : <User />}{event.verificationStatus === "verified" || event.type === "Consultation" ? "Verified" : event.verificationStatus === "ai_extracted" ? "AI extracted" : "Patient reported"}</span><h3>{event.title || meta.label}</h3>{event.subtitle && <p>{event.subtitle}</p>}</div><time><Calendar />{formatDate(event.date)}</time></div>
+                <div className={styles.eventCard}><div className={styles.eventTop}><div><span className={`${styles.category} ${styles[meta.tone]}`}>{event.type || meta.label}</span><span className={styles.provenance}>{event.verificationStatus === "verified" || event.type === "Consultation" ? <CheckCircle2 /> : event.verificationStatus === "ai_extracted" ? <BrainCircuit /> : <User />}{event.verificationStatus === "verified" || event.type === "Consultation" ? t("history.provenanceVerified", "Verified") : event.verificationStatus === "ai_extracted" ? t("history.provenanceAi", "AI extracted") : t("history.provenancePatient", "Patient reported")}</span><h3>{event.title || meta.label}</h3>{event.subtitle && <p>{event.subtitle}</p>}</div><time><Calendar />{formatDate(event.date)}</time></div>
                   {event.details && <p className={styles.summary}>{event.details}</p>}
-                  <footer><small>Source: {event.source || "MediKiosk Health System"}</small><div>{event.documentId && <button onClick={() => openDocument(event.documentId)}>View document</button>}<button onClick={() => setExpandedId(isExpanded ? null : (event.id ?? index))}>{isExpanded ? "Less" : "Details"}{isExpanded ? <ChevronUp /> : <ChevronDown />}</button></div></footer>
-                  <AnimatePresence>{isExpanded && <motion.div className={styles.expanded} initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}><b>Recorded details</b><p>{event.clinicalNotes || event.treatmentNotes || event.details || "No additional clinical parameters were recorded."}</p></motion.div>}</AnimatePresence>
+                  <footer><small>{t("history.source", "Source:")} {event.source || "MediKiosk Health System"}</small><div>{event.documentId && <button onClick={() => openDocument(event.documentId)}>{t("history.viewDocument", "View document")}</button>}<button onClick={() => setExpandedId(isExpanded ? null : (event.id ?? index))}>{isExpanded ? t("history.collapseDetails", "Less") : t("history.expandDetails", "Details")}{isExpanded ? <ChevronUp /> : <ChevronDown />}</button></div></footer>
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        className={styles.expanded}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                      >
+                        <b>{t("history.expandDetails", "Recorded Details & Clinical Summary")}</b>
+                        <p style={{ marginTop: "4px", whiteSpace: "pre-wrap" }}>
+                          {event.clinicalNotes || event.treatmentNotes || event.details || "No additional clinical parameters recorded."}
+                        </p>
+
+                        {/* Render Clinical Intake Chat History Transcript if present */}
+                        {event.chatHistory && Array.isArray(event.chatHistory) && event.chatHistory.length > 0 && (
+                          <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #d5e5df" }}>
+                            <b style={{ color: "#0d9488", display: "block", marginBottom: "6px" }}>
+                              💬 RAG Clinical Assessment Transcript ({event.chatHistory.length} turns)
+                            </b>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "250px", overflowY: "auto", paddingRight: "4px" }}>
+                              {event.chatHistory.map((msg, idx) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    fontSize: "12px",
+                                    lineHeight: "1.4",
+                                    padding: "6px 10px",
+                                    borderRadius: "8px",
+                                    background: msg.role === "system" ? "#ffffff" : "#e6fffa",
+                                    border: msg.role === "system" ? "1px solid #e2e8f0" : "1px solid #99f6e4",
+                                    color: msg.role === "system" ? "#334155" : "#0f766e",
+                                    alignSelf: msg.role === "system" ? "flex-start" : "flex-end",
+                                    maxWidth: "92%"
+                                  }}
+                                >
+                                  <strong>{msg.role === "system" ? "AI Assistant: " : "You: "}</strong>
+                                  <span>{msg.content}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Render Extracted Clinical Fields if present */}
+                        {event.answeredFields && Object.keys(event.answeredFields).length > 0 && (
+                          <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px dashed #cde0d9" }}>
+                            <b style={{ color: "#047857", fontSize: "11px", display: "block", marginBottom: "4px" }}>
+                              📋 Answered Parameters:
+                            </b>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                              {Object.entries(event.answeredFields).map(([k, v]) => (
+                                <span
+                                  key={k}
+                                  style={{
+                                    background: "#f0fdf4",
+                                    border: "1px solid #bbf7d0",
+                                    color: "#166534",
+                                    padding: "2px 8px",
+                                    borderRadius: "6px",
+                                    fontSize: "11px"
+                                  }}
+                                >
+                                  <strong>{k.replace('_', ' ')}:</strong> {String(v)}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </motion.article>;
-            })}</div>}
+            })}</div>
+          )}
         </section>
       </section>
 
       <aside className={styles.sideColumn}>
-        <button className={styles.upload} onClick={() => navigate("/patient/documents")}><Upload /> Upload Document</button>
-        <section className={styles.quickActions}><h2>Quick Actions</h2>{[
-          [Calendar, "Add Consultation", "/patient/appointments"], [Pill, "Add Prescription", "/patient/documents"], [FlaskConical, "Add Lab Report", "/patient/documents"], [FileText, "Add Document", "/patient/documents"],
-        ].map(([Icon, label, route]) => <button key={label} onClick={() => navigate(route)}><span><Icon /></span>{label}<ArrowRight /></button>)}</section>
-        <section className={styles.insights}><span><Activity /></span><div><h2>Health Insights</h2><p>{timeline.length ? `${timeline.length} events are organized in your health timeline.` : "Build your timeline to get personalized insights."}</p></div></section>
-        <section className={styles.quote}><ClipboardPlus /><blockquote>Your<br />Health Story<br /><b>Matters.</b></blockquote></section>
+        <button className={styles.upload} onClick={() => navigate("/patient/documents")}><Upload /> {t("history.uploadRecord", "Upload Document")}</button>
+        <section className={styles.quickActions}>
+          <h2>{t("dashboard.quickActions", "Quick Actions")}</h2>
+          {[
+            [Calendar, t("history.consultations", "Add Consultation"), "/patient/appointments"],
+            [Pill, t("history.prescriptions", "Add Prescription"), "/patient/documents"],
+            [FlaskConical, t("history.investigations", "Add Lab Report"), "/patient/documents"],
+            [FileText, t("history.documents", "Add Document"), "/patient/documents"],
+          ].map(([Icon, label, route]) => <button key={label} onClick={() => navigate(route)}><span><Icon /></span>{label}<ArrowRight /></button>)}
+        </section>
+        <section className={styles.insights}>
+          <span><Activity /></span>
+          <div>
+            <h2>{t("history.healthInsights", "Health Insights")}</h2>
+            <p>{timeline.length ? t("history.healthInsightsDesc", "{{count}} events are organized in your health timeline.", { count: timeline.length }) : t("history.buildTimeline", "Build your timeline to get personalized insights.")}</p>
+          </div>
+        </section>
+        <section className={styles.quote}><ClipboardPlus /><blockquote>{t("history.storyMatters", "Your Health Story Matters.")}</blockquote></section>
       </aside>
     </div>
   </motion.main>;

@@ -4,170 +4,68 @@ import requests
 from config import GROQ_TEXT_MODEL
 from schemas import ExtractedDocument
 
-EXTRACTION_PROMPT = """You are a medical document structuring engine.
+EXTRACTION_PROMPT = """You are an expert clinical medical structuring AI.
 
-Given raw OCR text from a medical document, extract structured data.
+You will be provided raw OCR text extracted from a medical document (prescription, lab report, discharge summary, or certificate).
 
-Respond with ONLY valid JSON.
-Do not include markdown fences.
-Do not include commentary.
+Your objective is to extract EVERY SINGLE medical entity present in the text into structured JSON.
 
-Use exactly this schema:
+Respond with ONLY a single valid JSON object. Do not wrap in markdown ```json or include conversational text.
 
+Schema:
 {{
   "document_type": "prescription | lab_report | discharge_summary | certificate",
-  "document_date": "string or null",
+  "document_date": "YYYY-MM-DD or string date or null",
   "diagnoses": ["string", "..."],
   "medications": [
     {{
-      "medicine": "string",
-      "dose": "string or null",
-      "frequency": "string or null",
-      "duration": "string or null"
+      "medicine": "Clean medication name (e.g. Paracetamol, Azithromycin, Levocetirizine, Ambrodil or Tab. Paracetamol)",
+      "dose": "Dosage strength e.g. 500 mg, 5 mg, 15 ml, 1 tablet, 2 teaspoonful, or null",
+      "frequency": "Frequency instructions e.g. Twice daily after food, Once daily at night, or null",
+      "duration": "Treatment duration e.g. 3 days, 5 days, or null"
     }}
   ],
   "lab_results": [
     {{
-      "test": "string",
-      "value": "string or null",
-      "unit": "string or null",
-      "reference_range": "string or null",
+      "test": "Test name e.g. Hemoglobin, Fasting Blood Sugar",
+      "value": "Measured value or null",
+      "unit": "Measurement unit e.g. g/dL, mg/dL, or null",
+      "reference_range": "Normal range e.g. 13.5 - 17.5, or null",
       "flag": "high | low | normal | null"
     }}
   ],
-  "procedures": ["string", "..."],
-  "summary": "Short 1-2 sentence plain-language patient summary explaining the report clearly.",
-  "alerts": ["Array of warning alert strings if any lab value is abnormal (high or low) or critical findings are detected. Return empty [] if all findings are normal."]
+  "procedures": ["Clinical procedure or advice given by physician"],
+  "summary": "Short 1-2 sentence patient-friendly summary explaining the prescription, diagnostic report, or physician advice clearly.",
+  "alerts": ["Array of abnormal/high/low lab result warning strings if any. Return [] if none."]
 }}
 
-Rules:
-
-1. Do not guess information.
-2. If information is not present, use null or an empty list.
-3. Preserve medication names and dosages exactly as written.
-4. Do not infer a diagnosis from a medication.
-5. Do not infer a lab result from a reference range.
-6. Use the document type that best matches the OCR text.
-7. Provide a concise patient-friendly summary and alert list.
+CRITICAL INSTRUCTIONS FOR MEDICATIONS:
+1. Examine the entire OCR text line by line for ALL prescribed items. Look for numbered items (1), (2), (3), (4), prefixes like Tab., Cap., Syp., Inj., Oint., Drp., or drug names.
+2. DO NOT skip any medication listed in the prescription. If 4 items are listed, extract ALL 4 items into the 'medications' array.
+3. Clean up the 'medicine' field so it contains the drug name (e.g. 'Tab. Paracetamol', 'Cap. Azithromycin', 'Tab. Levocetirizine', 'Syp. Ambrodil').
+4. Separate the dose (e.g. '500 mg'), frequency (e.g. 'Twice daily after food'), and duration (e.g. '3 days') into their respective fields.
+5. Include any lifestyle or dietary advice (e.g. 'Take plenty of fluids', 'Steam inhalation') in the 'procedures' array.
 
 OCR TEXT:
 {ocr_text}
 """
 
 def extract_entities_fallback(ocr_text: str) -> ExtractedDocument:
-    txt = (ocr_text or "").lower()
-
-    if "dermatology" in txt or "skin" in txt or "dermatitis" in txt:
-        data = {
-            "document_type": "prescription",
-            "document_date": "2026-09-07",
-            "diagnoses": ["Contact Dermatitis"],
-            "medications": [
-                {
-                    "medicine": "Hydrocortisone Cream 1%",
-                    "dose": "Topical",
-                    "frequency": "Apply twice daily",
-                    "duration": "7 days"
-                },
-                {
-                    "medicine": "Cetirizine",
-                    "dose": "10mg",
-                    "frequency": "Once daily at bedtime",
-                    "duration": "5 days"
-                }
-            ],
-            "lab_results": [],
-            "procedures": [],
-            "summary": "Prescription for contact dermatitis. Includes topical hydrocortisone cream and antihistamine cetirizine for relief of skin inflammation.",
-            "alerts": [],
-            "raw_text": ocr_text
-        }
-    elif "azithromycin" in txt or "paracetamol" in txt or "levocetirizine" in txt or "ambrodil" in txt or "respiratory" in txt:
-        data = {
-            "document_type": "prescription",
-            "document_date": "2026-09-07",
-            "diagnoses": ["Acute Respiratory Consultation"],
-            "medications": [
-                {
-                    "medicine": "Tab. Paracetamol",
-                    "dose": "500mg",
-                    "frequency": "Twice daily after food",
-                    "duration": "3 days"
-                },
-                {
-                    "medicine": "Cap. Azithromycin",
-                    "dose": "500mg",
-                    "frequency": "Once daily after food",
-                    "duration": "5 days"
-                },
-                {
-                    "medicine": "Tab. Levocetirizine",
-                    "dose": "5mg",
-                    "frequency": "Once daily at night",
-                    "duration": "5 days"
-                },
-                {
-                    "medicine": "Syp. Ambrodil",
-                    "dose": "15ml",
-                    "frequency": "Twice daily",
-                    "duration": "5 days"
-                }
-            ],
-            "lab_results": [],
-            "procedures": [],
-            "summary": "Outpatient prescription for acute respiratory symptoms. Contains fever reducer, antibiotic course, and cough syrup.",
-            "alerts": ["⚠️ Note: Complete the full 5-day course of prescribed Azithromycin antibiotic as directed by your physician."],
-            "raw_text": ocr_text
-        }
-    else:
-        # Default fallback for laboratory diagnostic report, blood test, cbc, screenshot, etc.
-        data = {
-            "document_type": "lab_report",
-            "document_date": "2026-09-07",
-            "diagnoses": ["Routine Diagnostic & Blood Panel"],
-            "medications": [],
-            "lab_results": [
-                {
-                    "test": "Hemoglobin",
-                    "value": "13.8",
-                    "unit": "g/dL",
-                    "reference_range": "12.0 - 16.0",
-                    "flag": "normal"
-                },
-                {
-                    "test": "Fasting Blood Glucose",
-                    "value": "98",
-                    "unit": "mg/dL",
-                    "reference_range": "70 - 100",
-                    "flag": "normal"
-                },
-                {
-                    "test": "Total Cholesterol",
-                    "value": "185",
-                    "unit": "mg/dL",
-                    "reference_range": "< 200",
-                    "flag": "normal"
-                },
-                {
-                    "test": "White Blood Cells (WBC)",
-                    "value": "6,500",
-                    "unit": "/uL",
-                    "reference_range": "4,500 - 11,000",
-                    "flag": "normal"
-                },
-                {
-                    "test": "Platelets",
-                    "value": "250,000",
-                    "unit": "/uL",
-                    "reference_range": "150,000 - 450,000",
-                    "flag": "normal"
-                }
-            ],
-            "procedures": ["Routine Blood Draw"],
-            "summary": "Complete Blood Count & Metabolic Profile report. All tested parameters (Hemoglobin 13.8 g/dL, Fasting Glucose 98 mg/dL, Cholesterol 185 mg/dL, WBC 6,500/uL, Platelets 250,000/uL) are within normal reference ranges.",
-            "alerts": [],
-            "raw_text": ocr_text
-        }
+    raw = ocr_text or ""
+    txt = raw.lower()
+    doc_type = "prescription" if ("rx" in txt or "prescr" in txt or "medication" in txt) else "other"
+    summary_text = (raw[:200] + "...") if len(raw) > 200 else (raw if raw.strip() else "Original medical document saved. Structured text could not be extracted.")
+    data = {
+        "document_type": doc_type,
+        "document_date": None,
+        "diagnoses": [],
+        "medications": [],
+        "lab_results": [],
+        "procedures": [],
+        "summary": summary_text,
+        "alerts": [],
+        "raw_text": raw
+    }
     return ExtractedDocument(**data)
 
 

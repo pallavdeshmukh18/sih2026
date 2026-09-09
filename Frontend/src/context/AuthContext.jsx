@@ -73,6 +73,13 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const updateUser = (updater) => {
+        setUser((prev) => {
+            if (!prev) return prev;
+            return typeof updater === "function" ? updater(prev) : { ...prev, ...updater };
+        });
+    };
+
     const value = {
         user,
         token,
@@ -81,6 +88,7 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         refreshUser,
+        updateUser,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

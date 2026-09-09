@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import i18n from "i18next";
 import { initReactI18next, useTranslation } from "react-i18next";
 
@@ -60,22 +60,70 @@ export const LanguageProvider = ({ children }) => {
   const auth = useAuth();
   const user = auth?.user;
   const token = auth?.token;
+  const updateUser = auth?.updateUser;
 
-  // Sync preferred_language from authenticated user profile when loaded
+  const [currentLang, setCurrentLang] = useState(() => i18nInstance.language || initialLanguage);
+
   useEffect(() => {
-    const userLang = user?.onboarding?.preferredLanguage || user?.onboarding?.preferred_language || user?.preferredLanguage;
-    if (userLang && resources[userLang] && i18nInstance.language !== userLang) {
-      i18nInstance.changeLanguage(userLang);
-      localStorage.setItem(STORAGE_KEY, userLang);
-      document.documentElement.lang = userLang;
+    const handleLanguageChanged = (lng) => {
+      setCurrentLang(lng);
+    };
+    i18nInstance.on("languageChanged", handleLanguageChanged);
+    return () => {
+      i18nInstance.off("languageChanged", handleLanguageChanged);
+    };
+  }, [i18nInstance]);
+
+  // Sync preferred_language from authenticated user profile once when user logs in or profile first loads
+  const syncedUserIdRef = useRef(null);
+
+  useEffect(() => {
+    if (!user) {
+      syncedUserIdRef.current = null;
+      return;
+    }
+
+    if (syncedUserIdRef.current !== user.id) {
+      syncedUserIdRef.current = user.id;
+      const userLang = user?.onboarding?.preferredLanguage || user?.onboarding?.preferred_language || user?.preferredLanguage;
+      const currentStored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+      const targetLang = (currentStored && resources[currentStored])
+        ? currentStored
+        : (userLang && resources[userLang])
+        ? userLang
+        : "en";
+
+      if (targetLang && i18nInstance.language !== targetLang) {
+        i18nInstance.changeLanguage(targetLang);
+        setCurrentLang(targetLang);
+        localStorage.setItem(STORAGE_KEY, targetLang);
+        document.documentElement.lang = targetLang;
+      }
     }
   }, [user, i18nInstance]);
 
   const changeLanguage = async (code) => {
     if (resources[code]) {
+      setCurrentLang(code);
       await i18nInstance.changeLanguage(code);
       localStorage.setItem(STORAGE_KEY, code);
       document.documentElement.lang = code;
+
+      // Keep user in AuthContext in sync immediately
+      if (updateUser) {
+        updateUser((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            preferredLanguage: code,
+            onboarding: {
+              ...(prev.onboarding || {}),
+              preferredLanguage: code,
+              preferred_language: code,
+            },
+          };
+        });
+      }
 
       // Persist to backend user profile if authenticated
       if (token && user) {
@@ -91,8 +139,8 @@ export const LanguageProvider = ({ children }) => {
   return (
     <LanguageContext.Provider
       value={{
-        language: i18nInstance.language,
-        currentLanguage: i18nInstance.language,
+        language: currentLang,
+        currentLanguage: currentLang,
         changeLanguage,
         t,
         i18n: i18nInstance,

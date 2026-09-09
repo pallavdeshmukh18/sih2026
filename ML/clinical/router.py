@@ -39,6 +39,27 @@ async def start_session(req: StartSessionRequest):
         chief_complaint=req.chief_complaint,
         missing_fields=ontology.required_fields.copy()
     )
+
+    # Pre-extract location if chief complaint already specifies the body part
+    complaint_lower = req.chief_complaint.lower()
+    location_keywords = {
+        "abdominal": "Abdomen",
+        "abdomen": "Abdomen",
+        "chest": "Chest",
+        "head": "Head",
+        "headache": "Head",
+        "joint": "Joints / Muscles",
+        "muscle": "Joints / Muscles",
+        "skin": "Skin",
+        "back": "Back"
+    }
+    for kw, loc_val in location_keywords.items():
+        if kw in complaint_lower:
+            if "location" in session.missing_fields:
+                session.missing_fields.remove("location")
+            session.answered_fields["location"] = loc_val
+            session.clinical_entities.append({"field": "location", "value": loc_val, "confidence": "High"})
+            break
     
     SESSIONS_DB[session.session_id] = session
     
