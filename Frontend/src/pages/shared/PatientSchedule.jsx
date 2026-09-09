@@ -110,7 +110,6 @@ export default function PatientSchedule() {
         <h1>{t("schedule.pageTitle", "Your Care Schedule")}</h1>
         <p>{t("schedule.pageSub", "Track scheduled visits, medication reminders, and health checkups on an interactive calendar.")}</p>
       </div>
-      <blockquote>{t("schedule.quote", "“Small Details. Bigger Care.”")}</blockquote>
       <button onClick={openReminder}><PlusCircle /> {t("schedule.addReminder", "Add Care Reminder")}</button>
     </header>
 
