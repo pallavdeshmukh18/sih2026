@@ -1,4 +1,6 @@
+import base64
 import logging
+import re
 import sys
 from typing import Any, Dict, Optional, Set
 
@@ -18,7 +20,14 @@ try:
         ERROR_MESSAGE,
         LOCALIZED_CHIEF_COMPLAINT_PROMPT,
         LOCALIZED_COMPLETION_MESSAGE,
+        LOCALIZED_NO_DOCTORS_FOUND,
+        LOCALIZED_SLOT_CONFLICT,
         WHATSAPP_SERVICE_KEY,
+        format_confirmation_message,
+        format_doctor_recommendations,
+        format_doctor_slots,
+        format_invalid_doctor_choice,
+        format_invalid_slot_choice,
     )
 except (ImportError, ValueError):
     from config import (
@@ -34,7 +43,14 @@ except (ImportError, ValueError):
         ERROR_MESSAGE,
         LOCALIZED_CHIEF_COMPLAINT_PROMPT,
         LOCALIZED_COMPLETION_MESSAGE,
+        LOCALIZED_NO_DOCTORS_FOUND,
+        LOCALIZED_SLOT_CONFLICT,
         WHATSAPP_SERVICE_KEY,
+        format_confirmation_message,
+        format_doctor_recommendations,
+        format_doctor_slots,
+        format_invalid_doctor_choice,
+        format_invalid_slot_choice,
     )
 
 logger = logging.getLogger("medikiosk.whatsapp.clinical_client")
@@ -43,6 +59,7 @@ logger = logging.getLogger("medikiosk.whatsapp.clinical_client")
 class ClinicalAPIError(Exception):
     """Raised when communication with the MediKiosk Backend Clinical service fails."""
     pass
+
 
 
 class ClinicalClient:
@@ -92,6 +109,81 @@ class ClinicalClient:
         # Cache of completed session summaries for clinical audit/logging
         self.completed_summaries: Dict[str, str] = {}
 
+        # Recommended doctors per patient: { patient_id: [doc1, doc2, ...] }
+        self.recommended_doctors: Dict[str, list] = {}
+
+        # Selected doctor per patient: { patient_id: doc_dict }
+        self.selected_doctor: Dict[str, dict] = {}
+
+        # Available slots per patient: { patient_id: [slot1, slot2, ...] }
+        self.available_slots: Dict[str, list] = {}
+
+        # Last completed clinical session ID per patient
+        self.last_completed_session: Dict[str, str] = {}
+
+        # Patient authoritative accessibility preference
+        self.patient_accessibility: Dict[str, str] = {}
+
+        self.backend_url = BACKEND_API_URL
+        self.clinical_ml_url = CLINICAL_API_URL
+
+    def synthesize_speech(self, text: str, language: str = DEFAULT_LANGUAGE) -> Optional[bytes]:
+        """
+        Synthesizes text into speech audio bytes using Sarvam Bulbul TTS.
+        Gracefully returns None if TTS service is unavailable.
+        Never crashes or blocks caller flow.
+        """
+        if not text or not text.strip():
+            return None
+
+        bcp47_map = {
+            "en": "en-IN",
+            "hi": "hi-IN",
+            "mr": "mr-IN",
+            "gu": "gu-IN",
+        }
+        lang_code = bcp47_map.get(language.lower().strip(), "en-IN")
+
+        # Clean formatting characters for speech
+        clean_text = re.sub(r"[*_#~`]", "", text).strip()
+        if len(clean_text) > 2000:
+            clean_text = clean_text[:2000]
+
+        # 1. Try Backend Express TTS proxy first
+        try:
+            endpoint = f"{self.backend_url}/api/tts/synthesize"
+            resp = requests.post(
+                endpoint,
+                json={"text": clean_text, "languageCode": language, "speaker": "simran", "pace": 1.0},
+                headers=self._get_headers(),
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                b64 = data.get("audio_base64")
+                if b64:
+                    return base64.b64decode(b64)
+        except Exception as err:
+            logger.debug("Backend TTS proxy unavailable, trying ML service directly: %s", err)
+
+        # 2. Try ML FastAPI direct endpoint
+        try:
+            endpoint = f"{self.clinical_ml_url}/api/tts/synthesize"
+            resp = requests.post(
+                endpoint,
+                json={"text": clean_text, "language_code": lang_code, "speaker": "simran", "pace": 1.0},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                b64 = data.get("audio_base64")
+                if b64:
+                    return base64.b64decode(b64)
+        except Exception as err:
+            logger.debug("Direct ML TTS synthesis unavailable: %s", err)
+
+        return None
+
     def _get_headers(self) -> Dict[str, str]:
         """Builds HTTP headers containing the secret server-to-server key."""
         headers = {"Content-Type": "application/json"}
@@ -108,11 +200,17 @@ class ClinicalClient:
         self.sessions[patient_id] = session_id
 
     def reset_session(self, patient_id: str) -> None:
-        """Clears the active clinical session and pending states for a patient."""
+        """Clears the active clinical session, pending states, and booking context for a patient."""
         if patient_id in self.sessions:
             logger.info("Resetting clinical session for patient: %s", patient_id)
             del self.sessions[patient_id]
         self.pending_complaint.discard(patient_id)
+        self.recommended_doctors.pop(patient_id, None)
+        self.selected_doctor.pop(patient_id, None)
+        self.available_slots.pop(patient_id, None)
+        self.last_completed_session.pop(patient_id, None)
+        self.patient_accessibility.pop(patient_id, None)
+
 
     def start_session(
         self,
@@ -230,6 +328,69 @@ class ClinicalClient:
             logger.error("Failed to fetch clinical summary for session %s: %s", session_id, exc)
             raise ClinicalAPIError(f"Clinical summary generation failed: {exc}") from exc
 
+    def get_recommendations(self, session_id: str, patient_id: str) -> Dict[str, Any]:
+        """
+        Calls POST /api/whatsapp/clinical/recommendations to get up to 5 verified doctors
+        matching the completed clinical assessment specialization.
+        """
+        endpoint = f"{self.clinical_base}/recommendations"
+        payload = {
+            "whatsapp_id": patient_id,
+            "session_id": session_id,
+        }
+        logger.info("Requesting doctor recommendations for session %s at %s", session_id, endpoint)
+        try:
+            resp = requests.post(endpoint, json=payload, headers=self._get_headers(), timeout=self.timeout)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.RequestException as exc:
+            logger.error("Failed to fetch doctor recommendations for session %s: %s", session_id, exc)
+            raise ClinicalAPIError(f"Doctor recommendations failed: {exc}") from exc
+
+    def get_doctor_slots(self, doctor_id: str, patient_id: str, date: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Calls GET /api/whatsapp/clinical/doctors/:doctorId/slots to get real available slots.
+        """
+        endpoint = f"{self.clinical_base}/doctors/{doctor_id}/slots"
+        params = {"whatsapp_id": patient_id}
+        if date:
+            params["date"] = date
+        logger.info("Requesting doctor slots for doctor %s at %s", doctor_id, endpoint)
+        try:
+            resp = requests.get(endpoint, params=params, headers=self._get_headers(), timeout=self.timeout)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.RequestException as exc:
+            logger.error("Failed to fetch doctor slots for doctor %s: %s", doctor_id, exc)
+            raise ClinicalAPIError(f"Doctor slot retrieval failed: {exc}") from exc
+
+    def book_appointment(self, patient_id: str, session_id: str, doctor_id: str, scheduled_at: str) -> Dict[str, Any]:
+        """
+        Calls POST /api/whatsapp/clinical/book to book the appointment with double-booking protection.
+        """
+        endpoint = f"{self.clinical_base}/book"
+        payload = {
+            "whatsapp_id": patient_id,
+            "sessionId": session_id,
+            "doctorId": doctor_id,
+            "scheduledAt": scheduled_at,
+        }
+        logger.info("Booking appointment for patient %s with doctor %s at %s", patient_id, doctor_id, endpoint)
+        try:
+            resp = requests.post(endpoint, json=payload, headers=self._get_headers(), timeout=self.timeout)
+            try:
+                data = resp.json()
+            except Exception:
+                data = {"message": resp.text}
+            return {
+                "status_code": resp.status_code,
+                "success": resp.status_code == 201,
+                "data": data,
+            }
+        except requests.RequestException as exc:
+            logger.error("Failed to execute appointment booking: %s", exc)
+            raise ClinicalAPIError(f"Appointment booking failed: {exc}") from exc
+
     def handle_message(self, patient_id: str, message: str, language: Optional[str] = None) -> str:
         """Alias for process_message for backwards compatibility."""
         return self.process_message(patient_id, message, language=language)
@@ -242,7 +403,7 @@ class ClinicalClient:
         3. Advancing the clinical session through the shared backend pipeline.
         4. Safety red-flag logging.
         5. Triggering physician summary generation upon completion and saving to PostgreSQL.
-        6. Returning user-facing text to send back to WhatsApp.
+        6. Finding up to 5 recommended doctors from the existing database and returning the recommendation message.
         """
         cleaned = message.strip()
         if not cleaned:
@@ -348,11 +509,34 @@ class ClinicalClient:
                 except Exception as sum_exc:
                     logger.warning("Could not retrieve final summary for session %s: %s", session_id, sum_exc)
 
-                # Clear active session mapping so patient can start anew in future
+                # Record completed session for appointment linking
+                self.last_completed_session[patient_id] = session_id
+
+                # Clear active intake session mapping so patient moves on to doctor selection
                 self.sessions.pop(patient_id, None)
                 self.pending_complaint.discard(patient_id)
 
-                return LOCALIZED_COMPLETION_MESSAGE.get(lang, COMPLETION_MESSAGE)
+                completion_msg = LOCALIZED_COMPLETION_MESSAGE.get(lang, COMPLETION_MESSAGE)
+
+                # Query doctor recommendations from existing database
+                try:
+                    rec_res = self.get_recommendations(session_id=session_id, patient_id=patient_id)
+                    doctors = rec_res.get("doctors", [])
+                    if rec_res.get("accessibilityPreference"):
+                        self.patient_accessibility[patient_id] = rec_res["accessibilityPreference"]
+
+                    if doctors:
+                        self.recommended_doctors[patient_id] = doctors
+                        rec_msg = format_doctor_recommendations(doctors, language=lang)
+                        return f"{completion_msg}\n\n{rec_msg}"
+                    else:
+                        self.recommended_doctors.pop(patient_id, None)
+                        fallback_msg = LOCALIZED_NO_DOCTORS_FOUND.get(lang, LOCALIZED_NO_DOCTORS_FOUND["en"])
+                        return f"{completion_msg}\n\n{fallback_msg}"
+                except Exception as rec_err:
+                    logger.warning("Could not retrieve doctor recommendations for session %s: %s", session_id, rec_err)
+                    fallback_msg = LOCALIZED_NO_DOCTORS_FOUND.get(lang, LOCALIZED_NO_DOCTORS_FOUND["en"])
+                    return f"{completion_msg}\n\n{fallback_msg}"
 
             # 4. NEXT QUESTION: Continue the adaptive questioning flow
             next_q = respond_data.get("next_question") or respond_data.get("nextQuestion")
@@ -363,6 +547,7 @@ class ClinicalClient:
             self.sessions.pop(patient_id, None)
             self.pending_complaint.discard(patient_id)
             return LOCALIZED_COMPLETION_MESSAGE.get(lang, COMPLETION_MESSAGE)
+
 
         except ClinicalAPIError as exc:
             logger.error("Clinical AI API error for patient '%s': %s", patient_id, exc)

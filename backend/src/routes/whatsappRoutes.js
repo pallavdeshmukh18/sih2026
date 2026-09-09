@@ -15,4 +15,10 @@ router.post("/clinical/session/start", whatsappClinicalController.startSession);
 router.post("/clinical/session/:id/text-turn", whatsappClinicalController.processTextTurn);
 router.post("/clinical/session/:id/finalize", whatsappClinicalController.finalizeSession);
 
+// WhatsApp Doctor Recommendation & Appointment Booking Endpoints
+router.post("/clinical/recommendations", whatsappClinicalController.getDoctorRecommendations);
+router.get("/clinical/doctors/:doctorId/slots", whatsappClinicalController.getDoctorAvailableSlots);
+router.post("/clinical/book", whatsappClinicalController.bookWhatsAppAppointment);
+
 module.exports = router;
+

@@ -36,6 +36,9 @@ WHATSAPP_SERVICE_KEY: str = os.environ.get("WHATSAPP_SERVICE_KEY", "medikiosk_wh
 WHATSAPP_CLINICAL_START_URL: str = f"{BACKEND_API_URL}/api/whatsapp/clinical/session/start"
 WHATSAPP_CLINICAL_TURN_URL: str = f"{BACKEND_API_URL}/api/whatsapp/clinical/session/{{session_id}}/text-turn"
 WHATSAPP_CLINICAL_FINALIZE_URL: str = f"{BACKEND_API_URL}/api/whatsapp/clinical/session/{{session_id}}/finalize"
+WHATSAPP_CLINICAL_RECOMMENDATIONS_URL: str = f"{BACKEND_API_URL}/api/whatsapp/clinical/recommendations"
+WHATSAPP_CLINICAL_SLOTS_URL: str = f"{BACKEND_API_URL}/api/whatsapp/clinical/doctors/{{doctor_id}}/slots"
+WHATSAPP_CLINICAL_BOOK_URL: str = f"{BACKEND_API_URL}/api/whatsapp/clinical/book"
 
 # User-facing standard bot messages
 CHIEF_COMPLAINT_PROMPT: str = (
@@ -62,6 +65,9 @@ class WhatsAppState:
     WAITING_FOR_TOKEN = "WAITING_FOR_TOKEN"
     MENU = "MENU"
     CLINICAL_SESSION = "CLINICAL_SESSION"
+    WAITING_FOR_DOCTOR_SELECTION = "WAITING_FOR_DOCTOR_SELECTION"
+    WAITING_FOR_APPOINTMENT_SELECTION = "WAITING_FOR_APPOINTMENT_SELECTION"
+
 
 # Supported Languages for WhatsApp Menu & Intake
 LANGUAGE_MAP: dict = {
@@ -489,10 +495,287 @@ LOCALIZED_RESET_MESSAGE: dict = {
     "gu": 'સત્ર રીસેટ થયું. પરામર્શ શરૂ કરવા માટે "hello medikiosk" મોકલો.',
 }
 
+NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+
+LOCALIZED_RECOMMENDED_DOCTORS_HEADER: dict = {
+    "en": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "👨‍⚕️ *Recommended Doctors*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "Based on your assessment, these doctors may be suitable for your case:\n\n"
+    ),
+    "hi": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "👨‍⚕️ *अनुशंसित डॉक्टर*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "आपके मूल्यांकन के आधार पर, ये डॉक्टर आपके मामले के लिए उपयुक्त हो सकते हैं:\n\n"
+    ),
+    "mr": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "👨‍⚕️ *शिफारस केलेले डॉक्टर*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "तुमच्या तपासणीच्या आधारे, हे डॉक्टर तुमच्या उपचारासाठी योग्य असू शकतात:\n\n"
+    ),
+    "gu": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "👨‍⚕️ *ભલામણ કરેલ ડૉક્ટર્સ*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "તમારા મૂલ્યાંકનના આધારે, આ ડૉક્ટર્સ તમારા કેસ માટે યોગ્ય હોઈ શકે છે:\n\n"
+    ),
+}
+
+LOCALIZED_NO_DOCTORS_FOUND: dict = {
+    "en": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "👨‍⚕️ *Doctor Recommendation*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "We couldn't find a suitable doctor for your assessment at the moment.\n\n"
+        "Please try again later or use the MediKiosk doctor directory.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "hi": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "👨‍⚕️ *डॉक्टर सिफारिश*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "फिलहाल आपके मूल्यांकन के लिए उपयुक्त डॉक्टर नहीं मिल सके।\n\n"
+        "कृपया बाद में पुनः प्रयास करें या मेडीकियोस्क डॉक्टर डायरेक्टरी का उपयोग करें।\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "mr": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "👨‍⚕️ *डॉक्टर शिफारस*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "सध्या तुमच्या तपासणीसाठी योग्य डॉक्टर सापडले नाहीत.\n\n"
+        "कृपया नंतर पुन्हा प्रयत्न करा किंवा मेडीकियोस्क डॉक्टर डिरेक्टरी वापरा.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "gu": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "👨‍⚕️ *ડૉક્ટર ભલામણ*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "હાલમાં તમારા મૂલ્યાંકન માટે યોગ્ય ડૉક્ટર મળી શક્યા નથી.\n\n"
+        "કૃપા કરીને પછીથી ફરી પ્રયાસ કરો અથવા મેડીકિયોસ્ક ડૉક્ટર ડિરેક્ટરીનો ઉપયોગ કરો.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+}
+
+LOCALIZED_AVAILABLE_APPOINTMENTS_HEADER: dict = {
+    "en": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "📅 *Available Appointments*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+    ),
+    "hi": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "📅 *उपलब्ध अपॉइंटमेंट्स*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+    ),
+    "mr": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "📅 *उपलब्ध अपॉइंटमेंट्स*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+    ),
+    "gu": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "📅 *ઉપલબ્ધ એપોઇન્ટમેન્ટ્સ*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+    ),
+}
+
+LOCALIZED_NO_SLOTS_AVAILABLE: dict = {
+    "en": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "📅 *No Slots Available*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "There are no appointment slots currently available for this doctor.\n\n"
+        "Please select another doctor or check back later.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "hi": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "📅 *कोई स्लॉट उपलब्ध नहीं है*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "इस डॉक्टर के लिए वर्तमान में कोई अपॉइंटमेंट स्लॉट उपलब्ध नहीं है।\n\n"
+        "कृपया किसी अन्य डॉक्टर को चुनें या बाद में पुनः प्रयास करें।\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "mr": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "📅 *कोणताही स्लॉट उपलब्ध नाही*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "या डॉक्टरांसाठी सध्या कोणताही स्लॉट उपलब्ध नाही.\n\n"
+        "कृपया दुसरा डॉक्टर निवडा किंवा नंतर तपासा.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+    "gu": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "📅 *કોઈ સ્લોટ ઉપલબ્ધ નથી*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "આ ડૉક્ટર માટે હાલમાં કોઈ એપોઇન્ટમેન્ટ સ્લોટ ઉપલબ્ધ નથી.\n\n"
+        "કૃપા કરીને અન્ય ડૉક્ટર પસંદ કરો અથવા પછીથી તપાસો.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    ),
+}
+
+LOCALIZED_SLOT_CONFLICT: dict = {
+    "en": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "⚠️ *Slot No Longer Available*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "That appointment slot is no longer available. Here are the latest available slots:\n\n"
+    ),
+    "hi": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "⚠️ *स्लॉट अब उपलब्ध नहीं है*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "वह अपॉइंटमेंट स्लॉट अब उपलब्ध नहीं है। यहाँ नवीनतम उपलब्ध स्लॉट हैं:\n\n"
+    ),
+    "mr": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "⚠️ *स्लॉट आता उपलब्ध नाही*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "तो अपॉइंटमेंट स्लॉट आता उपलब्ध नाही. येथे नवीनतम उपलब्ध स्लॉट आहेत:\n\n"
+    ),
+    "gu": (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "⚠️ *સ્લોટ હવે ઉપલબ્ધ નથી*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "તે એપોઇન્ટમેન્ટ સ્લોટ હવે ઉપલબ્ધ નથી. અહીં નવીનતમ ઉપલબ્ધ સ્લોટ છે:\n\n"
+    ),
+}
+
+def format_doctor_recommendations(doctors: list, language: str = "en") -> str:
+    """Formats the single combined WhatsApp recommendation message with up to 5 doctors."""
+    lang = (language or "en").lower().strip()
+    if not doctors:
+        return LOCALIZED_NO_DOCTORS_FOUND.get(lang, LOCALIZED_NO_DOCTORS_FOUND["en"])
+
+    msg = LOCALIZED_RECOMMENDED_DOCTORS_HEADER.get(lang, LOCALIZED_RECOMMENDED_DOCTORS_HEADER["en"])
+    for i, doc in enumerate(doctors):
+        emoji = NUMBER_EMOJIS[i] if i < len(NUMBER_EMOJIS) else f"{i+1}️⃣"
+        doc_name = doc.get("name") or f"Dr. {doc.get('firstName', '')} {doc.get('lastName', '')}".strip()
+        spec = doc.get("specialization") or "General Medicine"
+        msg += f"{emoji} *{doc_name}*\n   🩺 {spec}\n\n"
+
+    count = len(doctors)
+    if lang == "hi":
+        msg += f"━━━━━━━━━━━━━━━━━━\n💬 *डॉक्टर चुनने के लिए 1–{count} लिखकर उत्तर दें।*\n━━━━━━━━━━━━━━━━━━"
+    elif lang == "mr":
+        msg += f"━━━━━━━━━━━━━━━━━━\n💬 *डॉक्टर निवडण्यासाठी 1–{count} पाठवून उत्तर द्या.*\n━━━━━━━━━━━━━━━━━━"
+    elif lang == "gu":
+        msg += f"━━━━━━━━━━━━━━━━━━\n💬 *ડૉક્ટર પસંદ કરવા માટે 1–{count} મોકલીને જવાબ આપો.*\n━━━━━━━━━━━━━━━━━━"
+    else:
+        msg += f"━━━━━━━━━━━━━━━━━━\n💬 *Reply with 1–{count} to select a doctor.*\n━━━━━━━━━━━━━━━━━━"
+
+    return msg
+
+def format_doctor_slots(doctor_name: str, slots: list, date_str: str = "", language: str = "en") -> str:
+    """Formats the single WhatsApp message showing available slots for the selected doctor."""
+    lang = (language or "en").lower().strip()
+    if not slots:
+        return LOCALIZED_NO_SLOTS_AVAILABLE.get(lang, LOCALIZED_NO_SLOTS_AVAILABLE["en"])
+
+    header = LOCALIZED_AVAILABLE_APPOINTMENTS_HEADER.get(lang, LOCALIZED_AVAILABLE_APPOINTMENTS_HEADER["en"])
+    msg = f"{header}*{doctor_name}*\n"
+    if date_str:
+        date_label = "दिनांक" if lang == "hi" else ("तारीख" if lang in ("mr", "gu") else "Date")
+        msg += f"📅 {date_label}: {date_str}\n\n"
+    else:
+        msg += "\n"
+
+    for i, slot in enumerate(slots):
+        emoji = NUMBER_EMOJIS[i] if i < len(NUMBER_EMOJIS) else f"{i+1}️⃣"
+        time_display = slot.get("time12") or slot.get("time") or "Available"
+        msg += f"{emoji} {time_display}\n"
+
+    count = len(slots)
+    if lang == "hi":
+        msg += f"\n━━━━━━━━━━━━━━━━━━\n💬 *स्लॉट चुनने के लिए 1–{count} लिखकर उत्तर दें।*\n━━━━━━━━━━━━━━━━━━"
+    elif lang == "mr":
+        msg += f"\n━━━━━━━━━━━━━━━━━━\n💬 *स्लॉट निवडण्यासाठी 1–{count} पाठवून उत्तर द्या.*\n━━━━━━━━━━━━━━━━━━"
+    elif lang == "gu":
+        msg += f"\n━━━━━━━━━━━━━━━━━━\n💬 *સ્લોટ પસંદ કરવા માટે 1–{count} મોકલીને જવાબ આપો.*\n━━━━━━━━━━━━━━━━━━"
+    else:
+        msg += f"\n━━━━━━━━━━━━━━━━━━\n💬 *Reply with 1–{count} to select a slot.*\n━━━━━━━━━━━━━━━━━━"
+
+    return msg
+
+def format_confirmation_message(doctor_name: str, specialization: str, date_str: str, time_str: str, language: str = "en") -> str:
+    """Formats the final confirmed appointment message in user's language."""
+    lang = (language or "en").lower().strip()
+    if lang == "hi":
+        return (
+            "━━━━━━━━━━━━━━━━━━\n"
+            "✅ *अपॉइंटमेंट की पुष्टि हो गई*\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            f"👨‍⚕️ *डॉक्टर:*\n{doctor_name}\n\n"
+            f"🩺 *विशेषज्ञता:*\n{specialization}\n\n"
+            f"📅 *दिनांक:*\n{date_str}\n\n"
+            f"🕐 *समय:*\n{time_str}\n\n"
+            "आपकी अपॉइंटमेंट सफलतापूर्वक बुक हो गई है।\n\n"
+            "━━━━━━━━━━━━━━━━━━"
+        )
+    elif lang == "mr":
+        return (
+            "━━━━━━━━━━━━━━━━━━\n"
+            "✅ *अपॉइंटमेंट निश्चित झाली*\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            f"👨‍⚕️ *डॉक्टर:*\n{doctor_name}\n\n"
+            f"🩺 *विशेषज्ञता:*\n{specialization}\n\n"
+            f"📅 *तारीख:*\n{date_str}\n\n"
+            f"🕐 *वेळ:*\n{time_str}\n\n"
+            "तुमची अपॉइंटमेंट यशस्वीरित्या बुक झाली आहे.\n\n"
+            "━━━━━━━━━━━━━━━━━━"
+        )
+    elif lang == "gu":
+        return (
+            "━━━━━━━━━━━━━━━━━━\n"
+            "✅ *એપોઇન્ટમેન્ટ કન્ફર્મ થઈ*\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            f"👨‍⚕️ *ડૉક્ટર:*\n{doctor_name}\n\n"
+            f"🩺 *વિશેષતા:*\n{specialization}\n\n"
+            f"📅 *તારીખ:*\n{date_str}\n\n"
+            f"🕐 *સમય:*\n{time_str}\n\n"
+            "તમારી એપોઇન્ટમેન્ટ સફળતાપૂર્વક બુક થઈ ગઈ છે.\n\n"
+            "━━━━━━━━━━━━━━━━━━"
+        )
+    return (
+        "━━━━━━━━━━━━━━━━━━\n"
+        "✅ *Appointment Confirmed*\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        f"👨‍⚕️ *Doctor:*\n{doctor_name}\n\n"
+        f"🩺 *Specialization:*\n{specialization}\n\n"
+        f"📅 *Date:*\n{date_str}\n\n"
+        f"🕐 *Time:*\n{time_str}\n\n"
+        "Your appointment has been booked successfully.\n\n"
+        "━━━━━━━━━━━━━━━━━━"
+    )
+
+def format_invalid_doctor_choice(count: int, language: str = "en") -> str:
+    lang = (language or "en").lower().strip()
+    if lang == "hi":
+        return f"कृपया एक मान्य डॉक्टर संख्या (1–{count}) दर्ज करें।"
+    elif lang == "mr":
+        return f"कृपया योग्य डॉक्टर क्रमांक (1–{count}) पाठवा."
+    elif lang == "gu":
+        return f"કૃપા કરીને માન્ય ડૉક્ટર નંબર (1–{count}) મોકલો."
+    return f"Please reply with a valid doctor number (1–{count})."
+
+def format_invalid_slot_choice(count: int, language: str = "en") -> str:
+    lang = (language or "en").lower().strip()
+    if lang == "hi":
+        return f"कृपया एक मान्य स्लॉट संख्या (1–{count}) दर्ज करें।"
+    elif lang == "mr":
+        return f"कृपया योग्य स्लॉट क्रमांक (1–{count}) पाठवा."
+    elif lang == "gu":
+        return f"કૃપા કરીને માન્ય સ્લોટ નંબર (1–{count}) મોકલો."
+    return f"Please reply with a valid slot number (1–{count})."
+
 def get_localized_message(catalog: dict, language: str = "en", default: str = "") -> str:
     """Retrieves a message from a dictionary by language with English fallback."""
     lang = (language or "en").lower().strip()
     return catalog.get(lang, catalog.get("en", default))
+
 
 # Bot Default Trigger & Response (legacy fallback)
 TRIGGER_KEYWORD: str = "hello"

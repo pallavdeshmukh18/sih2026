@@ -174,7 +174,7 @@ class TestClinicalClient(unittest.TestCase):
             message="No other symptoms"
         )
 
-        self.assertEqual(reply, COMPLETION_MESSAGE)
+        self.assertIn(COMPLETION_MESSAGE, reply)
         # Active session should now be cleared
         self.assertIsNone(self.client.get_session_id("+919876543210"))
         # Summary should be cached
@@ -1229,7 +1229,8 @@ class TestWhatsAppUnifiedClinicalAssessmentFlow(unittest.TestCase):
 
         self._simulate_message(phone, "No shortness of breath")
         # Bot sends completion message
-        self.bot.send_message.assert_called_with(COMPLETION_MESSAGE)
+        sent_arg = self.bot.send_message.call_args[0][0]
+        self.assertIn(COMPLETION_MESSAGE, sent_arg)
         # Session state is cleared
         self.assertIsNone(self.client.get_session_id(phone))
         self.assertEqual(self.bot.get_menu_state(phone), WhatsAppState.IDLE)

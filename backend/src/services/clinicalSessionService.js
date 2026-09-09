@@ -400,10 +400,45 @@ async function getSessionByIdCore({ sessionId, patientId = null, userRole = null
     return session;
 }
 
+/**
+ * 5. Deterministic Medical Specialization Mapping
+ */
+function determineRequiredSpecialization(chiefComplaint = "", currentState = {}, summary = "") {
+    const textCorpus = [
+        chiefComplaint || "",
+        summary || "",
+        ...(currentState?.clinical_entities || []).map(e => `${e.field || ""} ${e.value || ""}`),
+        ...(currentState?.red_flags || []),
+        ...(currentState?.conversation_history || []).map(m => m.content || ""),
+    ].join(" ").toLowerCase();
+
+    // 1. Cardiology keywords
+    const cardiacTerms = ["chest pain", "angina", "cardiac", "heart", "palpitation", "myocardial", "arrhythmia"];
+    if (cardiacTerms.some(term => textCorpus.includes(term))) {
+        return "Cardiology";
+    }
+
+    // 2. Dermatology keywords
+    const dermaTerms = ["skin", "rash", "itching", "acne", "eczema", "dermatitis", "lesion", "psoriasis", "hives", "urticaria", "fungal", "boil"];
+    if (dermaTerms.some(term => textCorpus.includes(term))) {
+        return "Dermatology";
+    }
+
+    // 3. AYUSH if consultation_type is ayush
+    if (currentState?.consultation_type === "ayush") {
+        return "AYUSH";
+    }
+
+    // 4. Default primary care / internal medicine
+    return "General Medicine";
+}
+
 module.exports = {
     ClinicalSessionError,
     startSessionCore,
     processTextTurnCore,
     finalizeSessionCore,
     getSessionByIdCore,
+    determineRequiredSpecialization,
 };
+

@@ -58,8 +58,15 @@ try:
         UPLOAD_REPORT_TEXT,
         WHATSAPP_WEB_URL,
         WhatsAppState,
+        format_confirmation_message,
+        format_doctor_recommendations,
+        format_doctor_slots,
+        format_invalid_doctor_choice,
+        format_invalid_slot_choice,
         format_link_success_message,
         get_localized_message,
+        LOCALIZED_NO_DOCTORS_FOUND,
+        LOCALIZED_SLOT_CONFLICT,
     )
     from .clinical_client import ClinicalClient
     from .auth_client import WhatsAppAuthClient, whatsapp_auth_client
@@ -103,11 +110,19 @@ except (ImportError, ValueError):
         UPLOAD_REPORT_TEXT,
         WHATSAPP_WEB_URL,
         WhatsAppState,
+        format_confirmation_message,
+        format_doctor_recommendations,
+        format_doctor_slots,
+        format_invalid_doctor_choice,
+        format_invalid_slot_choice,
         format_link_success_message,
         get_localized_message,
+        LOCALIZED_NO_DOCTORS_FOUND,
+        LOCALIZED_SLOT_CONFLICT,
     )
     from clinical_client import ClinicalClient
     from auth_client import WhatsAppAuthClient, whatsapp_auth_client
+
 
 
 # Configure structured logging
@@ -312,7 +327,93 @@ def generate_response(
         else:
             return LOCALIZED_INVALID_TOKEN.get(pending_lang, INVALID_TOKEN_MESSAGE)
 
-    # 3. Active clinical session
+    # 3. WAITING_FOR_DOCTOR_SELECTION state
+    if current_menu_state == WhatsAppState.WAITING_FOR_DOCTOR_SELECTION:
+        user_lang = _resolve_module_user_language(patient_id, active_auth) or DEFAULT_LANGUAGE
+        docs = getattr(active_client, "recommended_doctors", {}).get(patient_id, [])
+        if cleaned.isdigit():
+            idx = int(cleaned) - 1
+            if 0 <= idx < len(docs):
+                selected_doc = docs[idx]
+                if not hasattr(active_client, "selected_doctor"):
+                    active_client.selected_doctor = {}
+                active_client.selected_doctor[patient_id] = selected_doc
+                doc_name = selected_doc.get("name") or f"Dr. {selected_doc.get('firstName', '')} {selected_doc.get('lastName', '')}".strip()
+
+                try:
+                    slots_data = active_client.get_doctor_slots(selected_doc["id"], patient_id=patient_id)
+                    slots = slots_data.get("slots", [])
+                    if slots:
+                        if not hasattr(active_client, "available_slots"):
+                            active_client.available_slots = {}
+                        active_client.available_slots[patient_id] = slots
+                        _module_menu_states[patient_id] = WhatsAppState.WAITING_FOR_APPOINTMENT_SELECTION
+                        return format_doctor_slots(doc_name, slots, date_str=slots_data.get("date", ""), language=user_lang)
+                    else:
+                        return format_doctor_slots(doc_name, [], language=user_lang)
+                except Exception as exc:
+                    logger.error("Failed to retrieve slots for doctor %s: %s", selected_doc.get("id"), exc)
+                    return ERROR_MESSAGE
+            else:
+                return format_invalid_doctor_choice(len(docs), language=user_lang)
+        else:
+            return format_invalid_doctor_choice(len(docs), language=user_lang)
+
+    # 4. WAITING_FOR_APPOINTMENT_SELECTION state
+    if current_menu_state == WhatsAppState.WAITING_FOR_APPOINTMENT_SELECTION:
+        user_lang = _resolve_module_user_language(patient_id, active_auth) or DEFAULT_LANGUAGE
+        slots = getattr(active_client, "available_slots", {}).get(patient_id, [])
+        selected_doc = getattr(active_client, "selected_doctor", {}).get(patient_id, {})
+        sess_id = getattr(active_client, "last_completed_session", {}).get(patient_id)
+
+        if cleaned.isdigit():
+            idx = int(cleaned) - 1
+            if 0 <= idx < len(slots):
+                selected_slot = slots[idx]
+                doc_id = selected_doc.get("id")
+                try:
+                    book_res = active_client.book_appointment(
+                        patient_id=patient_id,
+                        session_id=sess_id,
+                        doctor_id=doc_id,
+                        scheduled_at=selected_slot.get("scheduledAt"),
+                    )
+                    if book_res.get("success"):
+                        _module_menu_states.pop(patient_id, None)
+                        if hasattr(active_client, "recommended_doctors"):
+                            active_client.recommended_doctors.pop(patient_id, None)
+                        if hasattr(active_client, "selected_doctor"):
+                            active_client.selected_doctor.pop(patient_id, None)
+                        if hasattr(active_client, "available_slots"):
+                            active_client.available_slots.pop(patient_id, None)
+                        if hasattr(active_client, "last_completed_session"):
+                            active_client.last_completed_session.pop(patient_id, None)
+
+                        doc_name = selected_doc.get("name") or f"Dr. {selected_doc.get('firstName', '')} {selected_doc.get('lastName', '')}".strip()
+                        spec = selected_doc.get("specialization") or "General Medicine"
+                        date_val = selected_slot.get("scheduledAt", "")[:10]
+                        time_val = selected_slot.get("time12") or selected_slot.get("time") or ""
+                        return format_confirmation_message(doc_name, spec, date_val, time_val, language=user_lang)
+                    elif book_res.get("status_code") == 409:
+                        # Slot conflict! Refresh slots and prompt again
+                        slots_data = active_client.get_doctor_slots(doc_id, patient_id=patient_id)
+                        refreshed_slots = slots_data.get("slots", [])
+                        active_client.available_slots[patient_id] = refreshed_slots
+                        conflict_header = LOCALIZED_SLOT_CONFLICT.get(user_lang, LOCALIZED_SLOT_CONFLICT["en"])
+                        doc_name = selected_doc.get("name") or f"Dr. {selected_doc.get('firstName', '')} {selected_doc.get('lastName', '')}".strip()
+                        slots_msg = format_doctor_slots(doc_name, refreshed_slots, date_str=slots_data.get("date", ""), language=user_lang)
+                        return f"{conflict_header}\n{slots_msg}"
+                    else:
+                        return ERROR_MESSAGE
+                except Exception as exc:
+                    logger.error("Failed to book appointment: %s", exc)
+                    return ERROR_MESSAGE
+            else:
+                return format_invalid_slot_choice(len(slots), language=user_lang)
+        else:
+            return format_invalid_slot_choice(len(slots), language=user_lang)
+
+    # 5. Active clinical session
     is_clinical_active = (
         has_session
         or current_menu_state == WhatsAppState.CLINICAL_SESSION
@@ -324,10 +425,13 @@ def generate_response(
         reply = active_client.handle_message(patient_id=patient_id, message=cleaned, language=user_lang)
         is_pending = hasattr(active_client, "pending_complaint") and patient_id in active_client.pending_complaint
         if active_client.get_session_id(patient_id) is None and not is_pending:
-            _module_menu_states.pop(patient_id, None)
+            if hasattr(active_client, "recommended_doctors") and active_client.recommended_doctors.get(patient_id):
+                _module_menu_states[patient_id] = WhatsAppState.WAITING_FOR_DOCTOR_SELECTION
+            else:
+                _module_menu_states.pop(patient_id, None)
         return reply
 
-    # 4. Active menu state
+    # 6. Active menu state
     if current_menu_state == WhatsAppState.MENU:
         user_lang = _resolve_module_user_language(patient_id, active_auth) or DEFAULT_LANGUAGE
         if cleaned == "1":
@@ -342,7 +446,8 @@ def generate_response(
         else:
             return LOCALIZED_INVALID_MENU.get(user_lang, INVALID_MENU_TEXT)
 
-    # 5. Exact activation phrase ('hello medikiosk')
+    # 7. Exact activation phrase ('hello medikiosk')
+
     if is_exact_activation_message(cleaned):
         is_linked = active_auth.is_linked(patient_id)
         if not is_linked:
@@ -1541,12 +1646,114 @@ class WhatsAppBot:
                         reply_text = self.clinical_client.handle_message(
                             patient_id=session_id_key, message=cleaned_text, **handle_kwargs
                         )
-                        # If session completed, clear menu state
+                        # If session completed, transition to doctor selection if doctors recommended
                         is_pending = hasattr(self.clinical_client, "pending_complaint") and (whatsapp_id in self.clinical_client.pending_complaint or chat_title in self.clinical_client.pending_complaint)
                         if self.clinical_client.get_session_id(session_id_key) is None and not is_pending:
-                            self.clear_menu_state(whatsapp_id)
-                            if chat_title != whatsapp_id:
-                                self.clear_menu_state(chat_title)
+                            if hasattr(self.clinical_client, "recommended_doctors") and (whatsapp_id in self.clinical_client.recommended_doctors or chat_title in self.clinical_client.recommended_doctors):
+                                self.set_menu_state(whatsapp_id, WhatsAppState.WAITING_FOR_DOCTOR_SELECTION)
+                                if chat_title != whatsapp_id:
+                                    self.set_menu_state(chat_title, WhatsAppState.WAITING_FOR_DOCTOR_SELECTION)
+                            else:
+                                self.clear_menu_state(whatsapp_id)
+                                if chat_title != whatsapp_id:
+                                    self.clear_menu_state(chat_title)
+
+                    # Priority 5b: WAITING_FOR_DOCTOR_SELECTION state
+                    elif current_menu_state == WhatsAppState.WAITING_FOR_DOCTOR_SELECTION:
+                        user_lang = self.get_user_language(whatsapp_id) or DEFAULT_LANGUAGE
+                        docs = getattr(self.clinical_client, "recommended_doctors", {}).get(whatsapp_id) or getattr(self.clinical_client, "recommended_doctors", {}).get(chat_title, [])
+                        if cleaned_text.isdigit():
+                            idx = int(cleaned_text) - 1
+                            if 0 <= idx < len(docs):
+                                selected_doc = docs[idx]
+                                if not hasattr(self.clinical_client, "selected_doctor"):
+                                    self.clinical_client.selected_doctor = {}
+                                self.clinical_client.selected_doctor[whatsapp_id] = selected_doc
+                                if chat_title != whatsapp_id:
+                                    self.clinical_client.selected_doctor[chat_title] = selected_doc
+                                doc_name = selected_doc.get("name") or f"Dr. {selected_doc.get('firstName', '')} {selected_doc.get('lastName', '')}".strip()
+                                try:
+                                    slots_data = self.clinical_client.get_doctor_slots(selected_doc["id"], patient_id=whatsapp_id)
+                                    slots = slots_data.get("slots", [])
+                                    if slots:
+                                        if not hasattr(self.clinical_client, "available_slots"):
+                                            self.clinical_client.available_slots = {}
+                                        self.clinical_client.available_slots[whatsapp_id] = slots
+                                        if chat_title != whatsapp_id:
+                                            self.clinical_client.available_slots[chat_title] = slots
+                                        self.set_menu_state(whatsapp_id, WhatsAppState.WAITING_FOR_APPOINTMENT_SELECTION)
+                                        if chat_title != whatsapp_id:
+                                            self.set_menu_state(chat_title, WhatsAppState.WAITING_FOR_APPOINTMENT_SELECTION)
+                                        reply_text = format_doctor_slots(doc_name, slots, date_str=slots_data.get("date", ""), language=user_lang)
+                                    else:
+                                        reply_text = format_doctor_slots(doc_name, [], language=user_lang)
+                                except Exception as exc:
+                                    logger.error("Failed to retrieve slots for doctor %s: %s", selected_doc.get("id"), exc)
+                                    reply_text = ERROR_MESSAGE
+                            else:
+                                reply_text = format_invalid_doctor_choice(len(docs), language=user_lang)
+                        else:
+                            reply_text = format_invalid_doctor_choice(len(docs), language=user_lang)
+
+                    # Priority 5c: WAITING_FOR_APPOINTMENT_SELECTION state
+                    elif current_menu_state == WhatsAppState.WAITING_FOR_APPOINTMENT_SELECTION:
+                        user_lang = self.get_user_language(whatsapp_id) or DEFAULT_LANGUAGE
+                        slots = getattr(self.clinical_client, "available_slots", {}).get(whatsapp_id) or getattr(self.clinical_client, "available_slots", {}).get(chat_title, [])
+                        selected_doc = getattr(self.clinical_client, "selected_doctor", {}).get(whatsapp_id) or getattr(self.clinical_client, "selected_doctor", {}).get(chat_title, {})
+                        sess_id = getattr(self.clinical_client, "last_completed_session", {}).get(whatsapp_id) or getattr(self.clinical_client, "last_completed_session", {}).get(chat_title)
+
+                        if cleaned_text.isdigit():
+                            idx = int(cleaned_text) - 1
+                            if 0 <= idx < len(slots):
+                                selected_slot = slots[idx]
+                                doc_id = selected_doc.get("id")
+                                try:
+                                    book_res = self.clinical_client.book_appointment(
+                                        patient_id=whatsapp_id,
+                                        session_id=sess_id,
+                                        doctor_id=doc_id,
+                                        scheduled_at=selected_slot.get("scheduledAt"),
+                                    )
+                                    if book_res.get("success"):
+                                        self.clear_menu_state(whatsapp_id)
+                                        if chat_title != whatsapp_id:
+                                            self.clear_menu_state(chat_title)
+                                        self.clinical_client.recommended_doctors.pop(whatsapp_id, None)
+                                        self.clinical_client.selected_doctor.pop(whatsapp_id, None)
+                                        self.clinical_client.available_slots.pop(whatsapp_id, None)
+                                        self.clinical_client.last_completed_session.pop(whatsapp_id, None)
+                                        if chat_title != whatsapp_id:
+                                            self.clinical_client.recommended_doctors.pop(chat_title, None)
+                                            self.clinical_client.selected_doctor.pop(chat_title, None)
+                                            self.clinical_client.available_slots.pop(chat_title, None)
+                                            self.clinical_client.last_completed_session.pop(chat_title, None)
+
+                                        doc_name = selected_doc.get("name") or f"Dr. {selected_doc.get('firstName', '')} {selected_doc.get('lastName', '')}".strip()
+                                        spec = selected_doc.get("specialization") or "General Medicine"
+                                        date_val = selected_slot.get("scheduledAt", "")[:10]
+                                        time_val = selected_slot.get("time12") or selected_slot.get("time") or ""
+                                        reply_text = format_confirmation_message(doc_name, spec, date_val, time_val, language=user_lang)
+                                    elif book_res.get("status_code") == 409:
+                                        # Slot conflict! Refresh slots and prompt again
+                                        slots_data = self.clinical_client.get_doctor_slots(doc_id, patient_id=whatsapp_id)
+                                        refreshed_slots = slots_data.get("slots", [])
+                                        self.clinical_client.available_slots[whatsapp_id] = refreshed_slots
+                                        if chat_title != whatsapp_id:
+                                            self.clinical_client.available_slots[chat_title] = refreshed_slots
+                                        conflict_header = LOCALIZED_SLOT_CONFLICT.get(user_lang, LOCALIZED_SLOT_CONFLICT["en"])
+                                        doc_name = selected_doc.get("name") or f"Dr. {selected_doc.get('firstName', '')} {selected_doc.get('lastName', '')}".strip()
+                                        slots_msg = format_doctor_slots(doc_name, refreshed_slots, date_str=slots_data.get("date", ""), language=user_lang)
+                                        reply_text = f"{conflict_header}\n{slots_msg}"
+                                    else:
+                                        reply_text = ERROR_MESSAGE
+                                except Exception as exc:
+                                    logger.error("Failed to book appointment: %s", exc)
+                                    reply_text = ERROR_MESSAGE
+                            else:
+                                reply_text = format_invalid_slot_choice(len(slots), language=user_lang)
+                        else:
+                            reply_text = format_invalid_slot_choice(len(slots), language=user_lang)
+
 
                     # Priority 6: Active menu state
                     elif current_menu_state == WhatsAppState.MENU:
@@ -1637,6 +1844,7 @@ class WhatsAppBot:
                             logger.info("Reply sent to '%s': '%s'", whatsapp_id, reply_text)
                             self.processed_message_ids.add(msg_id)
                             self._record_sent_message(reply_text)
+                            self._send_tts_if_enabled(whatsapp_id, reply_text, self.get_user_language(whatsapp_id) or DEFAULT_LANGUAGE)
                             try:
                                 new_rows = self._get_newest_message_rows(limit=2)
                                 if new_rows:
@@ -1732,6 +1940,83 @@ class WhatsAppBot:
         except Exception as exc:
             logger.error("Error while typing/sending reply: %s", exc)
             return False
+
+    def _send_tts_if_enabled(self, whatsapp_id: str, text: str, language: str) -> None:
+        """
+        Sends audio along with text if the patient's accessibility preference
+        is 'voice_guidance' or 'hearing_assistance'.
+        Never raises errors or blocks message delivery.
+        """
+        try:
+            pref = getattr(self.clinical_client, "patient_accessibility", {}).get(whatsapp_id, "none")
+            if pref in ("voice_guidance", "hearing_assistance"):
+                logger.info("Accessibility preference '%s' active for '%s'. Synthesizing Sarvam TTS audio...", pref, whatsapp_id)
+                audio_data = self.clinical_client.synthesize_speech(text, language=language)
+                if audio_data:
+                    self.send_audio(audio_data)
+        except Exception as exc:
+            logger.warning("TTS audio generation/sending failed (graceful fallback to text-only): %s", exc)
+
+    def send_audio(self, audio_bytes: bytes, filename: str = "voice_guidance.wav") -> bool:
+        """
+        Sends an audio file attachment to the active conversation.
+        If file input or WhatsApp attach fails, logs a warning and returns False.
+        Never breaks execution or alters booking state.
+        """
+        if not self.driver or not audio_bytes:
+            return False
+
+        temp_path = None
+        try:
+            temp_dir = self.session_dir / "temp_audio"
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            temp_path = temp_dir / filename
+            temp_path.write_bytes(audio_bytes)
+
+            file_inputs = self.driver.find_elements(By.XPATH, "//input[@type='file']")
+            if not file_inputs:
+                attach_buttons = self.driver.find_elements(
+                    By.XPATH,
+                    "//div[@id='main']//footer//button[@title='Attach' or .//span[@data-icon='plus' or @data-icon='attach-menu-plus']]"
+                )
+                for btn in attach_buttons:
+                    try:
+                        btn.click()
+                        time.sleep(0.5)
+                        break
+                    except Exception:
+                        pass
+                file_inputs = self.driver.find_elements(By.XPATH, "//input[@type='file']")
+
+            if file_inputs:
+                target_input = file_inputs[0]
+                for fi in file_inputs:
+                    accept = fi.get_attribute("accept") or ""
+                    if "audio" in accept or "*" in accept:
+                        target_input = fi
+                        break
+                target_input.send_keys(str(temp_path.resolve()))
+                time.sleep(1.0)
+
+                send_media_btns = self.driver.find_elements(
+                    By.XPATH,
+                    "//span[@data-icon='send']/ancestor::button | //div[@role='button'][.//span[@data-icon='send']]"
+                )
+                for sb in send_media_btns:
+                    if sb.is_displayed():
+                        sb.click()
+                        time.sleep(0.5)
+                        return True
+            return False
+        except Exception as exc:
+            logger.warning("Failed to send TTS audio attachment: %s", exc)
+            return False
+        finally:
+            if temp_path and temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except Exception:
+                    pass
 
     def run(self) -> None:
         """Main execution loop for listening and replying."""

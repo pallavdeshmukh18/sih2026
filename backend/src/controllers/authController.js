@@ -1711,7 +1711,8 @@ async function getWhatsAppStatus(req, res) {
         const normalizedId = whatsappId.trim();
 
         const result = await pool.query(
-            `SELECT w.user_id, u.first_name, u.last_name, u.role, p.preferred_language AS language
+            `SELECT w.user_id, u.first_name, u.last_name, u.role, p.preferred_language AS language,
+                    p.accessibility_preference AS accessibility_preference
              FROM whatsapp_accounts w
              JOIN users u ON w.user_id = u.id
              LEFT JOIN patient_profiles p ON w.user_id = p.user_id
@@ -1732,6 +1733,7 @@ async function getWhatsAppStatus(req, res) {
             user_name: account.first_name || "Patient",
             role: account.role,
             language: account.language || null,
+            accessibility_preference: account.accessibility_preference || "none",
         });
     } catch (error) {
         console.error("Error in getWhatsAppStatus:", error.message);
