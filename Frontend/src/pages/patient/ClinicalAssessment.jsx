@@ -111,6 +111,8 @@ export default function ClinicalAssessment() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const complaintFromUrl = searchParams.get("complaint");
+
   useEffect(() => {
     async function loadAppointments() {
       if (!token) return;
@@ -119,7 +121,7 @@ export default function ClinicalAssessment() {
         if (res.success && Array.isArray(res.appointments) && res.appointments.length > 0) {
           setAppointments(res.appointments);
           if (!selectedAppointmentId) {
-            setSelectedAppointmentId(res.appointments[0].id);
+            setSelectedAppointmentId(appointmentIdFromUrl || res.appointments[0].id);
           }
         }
       } catch (err) {
@@ -127,7 +129,45 @@ export default function ClinicalAssessment() {
       }
     }
     loadAppointments();
-  }, [token]);
+  }, [token, appointmentIdFromUrl]);
+
+  // Auto-start assessment if redirected from doctor booking with complaint
+  useEffect(() => {
+    if (!token || sessionId || loading || !complaintFromUrl) return;
+
+    async function autoStart() {
+      setLoading(true);
+      setError(null);
+      try {
+        const activeLang = currentLanguage || "en";
+        setSessionLanguage(activeLang);
+        setChiefComplaint(complaintFromUrl);
+
+        const payload = {
+          chiefComplaint: complaintFromUrl,
+          appointmentId: appointmentIdFromUrl || selectedAppointmentId || undefined,
+          language: activeLang,
+        };
+
+        const res = await startClinicalSession(payload, token);
+        if (res.success && res.sessionId) {
+          const firstQ = res.nextQuestion || res.firstQuestion;
+          setSessionId(res.sessionId);
+          setCurrentQuestion(firstQ);
+          setOptions(res.options || []);
+          setConversationHistory([
+            { role: "system", content: firstQ },
+          ]);
+        }
+      } catch (err) {
+        console.error("Auto start session failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    autoStart();
+  }, [token, complaintFromUrl, sessionId, loading, appointmentIdFromUrl, selectedAppointmentId, currentLanguage]);
 
   const handleStartSession = async (e) => {
     e.preventDefault();

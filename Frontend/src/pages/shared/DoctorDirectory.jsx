@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Building2, Calendar, CheckCircle, ChevronDown, Heart, MapPin, Search, Stethoscope, X } from "lucide-react";
 import toast from "react-hot-toast";
@@ -10,6 +11,7 @@ import heroImage from "../../assets/doctor-directory-hero.png";
 import styles from "./DoctorDirectory.module.css";
 
 export default function DoctorDirectory() {
+  const navigate = useNavigate();
   const { token } = useAuth();
   const { t, language } = useLanguage();
   const [doctors, setDoctors] = useState([]);
@@ -66,9 +68,16 @@ export default function DoctorDirectory() {
     event.preventDefault();
     setBooking(true);
     try {
-      await createAppointment({ doctorId: selectedDoctor.id, scheduledAt: new Date(scheduledAt).toISOString(), durationMinutes: 30, appointmentType, reason, notes }, token);
+      const res = await createAppointment({ doctorId: selectedDoctor.id, scheduledAt: new Date(scheduledAt).toISOString(), durationMinutes: 30, appointmentType, reason, notes }, token);
       toast.success(t("doctors.bookingSuccess", "Appointment booked successfully!"));
+      const apptId = res?.appointment?.id || res?.id;
+      const complaintParam = encodeURIComponent(reason || notes || "General Clinical Consultation");
       setSelectedDoctor(null);
+      if (apptId) {
+        navigate(`/patient/assessment?appointmentId=${apptId}&complaint=${complaintParam}`);
+      } else {
+        navigate(`/patient/assessment?complaint=${complaintParam}`);
+      }
     } catch (bookingError) {
       toast.error(bookingError.message || "Unable to book this appointment.");
     } finally {
