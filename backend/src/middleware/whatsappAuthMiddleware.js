@@ -12,7 +12,7 @@
  */
 
 function authenticateWhatsAppService(req, res, next) {
-    const expectedKey = process.env.WHATSAPP_SERVICE_KEY || "medikiosk_whatsapp_service_secret_2026_x89f2";
+    const expectedKey = process.env.WHATSAPP_SERVICE_KEY;
     const providedKey = req.headers["x-whatsapp-service-key"];
 
     if (!providedKey) {

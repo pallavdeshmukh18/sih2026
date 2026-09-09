@@ -21,8 +21,9 @@ export default function Account() {
     lastName: user?.lastName || "",
     dateOfBirth: user?.profile?.dateOfBirth ? new Date(user.profile.dateOfBirth).toISOString().split("T")[0] : "",
     gender: user?.profile?.gender || "",
-    state: user?.onboarding?.state || "",
     preferredLanguage: user?.onboarding?.preferredLanguage || user?.preferredLanguage || language || "en",
+    interactionMode: user?.onboarding?.interactionMode || "voice_touch",
+    accessibilityPreference: user?.onboarding?.accessibilityPreference || "none",
   }));
   const [phoneModal, setPhoneModal] = useState(false);
   const [phoneStep, setPhoneStep] = useState(1);
@@ -65,6 +66,8 @@ export default function Account() {
         gender: form.gender || null,
         state: form.state,
         preferredLanguage: form.preferredLanguage,
+        interactionMode: form.interactionMode,
+        accessibilityPreference: form.accessibilityPreference,
       }, token);
       changeLanguage(form.preferredLanguage);
       await refreshUser();
@@ -196,6 +199,23 @@ export default function Account() {
                     ))}
                   </select>
                 </label>
+                <label>
+                  {t("account.interactionMode", "Interaction Mode")}
+                  <select name="interactionMode" value={form.interactionMode} onChange={update}>
+                    <option value="voice_touch">{t("account.voiceTouch", "Voice + Touch Screen")}</option>
+                    <option value="voice">{t("account.voiceOnly", "Voice Only")}</option>
+                    <option value="touch">{t("account.touchOnly", "Touch Screen Only")}</option>
+                  </select>
+                </label>
+                <label>
+                  {t("account.accessibilityPreference", "Accessibility Preference")}
+                  <select name="accessibilityPreference" value={form.accessibilityPreference} onChange={update}>
+                    <option value="none">{t("account.standardInterface", "Standard Interface")}</option>
+                    <option value="large_text">{t("account.largerText", "Larger Text")}</option>
+                    <option value="voice_guidance">{t("account.audioVoiceover", "Audio Voiceover")}</option>
+                    <option value="hearing_assistance">{t("account.visualHighlights", "Visual Highlights")}</option>
+                  </select>
+                </label>
                 <button className={styles.save} disabled={saving}>
                   <Save /> {saving ? t("account.saving", "Saving…") : t("account.saveChanges", "Save Changes")}
                 </button>
@@ -212,7 +232,7 @@ export default function Account() {
                 </div>
                 <div>
                   <dt>{t("account.gender", "Gender")}</dt>
-                  <dd>{user?.profile?.gender || t("account.notProvided", "Not provided")}</dd>
+                  <dd>{user?.profile?.gender ? t(`account.${user.profile.gender.toLowerCase()}`, user.profile.gender) : t("account.notProvided", "Not provided")}</dd>
                 </div>
                 <div>
                   <dt>{t("account.phoneNumber", "Phone Number")}</dt>
@@ -233,6 +253,14 @@ export default function Account() {
                 <div>
                   <dt>{t("account.language", "Language")}</dt>
                   <dd>{SUPPORTED_LANGUAGES.find((item) => item.code === (user?.onboarding?.preferredLanguage || language))?.name || "English"}</dd>
+                </div>
+                <div>
+                  <dt>{t("account.interactionMode", "Interaction Mode")}</dt>
+                  <dd>{user?.onboarding?.interactionMode === "voice" ? t("account.voiceOnly", "Voice Only") : user?.onboarding?.interactionMode === "touch" ? t("account.touchOnly", "Touch Screen Only") : t("account.voiceTouch", "Voice + Touch Screen")}</dd>
+                </div>
+                <div>
+                  <dt>{t("account.accessibilityPreference", "Accessibility Preference")}</dt>
+                  <dd>{user?.onboarding?.accessibilityPreference === "large_text" ? t("account.largerText", "Larger Text") : user?.onboarding?.accessibilityPreference === "voice_guidance" ? t("account.audioVoiceover", "Audio Voiceover") : user?.onboarding?.accessibilityPreference === "hearing_assistance" ? t("account.visualHighlights", "Visual Highlights") : t("account.standardInterface", "Standard Interface")}</dd>
                 </div>
               </motion.dl>
             )}

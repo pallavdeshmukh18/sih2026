@@ -32,7 +32,7 @@ async function requestCallSession(req, res, next) {
             `SELECT u.id, u.first_name, u.last_name, dp.specialization 
              FROM users u 
              JOIN doctor_profiles dp ON u.id = dp.user_id 
-             WHERE u.id = $1 AND u.role = 'doctor' AND u.is_active = true;`,
+             WHERE u.id = $1 AND u.role = 'doctor' AND u.is_active = true AND dp.verification_status = 'verified';`,
             [doctorId]
         );
 
@@ -412,6 +412,13 @@ async function endCallSession(req, res, next) {
             });
         }
 
+        if (role !== "doctor" && (doctorNotes || prescription)) {
+            return res.status(403).json({ message: "Only the assigned doctor can record clinical notes or prescriptions." });
+        }
+        if (!["approved", "in_call"].includes(session.status)) {
+            return res.status(409).json({ message: "Only an approved or ongoing call can be completed." });
+        }
+
         const startedAt = session.started_at ? new Date(session.started_at) : new Date();
         const endedAt = new Date();
         const durationSeconds = Math.max(0, Math.round((endedAt - startedAt) / 1000));
@@ -549,6 +556,10 @@ async function sendMessage(req, res, next) {
                 success: false,
                 message: "Message content cannot be empty.",
             });
+        }
+
+        if (messageType !== "text" && !(senderRole === "doctor" && messageType === "prescription")) {
+            return res.status(403).json({ message: "This message type is restricted." });
         }
 
         const sessionCheck = await pool.query(

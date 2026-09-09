@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
     LayoutDashboard, User, Stethoscope, Users, Building, Calendar, 
-    FileText, ClipboardList, Video, Mail, LogOut, UserCog, ShieldCheck
+    FileText, ClipboardList, Video, LogOut, UserCog, ShieldCheck, Settings as SettingsIcon
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../context/AuthContext';
@@ -116,9 +116,9 @@ const Sidebar = ({ onHoverChange }) => {
 
                 <div className={styles.sectionTitle}>{t('navigation.others')}</div>
                 <div className={styles.menuSection}>
-                    <NavLink to={`${basePath}/mail`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                        <Mail size={20} />
-                        <span>{t('navigation.mail')}</span>
+                    <NavLink to={`${basePath}/settings`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                        <SettingsIcon size={20} />
+                        <span>{t('navigation.settings', 'Settings')}</span>
                     </NavLink>
                 </div>
             </nav>

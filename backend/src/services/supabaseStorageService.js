@@ -1,105 +1,75 @@
-const path = require("path");
-const fs = require("fs");
+const path = require('path');
+const fs = require('fs/promises');
+const BUCKET_NAME = 'medical-documents';
+const LOCAL_STORAGE_DIR = path.resolve(__dirname, '../../uploads/medical-documents');
 
-const BUCKET_NAME = "medical-documents";
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
-
-// Local upload storage directory fallback for dev/testing
-const LOCAL_STORAGE_DIR = path.join(__dirname, "../../uploads/medical-documents");
-
-/**
- * Ensures local storage directory exists
- */
-function ensureLocalDir(subDir = "") {
-    const fullPath = path.join(LOCAL_STORAGE_DIR, subDir);
-    if (!fs.existsSync(fullPath)) {
-        fs.mkdirSync(fullPath, { recursive: true });
-    }
-    return fullPath;
+function localPath(storagePath) {
+    const relative = storagePath.replace(/^local:/, '');
+    const resolved = path.resolve(LOCAL_STORAGE_DIR, relative);
+    if (!resolved.startsWith(LOCAL_STORAGE_DIR + path.sep)) throw new Error('Invalid storage path.');
+    return resolved;
 }
 
-/**
- * Uploads a document to Supabase Storage or Local Storage Fallback
- */
+function storageConfig() {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) throw Object.assign(new Error('Private document storage is not configured.'), { statusCode: 503 });
+    return { url, key };
+}
+
+async function storageRequest(resource, options = {}) {
+    const { url, key } = storageConfig();
+    const response = await fetch(`${url}/storage/v1/${resource}`, {
+        ...options,
+        headers: { Authorization: `Bearer ${key}`, ...options.headers },
+        signal: AbortSignal.timeout(30000),
+    });
+    if (!response.ok) throw Object.assign(new Error('Private document storage request failed.'), { statusCode: 502 });
+    return response;
+}
+
+const encodePath = value => value.split('/').map(encodeURIComponent).join('/');
+
 async function uploadMedicalDocument(patientId, documentId, filename, fileBuffer, mimeType) {
-    const storagePath = `${patientId}/${documentId}/${filename}`;
-
-    if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
-        try {
-            const url = `${SUPABASE_URL}/storage/v1/object/${BUCKET_NAME}/${storagePath}`;
-            const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-                    "Content-Type": mimeType || "application/octet-stream",
-                    "x-upsert": "true",
-                },
-                body: fileBuffer,
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("Supabase Storage upload failed:", response.status, errorText);
-                throw new Error(`Failed to upload to Supabase Storage: ${errorText}`);
-            }
-
-            console.log(`[STORAGE] Uploaded document to Supabase bucket: ${storagePath}`);
-            return {
-                storagePath,
-                bucket: BUCKET_NAME,
-                provider: "supabase",
-            };
-        } catch (err) {
-            console.warn("[STORAGE] Falling back to local storage provider due to:", err.message);
-        }
+    const safeName = path.basename(filename.replaceAll('\\', '/')).replace(/[\x00-\x1f]/g, '_');
+    const storagePath = `${patientId}/${documentId}/${safeName}`;
+    // Local storage is deliberate development configuration, never a cloud-failure fallback.
+    if (process.env.DOCUMENT_STORAGE_PROVIDER === 'local' && process.env.NODE_ENV !== 'production') {
+        const target = localPath(storagePath);
+        await fs.mkdir(path.dirname(target), { recursive: true });
+        await fs.writeFile(target, fileBuffer, { mode: 0o600 });
+        return { storagePath: `local:${storagePath}`, provider: 'local_filesystem' };
     }
-
-    // Local file fallback
-    const targetDir = ensureLocalDir(`${patientId}/${documentId}`);
-    const filePath = path.join(targetDir, filename);
-    fs.writeFileSync(filePath, fileBuffer);
-
-    console.log(`[LOCAL STORAGE] Saved document: ${filePath}`);
-    return {
-        storagePath,
-        bucket: BUCKET_NAME,
-        provider: "local_filesystem",
-        localPath: filePath,
-    };
+    await storageRequest(`object/${BUCKET_NAME}/${encodePath(storagePath)}`, {
+        method: 'POST', headers: { 'Content-Type': mimeType }, body: fileBuffer,
+    });
+    return { storagePath, provider: 'supabase' };
 }
 
-/**
- * Generates a signed or accessible download URL
- */
-async function getDocumentDownloadUrl(storagePath, expiresInSeconds = 3600) {
-    if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
-        try {
-            const url = `${SUPABASE_URL}/storage/v1/object/sign/${BUCKET_NAME}/${storagePath}`;
-            const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ expiresIn: expiresInSeconds }),
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                return `${SUPABASE_URL}/storage/v1${data.signedURL}`;
-            }
-        } catch (err) {
-            console.error("Error creating signed URL:", err.message);
-        }
-    }
-
-    // Local signed mock URL
-    return `/api/documents/raw/${encodeURIComponent(storagePath)}`;
+async function getLocalDocumentPath(storagePath) {
+    // Also recognize files saved by the old unmarked development fallback.
+    const target = localPath(storagePath);
+    try { await fs.access(target); return target; } catch { return null; }
 }
 
-module.exports = {
-    uploadMedicalDocument,
-    getDocumentDownloadUrl,
-    BUCKET_NAME,
-};
+async function getDocumentDownloadUrl(storagePath, expiresInSeconds = 60) {
+    const response = await storageRequest(`object/sign/${BUCKET_NAME}/${encodePath(storagePath)}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expiresIn: expiresInSeconds }),
+    });
+    const data = await response.json();
+    if (!data.signedURL) throw new Error('Storage did not return a download URL.');
+    return `${storageConfig().url}/storage/v1${data.signedURL}`;
+}
+
+async function deleteMedicalDocument(storagePath) {
+    const local = await getLocalDocumentPath(storagePath);
+    if (local) { await fs.unlink(local); return; }
+    if (storagePath.startsWith('local:')) return;
+    await storageRequest(`object/${BUCKET_NAME}`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefixes: [storagePath] }),
+    });
+}
+
+module.exports = { uploadMedicalDocument, getDocumentDownloadUrl, deleteMedicalDocument, getLocalDocumentPath, BUCKET_NAME };

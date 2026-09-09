@@ -20,7 +20,7 @@
     "frontDesk": "Front Desk",
     "doctorPortal": "Doctor Portal",
     "messages": "Messages",
-    "settings": "Account settings",
+    "settings": "Settings",
     "selectLanguage": "Select language",
     "name": "Name",
     "doctor": "Doctor",
@@ -40,7 +40,6 @@
     "documents": "Documents",
     "bedManager": "Bed Manager",
     "payment": "Payment",
-    "mail": "Mail",
     "applications": "APPLICATIONS",
     "others": "OTHERS"
   },

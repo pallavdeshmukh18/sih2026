@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
 const { normalizeEmail, isValidEmail } = require("../utils/emailUtils");
 
-const JWT_SECRET = process.env.JWT_SECRET || "medikiosk_jwt_secret_key_change_in_production";
+const { JWT_SECRET } = require("../config/auth");
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 
 // Valid roles that a doctor can create

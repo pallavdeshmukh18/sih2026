@@ -171,7 +171,7 @@ export default function PatientOnboarding() {
                             <span className={styles.brandBadge}>Patient Care</span>
                         </div>
                         <span className={styles.stepIndicator}>
-                            {t("common.step")} {step} {t("common.of")} 4
+                            {t("common.step", "Step")} {step} {t("common.of", "of")} 4
                         </span>
                     </div>
 
@@ -260,7 +260,7 @@ export default function PatientOnboarding() {
                                             >
                                                 {isRecommended && (
                                                     <span className={styles.recBadge}>
-                                                        {t("common.recommended")}
+                                                        {t("common.recommended", "Recommended")}
                                                     </span>
                                                 )}
                                                 <span className={styles.langNative}>{lang.nativeName}</span>
@@ -300,7 +300,7 @@ export default function PatientOnboarding() {
                                         <div className={styles.optionText}>
                                             <div className={styles.optionTitleRow}>
                                                 <span className={styles.optionTitle}>{t("onboarding.voiceAndTouch")}</span>
-                                                <span className={styles.recBadge}>{t("common.recommended")}</span>
+                                                <span className={styles.inlineRecBadge}>{t("common.recommended", "Recommended")}</span>
                                             </div>
                                             <span className={styles.optionDesc}>{t("onboarding.voiceAndTouchDesc")}</span>
                                         </div>

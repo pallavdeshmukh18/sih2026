@@ -14,11 +14,11 @@ async function getReceptionistStats(req, res, next) {
         todayEnd.setHours(23, 59, 59, 999);
 
         const todayApptsRes = await pool.query(
-            `SELECT status, COUNT(*) as count 
-             FROM appointments 
-             WHERE scheduled_at >= $1 AND scheduled_at <= $2 
+            `SELECT status, COUNT(*) as count
+             FROM appointments
+             WHERE scheduled_at >= $1 AND scheduled_at <= $2 AND doctor_id = $3
              GROUP BY status;`,
-            [todayStart.toISOString(), todayEnd.toISOString()]
+            [todayStart.toISOString(), todayEnd.toISOString(), req.practiceDoctorId]
         );
 
         let totalToday = 0;
@@ -37,15 +37,15 @@ async function getReceptionistStats(req, res, next) {
         });
 
         const doctorsRes = await pool.query(
-            `SELECT COUNT(*) as count 
-             FROM users u 
-             JOIN doctor_profiles d ON u.id = d.user_id 
-             WHERE u.role = 'doctor' AND u.is_active = true AND d.verification_status = 'verified';`
+            `SELECT COUNT(*) as count
+             FROM users u
+             JOIN doctor_profiles d ON u.id = d.user_id
+             WHERE u.role = 'doctor' AND u.is_active = true AND d.verification_status = 'verified' AND u.id = $1;`, [req.practiceDoctorId]
         );
         const availableDoctors = parseInt(doctorsRes.rows[0]?.count || 0, 10);
 
         const patientsRes = await pool.query(
-            `SELECT COUNT(*) as count FROM users WHERE role = 'patient' AND is_active = true;`
+            `SELECT COUNT(DISTINCT patient_id) as count FROM appointments WHERE doctor_id = $1;`, [req.practiceDoctorId]
         );
         const totalPatients = parseInt(patientsRes.rows[0]?.count || 0, 10);
 
@@ -59,8 +59,6 @@ async function getReceptionistStats(req, res, next) {
                 cancelled,
                 availableDoctors,
                 totalPatients,
-                bedOccupancyRate: 72,
-                emergencyReady: true,
             },
         });
     } catch (error) {
@@ -77,26 +75,25 @@ async function getReceptionistAppointments(req, res, next) {
         const { date, doctorId, status, search } = req.query;
 
         let query = `
-            SELECT a.id, a.patient_id, a.doctor_id, a.scheduled_at, a.duration_minutes, 
-                   a.appointment_type, a.status, a.reason, a.notes, a.created_at,
-                   pu.first_name AS patient_first_name, pu.last_name AS patient_last_name, 
+            SELECT a.id, a.patient_id, a.doctor_id, a.scheduled_at, a.duration_minutes,
+                   a.appointment_type, a.status, a.created_at,
+                   pu.first_name AS patient_first_name, pu.last_name AS patient_last_name,
                    pu.phone AS patient_phone, pu.email AS patient_email,
                    pp.date_of_birth AS patient_dob, pp.gender AS patient_gender, pp.abha_id,
                    du.first_name AS doctor_first_name, du.last_name AS doctor_last_name,
                    dp.specialization, dp.department,
-                   cs.id AS clinical_session_id, cs.status AS clinical_session_status,
-                   cs.summary AS ai_intake_summary
+                   cs.id AS clinical_session_id, cs.status AS clinical_session_status
             FROM appointments a
             JOIN users pu ON a.patient_id = pu.id
             LEFT JOIN patient_profiles pp ON pu.id = pp.user_id
             JOIN users du ON a.doctor_id = du.id
             LEFT JOIN doctor_profiles dp ON du.id = dp.user_id
             LEFT JOIN clinical_sessions cs ON a.id = cs.appointment_id
-            WHERE 1=1
+            WHERE a.doctor_id = $1
         `;
 
-        const values = [];
-        let paramIndex = 1;
+        const values = [req.practiceDoctorId];
+        let paramIndex = 2;
 
         if (date) {
             query += ` AND DATE(a.scheduled_at) = $${paramIndex++}`;
@@ -115,9 +112,9 @@ async function getReceptionistAppointments(req, res, next) {
 
         if (search) {
             query += ` AND (
-                pu.first_name ILIKE $${paramIndex} OR 
-                pu.last_name ILIKE $${paramIndex} OR 
-                pu.phone ILIKE $${paramIndex} OR 
+                pu.first_name ILIKE $${paramIndex} OR
+                pu.last_name ILIKE $${paramIndex} OR
+                pu.phone ILIKE $${paramIndex} OR
                 pp.abha_id ILIKE $${paramIndex}
             )`;
             values.push(`%${search}%`);
@@ -134,8 +131,6 @@ async function getReceptionistAppointments(req, res, next) {
             durationMinutes: row.duration_minutes,
             appointmentType: row.appointment_type,
             status: row.status,
-            reason: row.reason,
-            notes: row.notes,
             patient: {
                 id: row.patient_id,
                 firstName: row.patient_first_name,
@@ -158,7 +153,6 @@ async function getReceptionistAppointments(req, res, next) {
             intake: {
                 sessionId: row.clinical_session_id,
                 status: row.clinical_session_status || 'not_started',
-                aiSummary: row.ai_intake_summary,
             },
         }));
 
@@ -189,9 +183,9 @@ async function checkInAppointment(req, res, next) {
         const result = await pool.query(
             `UPDATE appointments
              SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP
-             WHERE id = $1
-             RETURNING *;`,
-            [appointmentId]
+             WHERE id = $1 AND doctor_id = $2 AND status = 'scheduled'
+             RETURNING id, scheduled_at, status;`,
+            [appointmentId, req.practiceDoctorId]
         );
 
         if (result.rows.length === 0) {
@@ -284,6 +278,10 @@ async function registerWalkInPatient(req, res, next) {
         }
 
         let patientUserId;
+        if (existingUser && existingUser.role !== 'patient') {
+            await client.query("ROLLBACK;");
+            return res.status(409).json({ message: "This contact belongs to a non-patient account." });
+        }
         if (existingUser) {
             patientUserId = existingUser.id;
         } else {
@@ -309,6 +307,10 @@ async function registerWalkInPatient(req, res, next) {
 
         let appointment = null;
         if (doctorId) {
+            if (doctorId !== req.practiceDoctorId) {
+                await client.query("ROLLBACK;");
+                return res.status(403).json({ message: "You may only book for your assigned practice." });
+            }
             const apptTime = scheduledAt || new Date().toISOString();
             const apptRes = await client.query(
                 `INSERT INTO appointments (patient_id, doctor_id, scheduled_at, duration_minutes, appointment_type, reason, status)
@@ -323,8 +325,8 @@ async function registerWalkInPatient(req, res, next) {
 
         return res.status(201).json({
             success: true,
-            message: existingUser 
-                ? "Existing patient found and checked in for appointment." 
+            message: existingUser
+                ? "Existing patient found and checked in for appointment."
                 : "Walk-in patient registered and checked in successfully.",
             patient: {
                 id: patientUserId,
@@ -351,6 +353,9 @@ async function registerWalkInPatient(req, res, next) {
 async function getReceptionistPatients(req, res, next) {
     try {
         const { search, limit = 50, offset = 0 } = req.query;
+        if (!Number.isInteger(Number(limit)) || Number(limit) < 1 || Number(limit) > 100 || !Number.isInteger(Number(offset)) || Number(offset) < 0) {
+            return res.status(400).json({ message: "Use a limit between 1 and 100 and a non-negative offset." });
+        }
         let query = `
             SELECT u.id, u.first_name, u.last_name, u.phone, u.email, u.created_at,
                    pp.date_of_birth, pp.gender, pp.abha_id, pp.state,
@@ -358,18 +363,18 @@ async function getReceptionistPatients(req, res, next) {
             FROM users u
             LEFT JOIN patient_profiles pp ON u.id = pp.user_id
             LEFT JOIN appointments a ON u.id = a.patient_id
-            WHERE u.role = 'patient'
+            WHERE u.role = 'patient' AND EXISTS (SELECT 1 FROM appointments practice_a WHERE practice_a.patient_id = u.id AND practice_a.doctor_id = $1)
         `;
 
-        const values = [];
-        let paramIndex = 1;
+        const values = [req.practiceDoctorId];
+        let paramIndex = 2;
 
         if (search) {
             query += ` AND (
-                u.first_name ILIKE $${paramIndex} OR 
-                u.last_name ILIKE $${paramIndex} OR 
-                u.phone ILIKE $${paramIndex} OR 
-                u.email ILIKE $${paramIndex} OR 
+                u.first_name ILIKE $${paramIndex} OR
+                u.last_name ILIKE $${paramIndex} OR
+                u.phone ILIKE $${paramIndex} OR
+                u.email ILIKE $${paramIndex} OR
                 pp.abha_id ILIKE $${paramIndex}
             )`;
             values.push(`%${search}%`);

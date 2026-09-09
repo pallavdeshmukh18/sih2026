@@ -1,0 +1,334 @@
+.container {
+  padding: 32px;
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.title {
+  font-family: var(--font-serif, serif);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-dark, #0f172a);
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--color-text-muted, #64748b);
+}
+
+.saveBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-teal, #0d9488);
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 22px;
+  border-radius: var(--radius-lg, 12px);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
+}
+
+.saveBtn:hover:not(:disabled) {
+  background: #0f766e;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sectionsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.card {
+  background: white;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-xl, 16px);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.cardIcon {
+  color: var(--color-teal, #0d9488);
+  background: rgba(13, 148, 136, 0.1);
+  padding: 8px;
+  border-radius: 10px;
+  box-sizing: content-box;
+  flex-shrink: 0;
+}
+
+.cardHeader h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-dark, #0f172a);
+  margin-bottom: 2px;
+}
+
+.cardHeader p {
+  font-size: 13px;
+  color: var(--color-text-muted, #64748b);
+}
+
+/* Theme Options */
+.themeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.themeOption {
+  background: #f8fafc;
+  border: 2px solid var(--color-border, #e2e8f0);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.themeOption:hover {
+  border-color: var(--color-teal, #0d9488);
+  transform: translateY(-2px);
+}
+
+.themeActive {
+  border-color: var(--color-teal, #0d9488);
+  background: rgba(13, 148, 136, 0.05);
+}
+
+.themePreviewLight,
+.themePreviewDark,
+.themePreviewSystem {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.themePreviewLight {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.themePreviewDark {
+  background: #1e293b;
+  color: #38bdf8;
+}
+
+.themePreviewSystem {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.themeLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-dark, #0f172a);
+}
+
+/* Option Cards (Interaction & Accessibility) */
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.optionCard {
+  background: white;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.optionCard:hover {
+  border-color: var(--color-teal, #0d9488);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.optionCardSelected {
+  background: rgba(13, 148, 136, 0.05);
+  border: 2px solid var(--color-teal, #0d9488);
+}
+
+.iconCircle {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(13, 148, 136, 0.1);
+  color: var(--color-teal, #0d9488);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.optionTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.optionTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-dark, #0f172a);
+}
+
+.optionDesc {
+  font-size: 13px;
+  color: var(--color-text-muted, #64748b);
+}
+
+.inlineRecBadge {
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.checkIcon {
+  color: var(--color-teal, #0d9488);
+}
+
+/* Language Selection Grid */
+.langGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.langCard {
+  background: white;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.langCard:hover {
+  border-color: var(--color-teal, #0d9488);
+  transform: translateY(-1px);
+}
+
+.langCardSelected {
+  background: rgba(13, 148, 136, 0.05);
+  border: 2px solid var(--color-teal, #0d9488);
+}
+
+.langNative {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-dark, #0f172a);
+}
+
+.langEnglish {
+  font-size: 12px;
+  color: var(--color-text-muted, #64748b);
+}
+
+.langCheck {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: var(--color-teal, #0d9488);
+}
+
+/* Toggles List */
+.toggleList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.toggleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.toggleRow:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.toggleTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-dark, #0f172a);
+}
+
+.toggleDesc {
+  font-size: 13px;
+  color: var(--color-text-muted, #64748b);
+  margin-top: 2px;
+}
+
+.toggleInput {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--color-teal, #0d9488);
+  cursor: pointer;
+}

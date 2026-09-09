@@ -9,8 +9,9 @@ router.use(authenticateToken);
 
 // Queue and consultation confirmation require 'doctor' role
 router.get("/directory", doctorController.getPublicDoctors);
+router.patch("/profile", authorizeRoles("doctor"), doctorController.updateOwnProfile);
 router.get("/queue", authorizeRoles("doctor"), doctorController.getDoctorQueue);
-router.get("/patient/:id/unified-history", authorizeRoles("doctor", "receptionist"), doctorController.getPatientUnifiedHistory);
+router.get("/patient/:id/unified-history", authorizeRoles("doctor"), doctorController.getPatientUnifiedHistory);
 router.post("/consultations/:appointmentId/confirm", authorizeRoles("doctor"), doctorController.confirmConsultation);
 
 // Doctor QR Patient Pairing & Patient Management
@@ -20,7 +21,7 @@ router.get("/patients", authorizeRoles("doctor"), doctorController.getDoctorPati
 router.delete("/patients/:patientId", authorizeRoles("doctor"), doctorController.revokePatientConnection);
 
 // Admin: Doctor Verification (only doctors can verify other doctors)
-router.get("/admin/pending", authorizeRoles("doctor"), doctorController.getPendingDoctors);
-router.patch("/admin/verify/:doctorId", authorizeRoles("doctor"), doctorController.verifyDoctor);
+router.get("/admin/pending", require("../middleware/platformAdminMiddleware"), doctorController.getPendingDoctors);
+router.patch("/admin/verify/:doctorId", require("../middleware/platformAdminMiddleware"), doctorController.verifyDoctor);
 
 module.exports = router;

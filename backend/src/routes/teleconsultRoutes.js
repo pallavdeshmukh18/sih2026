@@ -5,12 +5,13 @@ const authenticateToken = require("../middleware/authMiddleware");
 
 // All teleconsultation endpoints require authentication
 router.use(authenticateToken);
+router.use(require("../middleware/rbacMiddleware")("patient", "doctor"));
 
 // Config
 router.get("/config", teleconsultController.getAgoraConfig);
 
 // Call request & session management
-router.post("/request", teleconsultController.requestCallSession);
+router.post("/request", require("../middleware/rbacMiddleware")("patient"), teleconsultController.requestCallSession);
 router.get("/sessions", teleconsultController.getCallSessions);
 router.patch("/:id/respond", teleconsultController.respondToCallRequest);
 router.post("/:id/join", teleconsultController.joinCallSession);

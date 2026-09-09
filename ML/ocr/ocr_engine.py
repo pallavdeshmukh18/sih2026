@@ -130,6 +130,22 @@ def ocr_with_paddleocr(image_bytes: bytes) -> str:
             os.remove(image_path)
 
 
+def ocr_with_rapidocr(image_bytes: bytes) -> str:
+    """Fast, accurate offline OCR using RapidOCR ONNX with border padding & low score threshold."""
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+        from ocr.preprocess import preprocess_image
+        processed_bytes = preprocess_image(image_bytes)
+        engine = RapidOCR(text_score=0.15)
+        result, _ = engine(processed_bytes)
+        if result:
+            lines = [item[1] for item in result if len(item) > 1 and item[1]]
+            return "\n".join(lines).strip()
+    except Exception as e:
+        print(f"RapidOCR error: {e}")
+    return ""
+
+
 def run_ocr(
     image_bytes: bytes,
     api_key: str | None,
@@ -148,19 +164,30 @@ def run_ocr(
             target_bytes = png_bytes
 
     # -------------------------------------------------
-    # 1. PRIMARY: Groq Vision OCR via REST API
+    # 1. PRIMARY: Groq Vision OCR via REST API (if configured)
     # -------------------------------------------------
-    if api_key:
+    if api_key and GROQ_VISION_MODEL:
         try:
             text = ocr_with_groq_rest(target_bytes, api_key)
             if text.strip():
                 print(f"OCR successful using Groq REST for {filename}.")
                 return text
         except Exception as e:
-            print(f"Groq Vision REST OCR failed for {filename}: {e}")
+            print(f"Groq Vision REST OCR skipped for {filename}: {e}")
 
     # -------------------------------------------------
-    # 2. FALLBACK: PaddleOCR
+    # 2. OFFLINE OCR: RapidOCR ONNX Engine
+    # -------------------------------------------------
+    try:
+        text = ocr_with_rapidocr(target_bytes)
+        if text.strip():
+            print(f"OCR successful using RapidOCR for {filename}.")
+            return text
+    except Exception as e:
+        print(f"RapidOCR failed for {filename}: {e}")
+
+    # -------------------------------------------------
+    # 3. FALLBACK: PaddleOCR
     # -------------------------------------------------
     if ENABLE_OCR_FALLBACK:
         try:
@@ -173,43 +200,6 @@ def run_ocr(
             print(f"PaddleOCR failed for {filename}: {e}")
 
     # -------------------------------------------------
-    # 3. DYNAMIC FALLBACK: Filename & Content Tailored OCR Text
+    # 4. No Text Extracted
     # -------------------------------------------------
-    if "skin" in fn_lower or "derma" in fn_lower:
-        return (
-            f"Dermatology Specialist Prescription ({filename})\n"
-            "Date: 2026-09-07\n"
-            "Diagnosis: Contact Dermatitis\n"
-            "Rx:\n"
-            "1. Hydrocortisone Cream 1% - Apply topically twice daily for 7 days\n"
-            "2. Cetirizine 10mg - Take 1 tablet daily at bedtime for 5 days\n"
-            "Advice: Keep affected area clean. Avoid harsh fragrance soaps."
-        )
-    elif "rx" in fn_lower or "prescription" in fn_lower:
-        return (
-            f"Dr. Anil Verma\n"
-            f"MBBS, MD (Medicine) - Physician & Diabetologist\n"
-            f"Patient Name: Rahul Sharma | Age/Sex: 28/M | Date: 2026-09-07\n"
-            f"Medical Prescription ({filename})\n"
-            f"Rx:\n"
-            f"1. Tab. Paracetamol 500mg - 1 tablet twice daily after food (3 days)\n"
-            f"2. Cap. Azithromycin 500mg - 1 capsule once daily after food (5 days)\n"
-            f"3. Tab. Levocetirizine 5mg - 1 tablet once daily at night (5 days)\n"
-            f"4. Syp. Ambrodil 15ml - 2 teaspoonfuls twice daily (5 days)\n"
-            f"Advice: Take plenty of fluids, steam inhalation twice daily, get rest and avoid cold exposure."
-        )
-    else:
-        # Default for screenshot, lab, blood, test, cbc, report, image, or generic filenames
-        return (
-            f"Laboratory Diagnostic Report ({filename})\n"
-            "Date: 2026-09-07\n"
-            "Patient: Pallav Deshmukh\n"
-            "Panel: Complete Blood Count & Metabolic Profile\n"
-            "--------------------------------------------------\n"
-            "1. Hemoglobin: 13.8 g/dL (Reference: 12.0 - 16.0)\n"
-            "2. Fasting Blood Sugar: 98 mg/dL (Reference: 70 - 100)\n"
-            "3. Total Cholesterol: 185 mg/dL (Reference: < 200)\n"
-            "4. White Blood Cells (WBC): 6,500 /uL (Reference: 4,500 - 11,000)\n"
-            "5. Platelets: 250,000 /uL (Reference: 150,000 - 450,000)\n"
-            "Status: All test values within normal limits."
-        )
+    return ""

@@ -1,4 +1,8 @@
-const axios = require("axios");
+const axios = require("axios").create();
+axios.interceptors.request.use(config => {
+    if (process.env.ML_SERVICE_KEY) config.headers['X-ML-Service-Key'] = process.env.ML_SERVICE_KEY;
+    return config;
+});
 const FormData = require("form-data");
 
 const ML_BASE_URL = process.env.ML_SERVICE_URL || "http://localhost:8000";
@@ -198,7 +202,15 @@ async function askDocumentQuestion(patientId, documentId, filename, question, oc
     }
 }
 
+async function deleteDocumentVectors(patientId, documentId) {
+    const form = new FormData();
+    form.append("patient_id", patientId);
+    form.append("document_id", documentId);
+    await axios.post(`${ML_BASE_URL}/documents/delete`, form, { headers: form.getHeaders(), timeout: 10000 });
+}
+
 module.exports = {
+    deleteDocumentVectors,
     transcribeAudio,
     synthesizeSpeech,
     startClinicalSession,
