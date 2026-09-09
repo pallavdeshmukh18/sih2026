@@ -43,9 +43,9 @@ async function registerPhone(req, res) {
             });
         }
 
-        // Check if phone number is already registered in users table
+        // Check if phone number is already registered for a patient in users table
         const existingUser = await pool.query(
-            "SELECT id FROM users WHERE phone = $1;",
+            "SELECT id FROM users WHERE phone = $1 AND role = 'patient';",
             [normalizedPhone]
         );
         if (existingUser.rows.length > 0) {
@@ -219,9 +219,9 @@ async function verifyPhone(req, res) {
         // Perform atomic Database Transaction to create user and profile
         await client.query("BEGIN;");
 
-        // Double check user doesn't already exist
+        // Double check patient user doesn't already exist
         const checkUser = await client.query(
-            "SELECT id FROM users WHERE phone = $1;",
+            "SELECT id FROM users WHERE phone = $1 AND role = 'patient';",
             [phone]
         );
         if (checkUser.rows.length > 0) {
@@ -300,16 +300,15 @@ async function loginPhone(req, res) {
             });
         }
 
-        // Find user by phone number
+        // Find patient user by phone number
         const userResult = await pool.query(
-            "SELECT id, role, login_method FROM users WHERE phone = $1;",
+            "SELECT id, role, login_method FROM users WHERE phone = $1 AND role = 'patient';",
             [normalizedPhone]
         );
 
         if (
             userResult.rows.length === 0 ||
-            userResult.rows[0].role !== "patient" ||
-            userResult.rows[0].login_method !== "phone"
+            userResult.rows[0].role !== "patient"
         ) {
             return res.status(404).json({
                 message: "No patient account found with this phone number.",
@@ -468,7 +467,7 @@ async function verifyLoginPhone(req, res) {
 
         // Fetch User Identity
         const userResult = await pool.query(
-            `SELECT id, first_name, last_name, role, login_method FROM users WHERE phone = $1;`,
+            `SELECT id, first_name, last_name, role, login_method FROM users WHERE phone = $1 AND role = 'patient';`,
             [record.phone]
         );
 
@@ -742,9 +741,9 @@ async function registerEmail(req, res) {
             });
         }
 
-        // Check if email is already registered in users table
+        // Check if email is already registered for a patient in users table
         const existingUser = await pool.query(
-            "SELECT id FROM users WHERE email = $1;",
+            "SELECT id FROM users WHERE email = $1 AND role = 'patient';",
             [normalizedEmail]
         );
         if (existingUser.rows.length > 0) {
@@ -980,16 +979,15 @@ async function loginEmail(req, res) {
             });
         }
 
-        // Find user by email
+        // Find patient user by email
         const userResult = await pool.query(
-            "SELECT id, role, login_method FROM users WHERE email = $1;",
+            "SELECT id, role, login_method FROM users WHERE email = $1 AND role = 'patient';",
             [normalizedEmail]
         );
 
         if (
             userResult.rows.length === 0 ||
-            userResult.rows[0].role !== "patient" ||
-            userResult.rows[0].login_method !== "email"
+            userResult.rows[0].role !== "patient"
         ) {
             return res.status(404).json({
                 message: "No patient account found with this email address.",
@@ -1126,9 +1124,9 @@ async function verifyLoginEmail(req, res) {
             [verificationId]
         );
 
-        // Fetch User Identity
+        // Fetch Patient User Identity
         const userResult = await pool.query(
-            `SELECT id, first_name, last_name, role, login_method FROM users WHERE email = $1;`,
+            `SELECT id, first_name, last_name, role, login_method FROM users WHERE email = $1 AND role = 'patient';`,
             [record.email]
         );
 
@@ -1526,9 +1524,9 @@ async function registerDoctor(req, res) {
             return res.status(400).json({ message: "Invalid email address format." });
         }
 
-        // Check email uniqueness
+        // Check doctor email uniqueness
         const existingEmail = await pool.query(
-            "SELECT id FROM users WHERE email = $1;",
+            "SELECT id FROM users WHERE email = $1 AND role = 'doctor';",
             [normalizedEmail]
         );
         if (existingEmail.rows.length > 0) {
@@ -1621,7 +1619,7 @@ async function loginDoctor(req, res) {
                     d.user_id AS doctor_profile_id, d.verification_status
              FROM users u
              LEFT JOIN doctor_profiles d ON u.id = d.user_id
-             WHERE u.email = $1;`,
+             WHERE u.email = $1 AND u.role = 'doctor';`,
             [normalizedEmail]
         );
 
