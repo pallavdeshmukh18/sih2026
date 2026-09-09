@@ -163,12 +163,12 @@ export default function Documents() {
     }
   };
 
-  const handleDelete = async (documentOrId) => {
+  const handleDelete = async (documentOrId, skipConfirm = false) => {
     const doc = typeof documentOrId === "object"
       ? documentOrId
       : documents.find((item) => item.id === documentOrId);
     if (!doc) return;
-    if (!window.confirm(`Delete “${doc.file_name}”? This cannot be undone.`)) return;
+    if (!skipConfirm && !window.confirm(`Delete “${doc.file_name}”? This cannot be undone.`)) return;
     try {
       await deleteMedicalDocument(doc.id, token);
       setDocuments((current) => current.filter((item) => item.id !== doc.id));

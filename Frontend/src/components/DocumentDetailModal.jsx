@@ -64,7 +64,7 @@ export default function DocumentDetailModal({ doc, onClose, onDelete }) {
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      await onDelete(doc.id);
+      await onDelete(doc.id, true);
       onClose();
     } catch (err) {
       console.error("Delete document error:", err);

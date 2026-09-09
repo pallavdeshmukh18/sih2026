@@ -796,6 +796,10 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
     # 7. Handle Decision: CLARIFY
     elif decision == DECISION_CLARIFY:
         # DO NOT remove target_field from missing_fields
+        if target_field and target_field not in session.missing_fields:
+            session.missing_fields.insert(0, target_field)
+        if target_field in session.answered_fields:
+            del session.answered_fields[target_field]
         # Return explanation + rephrased question
         clarification = val_result.feedback_message or f"Let me explain: {session.current_question or get_fallback_question(target_field, session.language)}"
         session.conversation_history.append({"role": "system", "content": clarification})

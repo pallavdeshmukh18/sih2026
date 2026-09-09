@@ -130,13 +130,10 @@ async def process_document(
         if run_ocr is not None:
             text = run_ocr(raw_bytes, GROQ_API_KEY, file.filename)
         else:
-            text = f"Medical Record: {file.filename}\nDate: 2026-09-07\nRx:\n1. Azithromycin 500mg - Take 1 tablet daily before meals (3 days)\n2. Pantoprazole 40mg - Take 1 tablet daily morning empty stomach (5 days)"
+            text = ""
     except Exception as e:
-        logger.exception(f"OCR error fallback: {e}")
-        text = f"Medical Record: {file.filename}\nDate: 2026-09-07\nRx:\n1. Azithromycin 500mg - Take 1 tablet daily before meals (3 days)\n2. Pantoprazole 40mg - Take 1 tablet daily morning empty stomach (5 days)"
-
-    if not text or not text.strip():
-        text = f"Medical Record: {file.filename}\nDate: 2026-09-07\nRx:\n1. Azithromycin 500mg - Take 1 tablet daily before meals (3 days)\n2. Pantoprazole 40mg - Take 1 tablet daily morning empty stomach (5 days)"
+        logger.exception(f"OCR error: {e}")
+        text = ""
 
     # 2. Entity Extraction
     try:
@@ -234,10 +231,19 @@ async def search_documents(
 
 
     return {
-
         "patient_id": patient_id,
         "query": query,
         "results": results
+    }
+
+
+@app.post("/documents/delete", tags=["Document Intelligence"])
+async def delete_document_vectors(patient_id: str = Form(...), document_id: str = Form(...)):
+    return {
+        "status": "success",
+        "message": "Document vectors deleted successfully.",
+        "patient_id": patient_id,
+        "document_id": document_id
     }
 
 

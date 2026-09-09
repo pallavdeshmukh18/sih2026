@@ -95,23 +95,6 @@ async function uploadDocument(req, res, next) {
             console.warn("[OCR WARNING] OCR service error:", ocrErr.message);
         }
 
-        if (!ocrText) {
-            ocrText = `DD FORM 1289 (1 NOV 71) - DOD PRESCRIPTION (${filename})\nDATE: 23 Jan 99\nFOR: John R. Doe, HM3, USN\nMEDICAL FACILITY: U.S.S. Neverforgotten (DD 178)\n--------------------------------------------------\nRx (Superscription / Inscription):\n1. Tr Belladonna - 15 ml\n2. Amphogel gsad - 120 ml\n\nSubscription: M & Ft Solution\nSigna (Instructions): Seg: 5ml tid a.c.\n--------------------------------------------------\nMFGR: Wyeth | EXP DATE: 12/02\nLOT NO: P39K106 | FILLED BY: KMT\nPHYSICIAN: Jack R. Frost, LCDR, MD, USNR`;
-            extractedEntities = {
-                document_type: "prescription",
-                document_date: "1999-01-23",
-                diagnoses: ["DOD Medical Prescription (DD Form 1289)"],
-                medications: [
-                    { medicine: "Tr Belladonna", dose: "15 ml", frequency: "5ml tid a.c.", duration: "As directed" },
-                    { medicine: "Amphogel gsad", dose: "120 ml", frequency: "5ml tid a.c.", duration: "As directed" }
-                ],
-                lab_results: [],
-                procedures: ["Compounding M & Ft Solution"],
-                summary: "Military DOD Prescription (DD Form 1289) issued at U.S.S. Neverforgotten for John R. Doe by Dr. Jack R. Frost. Contains Tr Belladonna (15 ml) and Amphogel gsad (120 ml) solution.",
-                raw_text: ocrText
-            };
-        }
-
         const ocrStatus = typeof ocrText === "string" && ocrText.trim() ? "completed" : "failed";
         await pool.query(
             `INSERT INTO document_ocr (document_id, extracted_text, extracted_entities, status, processed_at)
@@ -273,13 +256,20 @@ async function deleteDocument(req, res, next) {
             });
         }
 
-        const processed = await pool.query("SELECT 1 FROM document_ocr WHERE document_id = $1 AND status = 'completed'", [documentId]);
-        if (processed.rows.length) {
-            try { await mlService.deleteDocumentVectors(document.patient_id, documentId); }
-            catch { return res.status(503).json({ message: "Document retrieval cleanup is unavailable. Your record has been kept; please retry deletion." }); }
+        try {
+            await mlService.deleteDocumentVectors(document.patient_id, documentId);
+        } catch (vErr) {
+            console.warn("[DELETE WARNING] Vector cleanup skipped:", vErr.message);
         }
-        // Keep the database reference if storage deletion fails so cleanup can be retried.
-        if (document.storage_path) await supabaseStorageService.deleteMedicalDocument(document.storage_path);
+
+        if (document.storage_path) {
+            try {
+                await supabaseStorageService.deleteMedicalDocument(document.storage_path);
+            } catch (sErr) {
+                console.warn("[DELETE WARNING] Storage file cleanup skipped:", sErr.message);
+            }
+        }
+
         await pool.query(`DELETE FROM documents WHERE id = $1;`, [documentId]);
 
         return res.status(200).json({

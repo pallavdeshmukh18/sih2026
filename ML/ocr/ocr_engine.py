@@ -130,6 +130,22 @@ def ocr_with_paddleocr(image_bytes: bytes) -> str:
             os.remove(image_path)
 
 
+def ocr_with_rapidocr(image_bytes: bytes) -> str:
+    """Fast, accurate offline OCR using RapidOCR ONNX with border padding & low score threshold."""
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+        from ocr.preprocess import preprocess_image
+        processed_bytes = preprocess_image(image_bytes)
+        engine = RapidOCR(text_score=0.15)
+        result, _ = engine(processed_bytes)
+        if result:
+            lines = [item[1] for item in result if len(item) > 1 and item[1]]
+            return "\n".join(lines).strip()
+    except Exception as e:
+        print(f"RapidOCR error: {e}")
+    return ""
+
+
 def run_ocr(
     image_bytes: bytes,
     api_key: str | None,
@@ -148,19 +164,30 @@ def run_ocr(
             target_bytes = png_bytes
 
     # -------------------------------------------------
-    # 1. PRIMARY: Groq Vision OCR via REST API
+    # 1. PRIMARY: Groq Vision OCR via REST API (if configured)
     # -------------------------------------------------
-    if api_key:
+    if api_key and GROQ_VISION_MODEL:
         try:
             text = ocr_with_groq_rest(target_bytes, api_key)
             if text.strip():
                 print(f"OCR successful using Groq REST for {filename}.")
                 return text
         except Exception as e:
-            print(f"Groq Vision REST OCR failed for {filename}: {e}")
+            print(f"Groq Vision REST OCR skipped for {filename}: {e}")
 
     # -------------------------------------------------
-    # 2. FALLBACK: PaddleOCR
+    # 2. OFFLINE OCR: RapidOCR ONNX Engine
+    # -------------------------------------------------
+    try:
+        text = ocr_with_rapidocr(target_bytes)
+        if text.strip():
+            print(f"OCR successful using RapidOCR for {filename}.")
+            return text
+    except Exception as e:
+        print(f"RapidOCR failed for {filename}: {e}")
+
+    # -------------------------------------------------
+    # 3. FALLBACK: PaddleOCR
     # -------------------------------------------------
     if ENABLE_OCR_FALLBACK:
         try:
@@ -173,50 +200,6 @@ def run_ocr(
             print(f"PaddleOCR failed for {filename}: {e}")
 
     # -------------------------------------------------
-    # 3. DYNAMIC FALLBACK: Filename & Content Tailored OCR Text
+    # 4. No Text Extracted
     # -------------------------------------------------
-    if "skin" in fn_lower or "derma" in fn_lower:
-        return (
-            f"Dermatology Specialist Prescription ({filename})\n"
-            "Date: 2026-09-07\n"
-            "Diagnosis: Contact Dermatitis\n"
-            "Rx:\n"
-            "1. Hydrocortisone Cream 1% - Apply topically twice daily for 7 days\n"
-            "2. Cetirizine 10mg - Take 1 tablet daily at bedtime for 5 days\n"
-            "Advice: Keep affected area clean. Avoid harsh fragrance soaps."
-        )
-    elif "rx" in fn_lower or "prescription" in fn_lower or "sample" in fn_lower:
-        return (
-            f"DD FORM 1289 (1 NOV 71) - DOD PRESCRIPTION ({filename})\n"
-            f"DATE: 23 Jan 99\n"
-            f"FOR: John R. Doe, HM3, USN\n"
-            f"MEDICAL FACILITY: U.S.S. Neverforgotten (DD 178)\n"
-            f"--------------------------------------------------\n"
-            f"Rx (Superscription / Inscription):\n"
-            f"1. Tr Belladonna - 15 ml\n"
-            f"2. Amphogel gsad - 120 ml\n\n"
-            f"Subscription: M & Ft Solution\n"
-            f"Signa (Instructions): Seg: 5ml tid a.c.\n"
-            f"--------------------------------------------------\n"
-            f"MFGR: Wyeth | EXP DATE: 12/02\n"
-            f"LOT NO: P39K106 | FILLED BY: KMT\n"
-            f"PHYSICIAN: Jack R. Frost, LCDR, MD, USNR"
-        )
-    else:
-        # Default for screenshot, lab, blood, test, cbc, report, image, or generic filenames
-        return (
-            f"DD FORM 1289 (1 NOV 71) - DOD PRESCRIPTION ({filename})\n"
-            f"DATE: 23 Jan 99\n"
-            f"FOR: John R. Doe, HM3, USN\n"
-            f"MEDICAL FACILITY: U.S.S. Neverforgotten (DD 178)\n"
-            f"--------------------------------------------------\n"
-            f"Rx (Superscription / Inscription):\n"
-            f"1. Tr Belladonna - 15 ml\n"
-            f"2. Amphogel gsad - 120 ml\n\n"
-            f"Subscription: M & Ft Solution\n"
-            f"Signa (Instructions): Seg: 5ml tid a.c.\n"
-            f"--------------------------------------------------\n"
-            f"MFGR: Wyeth | EXP DATE: 12/02\n"
-            f"LOT NO: P39K106 | FILLED BY: KMT\n"
-            f"PHYSICIAN: Jack R. Frost, LCDR, MD, USNR"
-        )
+    return ""
