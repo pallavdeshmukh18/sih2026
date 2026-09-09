@@ -186,7 +186,77 @@ export default function MedicalHistory() {
                 <div className={styles.eventCard}><div className={styles.eventTop}><div><span className={`${styles.category} ${styles[meta.tone]}`}>{event.type || meta.label}</span><span className={styles.provenance}>{event.verificationStatus === "verified" || event.type === "Consultation" ? <CheckCircle2 /> : event.verificationStatus === "ai_extracted" ? <BrainCircuit /> : <User />}{event.verificationStatus === "verified" || event.type === "Consultation" ? t("history.provenanceVerified", "Verified") : event.verificationStatus === "ai_extracted" ? t("history.provenanceAi", "AI extracted") : t("history.provenancePatient", "Patient reported")}</span><h3>{event.title || meta.label}</h3>{event.subtitle && <p>{event.subtitle}</p>}</div><time><Calendar />{formatDate(event.date)}</time></div>
                   {event.details && <p className={styles.summary}>{event.details}</p>}
                   <footer><small>{t("history.source", "Source:")} {event.source || "MediKiosk Health System"}</small><div>{event.documentId && <button onClick={() => openDocument(event.documentId)}>{t("history.viewDocument", "View document")}</button>}<button onClick={() => setExpandedId(isExpanded ? null : (event.id ?? index))}>{isExpanded ? t("history.collapseDetails", "Less") : t("history.expandDetails", "Details")}{isExpanded ? <ChevronUp /> : <ChevronDown />}</button></div></footer>
-                  <AnimatePresence>{isExpanded && <motion.div className={styles.expanded} initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}><b>{t("history.expandDetails", "Recorded details")}</b><p>{event.clinicalNotes || event.treatmentNotes || event.details || "No additional clinical parameters were recorded."}</p></motion.div>}</AnimatePresence>
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        className={styles.expanded}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                      >
+                        <b>{t("history.expandDetails", "Recorded Details & Clinical Summary")}</b>
+                        <p style={{ marginTop: "4px", whiteSpace: "pre-wrap" }}>
+                          {event.clinicalNotes || event.treatmentNotes || event.details || "No additional clinical parameters recorded."}
+                        </p>
+
+                        {/* Render Clinical Intake Chat History Transcript if present */}
+                        {event.chatHistory && Array.isArray(event.chatHistory) && event.chatHistory.length > 0 && (
+                          <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #d5e5df" }}>
+                            <b style={{ color: "#0d9488", display: "block", marginBottom: "6px" }}>
+                              💬 RAG Clinical Assessment Transcript ({event.chatHistory.length} turns)
+                            </b>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "250px", overflowY: "auto", paddingRight: "4px" }}>
+                              {event.chatHistory.map((msg, idx) => (
+                                <div
+                                  key={idx}
+                                  style={{
+                                    fontSize: "12px",
+                                    lineHeight: "1.4",
+                                    padding: "6px 10px",
+                                    borderRadius: "8px",
+                                    background: msg.role === "system" ? "#ffffff" : "#e6fffa",
+                                    border: msg.role === "system" ? "1px solid #e2e8f0" : "1px solid #99f6e4",
+                                    color: msg.role === "system" ? "#334155" : "#0f766e",
+                                    alignSelf: msg.role === "system" ? "flex-start" : "flex-end",
+                                    maxWidth: "92%"
+                                  }}
+                                >
+                                  <strong>{msg.role === "system" ? "AI Assistant: " : "You: "}</strong>
+                                  <span>{msg.content}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Render Extracted Clinical Fields if present */}
+                        {event.answeredFields && Object.keys(event.answeredFields).length > 0 && (
+                          <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px dashed #cde0d9" }}>
+                            <b style={{ color: "#047857", fontSize: "11px", display: "block", marginBottom: "4px" }}>
+                              📋 Answered Parameters:
+                            </b>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                              {Object.entries(event.answeredFields).map(([k, v]) => (
+                                <span
+                                  key={k}
+                                  style={{
+                                    background: "#f0fdf4",
+                                    border: "1px solid #bbf7d0",
+                                    color: "#166534",
+                                    padding: "2px 8px",
+                                    borderRadius: "6px",
+                                    fontSize: "11px"
+                                  }}
+                                >
+                                  <strong>{k.replace('_', ' ')}:</strong> {String(v)}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </motion.article>;
             })}</div>
