@@ -70,9 +70,10 @@ export default function DoctorTeleconsult() {
 
   useEffect(() => {
     loadSessions();
+    if (activeCallSession) return;
     const interval = setInterval(loadSessions, 5000); // Live poll for patient call requests
     return () => clearInterval(interval);
-  }, [loadSessions]);
+  }, [loadSessions, activeCallSession]);
 
   // Respond to Patient Call Request (Approve or Reject)
   const handleRespond = async (sessionId, action) => {

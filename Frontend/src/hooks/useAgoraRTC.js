@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import AgoraRTC from "agora-rtc-sdk-ng";
 
 // Log configuration: 0 (DEBUG), 1 (INFO), 2 (WARNING), 3 (ERROR), 4 (NONE)
-AgoraRTC.setLogLevel(0);
+AgoraRTC.setLogLevel(1);
 
 /**
  * Custom Hook for managing Agora RTC Video and Voice Calls
@@ -24,11 +24,85 @@ export default function useAgoraRTC() {
 
     // Client & Track refs
     const clientRef = useRef(null);
-    const isJoiningRef = useRef(false);
-    const isLeavingRef = useRef(false);
     const localAudioTrackRef = useRef(null);
     const localVideoTrackRef = useRef(null);
     const screenTrackRef = useRef(null);
+    const currentChannelRef = useRef(null);
+    const joinSeqRef = useRef(0);
+
+    // Helper to sync remote users state directly from Agora client's internal list
+    const syncRemoteUsers = useCallback(() => {
+        const client = clientRef.current;
+        if (!client) {
+            setRemoteUsers([]);
+            return;
+        }
+        const users = (client.remoteUsers || []).map((u) => ({
+            uid: u.uid,
+            videoTrack: u.videoTrack || null,
+            audioTrack: u.audioTrack || null,
+            hasVideo: Boolean(u.videoTrack || u.hasVideo),
+            hasAudio: Boolean(u.audioTrack || u.hasAudio),
+        }));
+        setRemoteUsers(users);
+    }, []);
+
+    /**
+     * Leave Agora RTC Channel & Cleanup tracks
+     */
+    const leaveChannel = useCallback(async () => {
+        // Invalidate any in-flight join sequence
+        const currentSeq = ++joinSeqRef.current;
+
+        // Clean up local audio track
+        if (localAudioTrackRef.current) {
+            try {
+                localAudioTrackRef.current.stop();
+                localAudioTrackRef.current.close();
+            } catch (_) {}
+            localAudioTrackRef.current = null;
+        }
+
+        // Clean up local video track
+        if (localVideoTrackRef.current) {
+            try {
+                localVideoTrackRef.current.stop();
+                localVideoTrackRef.current.close();
+            } catch (_) {}
+            localVideoTrackRef.current = null;
+        }
+
+        // Clean up screen sharing track
+        if (screenTrackRef.current) {
+            try {
+                screenTrackRef.current.stop();
+                screenTrackRef.current.close();
+            } catch (_) {}
+            screenTrackRef.current = null;
+        }
+
+        // Clean up client
+        const client = clientRef.current;
+        if (client) {
+            try {
+                client.removeAllListeners();
+                if (client.connectionState === "CONNECTED" || client.connectionState === "CONNECTING") {
+                    await client.leave().catch(() => {});
+                }
+            } catch (_) {}
+            if (joinSeqRef.current === currentSeq) {
+                clientRef.current = null;
+            }
+        }
+
+        currentChannelRef.current = null;
+        setJoined(false);
+        setConnecting(false);
+        setConnectionState("DISCONNECTED");
+        setRemoteUsers([]);
+        setLocalTracks({ audioTrack: null, videoTrack: null });
+        setIsScreenSharing(false);
+    }, []);
 
     /**
      * Initialize & Join Agora RTC Channel
@@ -39,40 +113,44 @@ export default function useAgoraRTC() {
             return;
         }
 
-        if (isJoiningRef.current) {
-            console.log("[Agora RTC] Join already in progress, skipping duplicate call.");
+        // If already connected to this channel with an active client, avoid duplicate join
+        if (
+            clientRef.current &&
+            clientRef.current.connectionState === "CONNECTED" &&
+            currentChannelRef.current === channelName
+        ) {
+            console.log(`[Agora RTC] Already connected to channel '${channelName}'.`);
             return;
         }
 
-        if (clientRef.current && clientRef.current.connectionState === "CONNECTED") {
-            console.log("[Agora RTC] Already connected to channel.");
-            return;
+        // Increment sequence to cancel any prior in-flight join operations
+        const seq = ++joinSeqRef.current;
+
+        setConnecting(true);
+        setConnectionState("CONNECTING");
+        setError(null);
+
+        // Clean up any stale client before creating a new one
+        if (clientRef.current) {
+            try {
+                clientRef.current.removeAllListeners();
+                await clientRef.current.leave().catch(() => {});
+            } catch (_) {}
+            clientRef.current = null;
         }
+
+        if (joinSeqRef.current !== seq) return;
 
         try {
-            isJoiningRef.current = true;
-            isLeavingRef.current = false;
-            setConnecting(true);
-            setConnectionState("CONNECTING");
-            setError(null);
-
-            // Cleanup any existing client before recreating
-            if (clientRef.current) {
-                try {
-                    await clientRef.current.leave().catch(() => {});
-                    clientRef.current.removeAllListeners();
-                } catch (_) {}
-                clientRef.current = null;
-            }
-
-            // Create RTC Client
-            console.log(`[Agora RTC] Creating client for App ID: ${appId}, Channel: ${channelName}`);
+            console.log(`[Agora RTC] 🚀 Initializing RTC Client: App ID ${appId.slice(0, 6)}..., Channel: ${channelName}`);
             const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
             clientRef.current = client;
+            currentChannelRef.current = channelName;
 
-            // Connection state listener
+            // 1. Connection state change listener
             client.on("connection-state-change", (curState, revState, reason) => {
-                console.log(`[Agora RTC] Connection state change: ${revState} -> ${curState} (${reason || "normal"})`);
+                if (joinSeqRef.current !== seq) return;
+                console.log(`[Agora RTC] State change: ${revState} -> ${curState} (${reason || "normal"})`);
                 setConnectionState(curState);
 
                 if (curState === "CONNECTED") {
@@ -81,130 +159,110 @@ export default function useAgoraRTC() {
                     setError(null);
                 } else if (curState === "DISCONNECTED") {
                     setJoined(false);
-                    if (reason && reason !== "LEAVE" && !isLeavingRef.current) {
+                    if (reason && reason !== "LEAVE") {
                         setError(`Agora connection disconnected: ${reason}`);
                     }
                 }
             });
 
-            // 1. Remote user joined room listener
+            // 2. Remote user joined listener
             client.on("user-joined", (user) => {
+                if (joinSeqRef.current !== seq) return;
                 console.log(`[Agora RTC] 👤 Remote user joined channel: UID=${user.uid}`);
-                setRemoteUsers((prev) => {
-                    const exists = prev.some((u) => u.uid === user.uid);
-                    if (exists) return prev;
-                    return [...prev, { ...user, hasVideo: !!user.videoTrack, hasAudio: !!user.audioTrack }];
-                });
+                syncRemoteUsers();
             });
 
-            // 2. Remote user published media listener
+            // 3. Remote user published media listener
             client.on("user-published", async (user, mediaType) => {
+                if (joinSeqRef.current !== seq) return;
                 console.log(`[Agora RTC] 📡 Remote user published: UID=${user.uid}, mediaType=${mediaType}`);
                 try {
                     await client.subscribe(user, mediaType);
                     console.log(`[Agora RTC] ✅ Subscribed to UID=${user.uid}, mediaType=${mediaType}`);
 
-                    setRemoteUsers((prev) => {
-                        const filtered = prev.filter((u) => u.uid !== user.uid);
-                        return [
-                            ...filtered,
-                            {
-                                ...user,
-                                videoTrack: user.videoTrack,
-                                audioTrack: user.audioTrack,
-                                hasVideo: !!user.videoTrack,
-                                hasAudio: !!user.audioTrack,
-                            },
-                        ];
-                    });
-
-                    if (mediaType === "audio") {
-                        user.audioTrack?.play();
+                    if (mediaType === "audio" && user.audioTrack) {
+                        try {
+                            user.audioTrack.play();
+                        } catch (playErr) {
+                            console.warn("[Agora RTC] Audio play warning:", playErr);
+                        }
                     }
+                    syncRemoteUsers();
                 } catch (subErr) {
                     console.error("[Agora RTC] Subscribe error:", subErr);
                 }
             });
 
-            // 3. Remote user unpublished media listener
+            // 4. Remote user unpublished media listener
             client.on("user-unpublished", (user, mediaType) => {
+                if (joinSeqRef.current !== seq) return;
                 console.log(`[Agora RTC] 📴 Remote user unpublished: UID=${user.uid}, mediaType=${mediaType}`);
-                if (mediaType === "audio") {
-                    user.audioTrack?.stop();
+                if (mediaType === "audio" && user.audioTrack) {
+                    try {
+                        user.audioTrack.stop();
+                    } catch (_) {}
                 }
-                setRemoteUsers((prev) => {
-                    return prev.map((u) => {
-                        if (u.uid === user.uid) {
-                            return {
-                                ...user,
-                                videoTrack: user.videoTrack,
-                                audioTrack: user.audioTrack,
-                                hasVideo: !!user.videoTrack,
-                                hasAudio: !!user.audioTrack,
-                            };
-                        }
-                        return u;
-                    });
-                });
+                syncRemoteUsers();
             });
 
-            // 4. Remote user left channel listener
+            // 5. Remote user left listener
             client.on("user-left", (user, reason) => {
+                if (joinSeqRef.current !== seq) return;
                 console.log(`[Agora RTC] 🚪 Remote user left channel: UID=${user.uid}, reason=${reason}`);
-                setRemoteUsers((prev) => prev.filter((u) => u.uid !== user.uid));
+                syncRemoteUsers();
             });
 
-            // Join Channel
+            // Join the Agora RTC Channel
             const targetUid = uid ? Number(uid) : null;
-            console.log(`[Agora RTC] Attempting to join channel '${channelName}' with UID: ${targetUid}, token present: ${Boolean(token)}`);
-
+            console.log(`[Agora RTC] Joining channel '${channelName}' with UID: ${targetUid}, token present: ${Boolean(token)}`);
             const joinedUid = await client.join(appId, channelName, token || null, targetUid);
             console.log(`[Agora RTC] 🎉 Joined successfully with UID: ${joinedUid}`);
 
-            // Check if remote users already exist in channel
+            if (joinSeqRef.current !== seq) {
+                client.leave().catch(() => {});
+                return;
+            }
+
+            // Check and subscribe to any remote users already active in channel
             if (client.remoteUsers && client.remoteUsers.length > 0) {
                 console.log(`[Agora RTC] Found ${client.remoteUsers.length} existing remote user(s) in channel.`);
-                for (const existingUser of client.remoteUsers) {
-                    if (existingUser.hasAudio) {
+                for (const remoteUser of client.remoteUsers) {
+                    if (remoteUser.hasAudio && !remoteUser.audioTrack) {
                         try {
-                            await client.subscribe(existingUser, "audio");
-                            existingUser.audioTrack?.play();
+                            await client.subscribe(remoteUser, "audio");
+                            remoteUser.audioTrack?.play();
                         } catch (e) {
-                            console.warn("Error subscribing existing audio:", e);
+                            console.warn("[Agora RTC] Subscribe existing audio warning:", e);
                         }
                     }
-                    if (existingUser.hasVideo) {
+                    if (remoteUser.hasVideo && !remoteUser.videoTrack) {
                         try {
-                            await client.subscribe(existingUser, "video");
+                            await client.subscribe(remoteUser, "video");
                         } catch (e) {
-                            console.warn("Error subscribing existing video:", e);
+                            console.warn("[Agora RTC] Subscribe existing video warning:", e);
                         }
                     }
                 }
-                setRemoteUsers(
-                    client.remoteUsers.map((u) => ({
-                        ...u,
-                        videoTrack: u.videoTrack,
-                        audioTrack: u.audioTrack,
-                        hasVideo: !!u.videoTrack,
-                        hasAudio: !!u.audioTrack,
-                    }))
-                );
+                syncRemoteUsers();
             }
 
-            // Create Local Tracks
+            // Create and publish local tracks
             const tracksToPublish = [];
 
-            // 1. Microphone audio track
+            // 1. Microphone track
             try {
                 const audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
                     AEC: true,
                     ANS: true,
                 });
-                localAudioTrackRef.current = audioTrack;
-                tracksToPublish.push(audioTrack);
+                if (joinSeqRef.current === seq) {
+                    localAudioTrackRef.current = audioTrack;
+                    tracksToPublish.push(audioTrack);
+                } else {
+                    audioTrack.close();
+                }
             } catch (micErr) {
-                console.warn("[Agora RTC] Microphone not available or busy:", micErr.message);
+                console.warn("[Agora RTC] Microphone not available or busy:", micErr?.message || micErr);
             }
 
             // 2. Camera video track (if callType === 'video')
@@ -213,20 +271,34 @@ export default function useAgoraRTC() {
                     const videoTrack = await AgoraRTC.createCameraVideoTrack({
                         encoderConfig: "720p_1",
                     });
-                    localVideoTrackRef.current = videoTrack;
-                    tracksToPublish.push(videoTrack);
+                    if (joinSeqRef.current === seq) {
+                        localVideoTrackRef.current = videoTrack;
+                        tracksToPublish.push(videoTrack);
+                        setIsVideoMuted(false);
+                    } else {
+                        videoTrack.close();
+                    }
                 } catch (camErr) {
-                    console.warn("[Agora RTC] Camera not available or busy in another tab/app:", camErr.message);
+                    console.warn("[Agora RTC] Camera not available or busy in another tab/app:", camErr?.message || camErr);
                     setIsVideoMuted(true);
                 }
             } else {
                 setIsVideoMuted(true);
             }
 
-            // Publish local tracks if client is connected and not currently leaving
-            if (tracksToPublish.length > 0 && client.connectionState === "CONNECTED") {
-                await client.publish(tracksToPublish);
-                console.log(`[Agora RTC] Published ${tracksToPublish.length} local track(s).`);
+            if (joinSeqRef.current !== seq) {
+                client.leave().catch(() => {});
+                return;
+            }
+
+            // Publish local tracks
+            if (tracksToPublish.length > 0) {
+                try {
+                    await client.publish(tracksToPublish);
+                    console.log(`[Agora RTC] Published ${tracksToPublish.length} local track(s).`);
+                } catch (pubErr) {
+                    console.error("[Agora RTC] Publish error:", pubErr);
+                }
             }
 
             setLocalTracks({
@@ -238,22 +310,19 @@ export default function useAgoraRTC() {
             setConnecting(false);
             setConnectionState("CONNECTED");
             setIsAudioMuted(false);
-            if (callType === "video") {
-                setIsVideoMuted(!localVideoTrackRef.current);
-            }
         } catch (err) {
+            if (joinSeqRef.current !== seq) return;
             console.error("[Agora RTC] Join Error:", err);
             setConnecting(false);
             setJoined(false);
             setConnectionState("DISCONNECTED");
 
-            // Ignore intentional abort cancellations
             if (
-                err.code === "OPERATION_ABORTED" || 
-                err.message?.includes("cancel token canceled") || 
+                err.code === "OPERATION_ABORTED" ||
+                err.message?.includes("cancel token canceled") ||
                 err.message?.includes("OPERATION_ABORTED")
             ) {
-                console.log("[Agora RTC] In-flight join was safely cancelled.");
+                console.log("[Agora RTC] In-flight join operation cancelled cleanly.");
                 return;
             }
 
@@ -261,15 +330,13 @@ export default function useAgoraRTC() {
             let friendlyMessage = `[${errCode}] ${err.message || "Failed to connect to Agora room."}`;
 
             if (err.code === "DYNAMIC_KEY_TIMEOUT" || err.code === "CAN_NOT_GET_GATEWAY_SERVER" || err.message?.includes("token")) {
-                friendlyMessage = `[Agora Auth Failed: ${err.code || "TokenError"}] ${err.message || "Please restart backend server so AGORA_APP_CERTIFICATE is loaded from backend/.env."}`;
+                friendlyMessage = `[Agora Token Error] Please ensure AGORA_APP_CERTIFICATE in backend/.env matches your Agora Console project.`;
             } else if (err.name === "NotAllowedError" || err.message?.includes("Permission denied")) {
                 friendlyMessage = "Camera or microphone permission denied. Please allow device access in your browser URL bar.";
             }
             setError(friendlyMessage);
-        } finally {
-            isJoiningRef.current = false;
         }
-    }, []);
+    }, [syncRemoteUsers]);
 
     /**
      * Toggle Local Audio (Mute / Unmute)
@@ -321,6 +388,7 @@ export default function useAgoraRTC() {
             if (isScreenSharing) {
                 if (screenTrackRef.current) {
                     await clientRef.current.unpublish(screenTrackRef.current);
+                    screenTrackRef.current.stop();
                     screenTrackRef.current.close();
                     screenTrackRef.current = null;
                 }
@@ -350,49 +418,6 @@ export default function useAgoraRTC() {
         }
     }, [isScreenSharing, isVideoMuted]);
 
-    /**
-     * Leave Agora RTC Channel & Cleanup
-     */
-    const leaveChannel = useCallback(async () => {
-        isLeavingRef.current = true;
-        try {
-            if (localAudioTrackRef.current) {
-                localAudioTrackRef.current.stop();
-                localAudioTrackRef.current.close();
-                localAudioTrackRef.current = null;
-            }
-
-            if (localVideoTrackRef.current) {
-                localVideoTrackRef.current.stop();
-                localVideoTrackRef.current.close();
-                localVideoTrackRef.current = null;
-            }
-
-            if (screenTrackRef.current) {
-                screenTrackRef.current.stop();
-                screenTrackRef.current.close();
-                screenTrackRef.current = null;
-            }
-
-            if (clientRef.current) {
-                if (clientRef.current.connectionState === "CONNECTED" || clientRef.current.connectionState === "CONNECTING") {
-                    await clientRef.current.leave().catch(() => {});
-                }
-                clientRef.current.removeAllListeners();
-                clientRef.current = null;
-            }
-
-            setJoined(false);
-            setConnecting(false);
-            setConnectionState("DISCONNECTED");
-            setRemoteUsers([]);
-            setLocalTracks({ audioTrack: null, videoTrack: null });
-            setIsScreenSharing(false);
-        } catch (err) {
-            console.error("Error leaving Agora channel:", err);
-        }
-    }, []);
-
     // Cleanup on unmount
     useEffect(() => {
         return () => {
@@ -409,8 +434,8 @@ export default function useAgoraRTC() {
         isVideoMuted,
         isScreenSharing,
         remoteUsers,
-        localAudioTrack: localAudioTrackRef.current,
-        localVideoTrack: localVideoTrackRef.current,
+        localAudioTrack: localTracks.audioTrack || localAudioTrackRef.current,
+        localVideoTrack: localTracks.videoTrack || localVideoTrackRef.current,
         screenTrack: screenTrackRef.current,
         joinChannel,
         leaveChannel,
