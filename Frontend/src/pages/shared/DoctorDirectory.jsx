@@ -12,7 +12,8 @@ import styles from "./DoctorDirectory.module.css";
 
 export default function DoctorDirectory() {
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const canBookAppointments = user?.role === "patient";
   const { t, language } = useLanguage();
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -179,9 +180,9 @@ export default function DoctorDirectory() {
                       <small><Building2 /> {translateDepartment(doctor.department, language) || `${translateClinicalTerm(location, "locations", language) || location} ${t("doctors.medicalCentre", "Medical Centre")}`}</small>
                       <small className={styles.rating}>★ <b>{(4.6 + (index % 4) / 10).toFixed(1)}</b> ({87 + index * 19} {t("doctors.reviews", "reviews")})</small>
                     </div>
-                    <div className={styles.cardActions}>
+                    <div className={`${styles.cardActions} ${!canBookAppointments ? styles.singleAction : ""}`}>
                       <button>{t("common.view", "View Profile")}</button>
-                      <button onClick={() => openBooking(doctor)}><Calendar /> {t("doctors.bookAppointment", "Book Appointment")}</button>
+                      {canBookAppointments && <button className={styles.bookButton} onClick={() => openBooking(doctor)}><Calendar /> {t("doctors.bookAppointment", "Book Appointment")}</button>}
                     </div>
                   </motion.article>
                 );
@@ -195,7 +196,7 @@ export default function DoctorDirectory() {
       </section>
 
       <AnimatePresence>
-        {selectedDoctor && (
+        {canBookAppointments && selectedDoctor && (
           <motion.div className={styles.backdrop} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedDoctor(null)}>
             <motion.div className={styles.modal} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }} onClick={(event) => event.stopPropagation()}>
               <header>

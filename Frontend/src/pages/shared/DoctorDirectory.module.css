@@ -346,7 +346,7 @@
   cursor: pointer;
 }
 
-.cardActions button:last-child {
+.cardActions .bookButton {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -354,6 +354,10 @@
   color: #fff;
   background: #087466;
   text-decoration: none;
+}
+
+.cardActions.singleAction {
+  grid-template-columns: 1fr;
 }
 
 .cardActions svg {
