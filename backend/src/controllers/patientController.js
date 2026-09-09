@@ -534,7 +534,7 @@ async function getPatientMedicalHistory(req, res, next) {
             category: "assessment",
             verificationStatus: "ai_extracted",
             title: `Clinical Intake: ${a.chiefComplaint || "General Intake"}`,
-            subtitle: `Status: ${a.status.toUpperCase()}`,
+            subtitle: `Status: ${(a.status || 'in_progress').toUpperCase()}`,
             details: a.summary,
             redFlags: a.redFlags,
             answeredFields: a.answeredFields,
