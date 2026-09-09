@@ -267,9 +267,12 @@ export default function ClinicalAssessment() {
           { role: "user", content: userContent },
         ];
 
-        if (res.isComplete) {
+        const sessionDone = res.isComplete || res.isCompleted || (res.session && res.session.is_completed);
+        const finalSummary = res.summary || (res.session && res.session.summary);
+
+        if (sessionDone) {
           setIsCompleted(true);
-          setSummary(res.summary || "");
+          setSummary(finalSummary || "");
           setConversationHistory(newHistory);
         } else if (res.nextQuestion) {
           setCurrentQuestion(res.nextQuestion);
@@ -308,9 +311,12 @@ export default function ClinicalAssessment() {
     try {
       const res = await sendClinicalTextTurn(sessionId, textToSend, token);
       if (res.success) {
-        if (res.isCompleted) {
+        const sessionDone = res.isComplete || res.isCompleted || (res.session && res.session.is_completed);
+        const finalSummary = res.summary || (res.session && res.session.summary);
+
+        if (sessionDone) {
           setIsCompleted(true);
-          setSummary(res.summary || "");
+          setSummary(finalSummary || "");
         } else if (res.nextQuestion) {
           setCurrentQuestion(res.nextQuestion);
           setOptions(res.options || []);
@@ -339,7 +345,8 @@ export default function ClinicalAssessment() {
       const res = await finalizeClinicalSession(sessionId, token);
       if (res.success) {
         setIsCompleted(true);
-        setSummary(res.summary || "");
+        const finalSummary = res.summary || (res.session && res.session.summary) || "Assessment completed successfully.";
+        setSummary(finalSummary);
       } else {
         throw new Error(res.message || "Failed to finalize session.");
       }
