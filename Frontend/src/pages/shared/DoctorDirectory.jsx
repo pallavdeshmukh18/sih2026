@@ -54,14 +54,7 @@ export default function DoctorDirectory() {
   }, [doctors, query, specialty]);
 
   const openBooking = (doctor) => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(10, 0, 0, 0);
-    setScheduledAt(new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
-    setSelectedDoctor(doctor);
-    setAppointmentType("in_person");
-    setReason("General Clinical Consultation");
-    setNotes("");
+    navigate(`/patient/assessment?doctorId=${doctor.id}`);
   };
 
   const confirmBooking = async (event) => {

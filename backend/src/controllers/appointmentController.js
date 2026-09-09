@@ -410,10 +410,31 @@ async function updateAppointmentStatus(req, res, next) {
     }
 }
 
+async function deleteAppointment(req, res, next) {
+    try {
+        const appointmentId = req.params.id;
+        const patientId = req.user.id;
+
+        const check = await pool.query(
+            "SELECT id FROM appointments WHERE id = $1 AND patient_id = $2;",
+            [appointmentId, patientId]
+        );
+        if (check.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Appointment not found." });
+        }
+
+        await pool.query("UPDATE appointments SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = $1;", [appointmentId]);
+        return res.status(200).json({ success: true, message: "Appointment cancelled successfully." });
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     createAppointment,
     getAvailableSlots,
     getPatientAppointments,
     getAppointmentById,
     updateAppointmentStatus,
+    deleteAppointment,
 };

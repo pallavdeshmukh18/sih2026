@@ -1,8 +1,8 @@
-const { RtcTokenBuilder, RtcRole } = require("agora-access-token");
+const { RtcTokenBuilder, RtcRole } = require("agora-token");
 
 /**
  * Agora Token Generator Service
- * Generates secure Token006 RTC tokens for Doctor & Patient video/voice sessions.
+ * Generates secure Token007 RTC tokens for Doctor & Patient video/voice sessions.
  */
 class AgoraService {
     /**
@@ -35,14 +35,16 @@ class AgoraService {
 
         try {
             const rtcRole = role === "subscriber" ? RtcRole.SUBSCRIBER : RtcRole.PUBLISHER;
-            // Build Universal Token006 for Agora Web SDK
+            // Build Universal Token007 for Agora Web SDK v4
+            // Passing uid = 0 builds a wildcard token that permits any UID to join and publish in the specified channel securely
             const token = RtcTokenBuilder.buildTokenWithUid(
                 appId,
                 appCertificate,
                 channelName,
-                numericUid,
+                0,
                 rtcRole,
-                privilegeExpiredTs
+                expireTimeInSeconds,
+                expireTimeInSeconds
             );
 
             return {

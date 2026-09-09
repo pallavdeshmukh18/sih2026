@@ -12,5 +12,6 @@ router.get("/available", appointmentController.getAvailableSlots);
 router.get("/patient", authorizeRoles("patient"), appointmentController.getPatientAppointments);
 router.get("/:id", authorizeRoles("patient", "doctor"), appointmentController.getAppointmentById);
 router.patch("/:id/status", authorizeRoles("patient", "doctor"), appointmentController.updateAppointmentStatus);
+router.delete("/:id", authorizeRoles("patient"), appointmentController.deleteAppointment);
 
 module.exports = router;

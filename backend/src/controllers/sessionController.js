@@ -285,10 +285,31 @@ async function finalizeSession(req, res, next) {
     }
 }
 
+async function deleteSession(req, res, next) {
+    try {
+        const sessionId = req.params.id;
+        const patientId = req.user.id;
+
+        const check = await pool.query(
+            "SELECT id FROM clinical_sessions WHERE id = $1 AND patient_id = $2;",
+            [sessionId, patientId]
+        );
+        if (check.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Clinical assessment session not found." });
+        }
+
+        await pool.query("DELETE FROM clinical_sessions WHERE id = $1;", [sessionId]);
+        return res.status(200).json({ success: true, message: "Clinical assessment session deleted successfully." });
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     startSession,
     processVoiceTurn,
     processTextTurn,
     getSessionById,
     finalizeSession,
+    deleteSession,
 };

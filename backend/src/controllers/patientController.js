@@ -375,14 +375,45 @@ async function getPatientMedicalHistory(req, res, next) {
             if (!Array.isArray(history) && state.conversation_history) {
                 history = state.conversation_history;
             }
+
+            const answeredFields = state.answered_fields || {};
+            const redFlags = state.red_flags || [];
+            let summaryText = row.summary;
+
+            if (!summaryText || !summaryText.trim() || summaryText.startsWith("Intake session")) {
+                let generated = `### 🩺 Physician RAG Clinical Intake Summary\n\n`;
+                generated += `**Chief Complaint**: ${row.chief_complaint || "General Intake"}\n\n`;
+                
+                if (redFlags.length > 0) {
+                    generated += `**🚨 Red Flags Identified**:\n`;
+                    redFlags.forEach(flag => {
+                        generated += `- ${flag}\n`;
+                    });
+                    generated += `\n`;
+                }
+
+                if (Object.keys(answeredFields).length > 0) {
+                    generated += `**📋 Clinical History & Parameters**:\n`;
+                    Object.entries(answeredFields).forEach(([field, val]) => {
+                        const displayField = field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        generated += `- **${displayField}**: ${val}\n`;
+                    });
+                } else {
+                    generated += `No clinical parameters recorded during intake.`;
+                }
+                
+                generated += `\n\n*Synthesized by MediKiosk RAG Clinical Engine for Doctor Review*`;
+                summaryText = generated;
+            }
+
             return {
                 id: row.id,
                 chiefComplaint: row.chief_complaint,
                 status: row.status,
-                summary: row.summary || (row.status === "completed" ? "Intake session completed." : "Intake session in progress."),
+                summary: summaryText,
                 date: row.created_at,
-                redFlags: state.red_flags || [],
-                answeredFields: state.answered_fields || {},
+                redFlags,
+                answeredFields,
                 chatHistory: Array.isArray(history) ? history : [],
                 source: "MediKiosk Clinical AI Assessment",
             };

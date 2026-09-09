@@ -37,13 +37,19 @@ function RemoteVideoPlayer({ user }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
-    if (user?.videoTrack && containerRef.current) {
+    if (!user?.videoTrack || !containerRef.current) return;
+    try {
       user.videoTrack.play(containerRef.current);
+    } catch (err) {
+      console.warn("[RemoteVideoPlayer] Play error:", err);
     }
+
     return () => {
-      user?.videoTrack?.stop();
+      try {
+        user.videoTrack?.stop();
+      } catch (_) {}
     };
-  }, [user, user?.videoTrack]);
+  }, [user?.uid, user?.videoTrack]);
 
   return <div ref={containerRef} className={styles.videoElement} style={{ width: "100%", height: "100%" }} />;
 }
@@ -55,11 +61,17 @@ function LocalVideoPlayer({ videoTrack }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
-    if (videoTrack && containerRef.current) {
+    if (!videoTrack || !containerRef.current) return;
+    try {
       videoTrack.play(containerRef.current);
+    } catch (err) {
+      console.warn("[LocalVideoPlayer] Play error:", err);
     }
+
     return () => {
-      videoTrack?.stop();
+      try {
+        videoTrack?.stop();
+      } catch (_) {}
     };
   }, [videoTrack]);
 
@@ -113,19 +125,24 @@ export default function TeleconsultRoom({
 
   const chatBottomRef = useRef(null);
 
+  const channelName = agoraConfig?.channelName;
+  const appId = agoraConfig?.appId;
+  const agoraToken = agoraConfig?.token;
+  const agoraUid = agoraConfig?.uid;
+
   // Join Agora Channel on mount
   useEffect(() => {
-    if (agoraConfig && sessionId) {
-      console.log(`[TeleconsultRoom] Initializing Agora connection for channel: ${agoraConfig.channelName}, uid: ${agoraConfig.uid}`);
+    if (channelName && appId) {
+      console.log(`[TeleconsultRoom] Initializing Agora connection for channel: ${channelName}, uid: ${agoraUid}`);
       joinChannel({
-        appId: agoraConfig.appId,
-        channelName: agoraConfig.channelName,
-        token: agoraConfig.token,
-        uid: agoraConfig.uid,
+        appId,
+        channelName,
+        token: agoraToken,
+        uid: agoraUid,
         callType,
       });
     }
-  }, [agoraConfig, sessionId, callType, joinChannel]);
+  }, [channelName, appId, agoraToken, agoraUid, callType, joinChannel]);
 
   // Duration timer
   useEffect(() => {
@@ -217,7 +234,7 @@ export default function TeleconsultRoom({
     ? peer.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
     : "DR";
 
-  const remoteUserWithVideo = remoteUsers.find((u) => u.hasVideo || u.videoTrack);
+  const remoteUserWithVideo = remoteUsers.find((u) => Boolean(u.videoTrack));
   const isRemoteUserConnected = remoteUsers.length > 0;
 
   return (

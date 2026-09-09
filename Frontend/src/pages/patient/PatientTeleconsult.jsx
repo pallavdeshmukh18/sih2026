@@ -79,9 +79,10 @@ export default function PatientTeleconsult() {
 
   useEffect(() => {
     loadSessions();
-    const pollInterval = setInterval(() => loadSessions(true), 5000); // Polling for live doctor approval
+    if (activeCallSession) return;
+    const pollInterval = setInterval(() => loadSessions(true), 5000);
     return () => clearInterval(pollInterval);
-  }, [loadSessions]);
+  }, [loadSessions, activeCallSession]);
 
   // Load verified doctors for request modal
   useEffect(() => {
