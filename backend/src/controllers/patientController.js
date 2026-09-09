@@ -543,18 +543,19 @@ async function getPatientMedicalHistory(req, res, next) {
         }));
 
         documents.forEach(d => {
+            const docType = d.documentType || "other";
             let cat = "document";
-            if (d.documentType === "prescription") cat = "prescription";
-            else if (d.documentType === "lab_report" || d.documentType === "scan") cat = "lab_test";
+            if (docType === "prescription") cat = "prescription";
+            else if (docType === "lab_report" || docType === "scan") cat = "lab_test";
 
             timelineEvents.push({
                 id: `timeline_doc_${d.id}`,
                 date: d.date,
-                type: d.documentType === "prescription" ? "Prescription" : (d.documentType === "lab_report" ? "Lab Test" : "Document"),
+                type: docType === "prescription" ? "Prescription" : (docType === "lab_report" ? "Lab Test" : "Document"),
                 category: cat,
                 verificationStatus: "ai_extracted",
                 title: d.fileName,
-                subtitle: `${d.documentType.replace('_', ' ').toUpperCase()} • ${d.ocrStatus === 'completed' ? 'OCR Processed' : d.ocrStatus}`,
+                subtitle: `${docType.replace('_', ' ').toUpperCase()} • ${d.ocrStatus === 'completed' ? 'OCR Processed' : (d.ocrStatus || 'pending')}`,
                 details: d.aiSummary || null,
                 documentId: d.id,
                 ocrStatus: d.ocrStatus,
