@@ -4,7 +4,9 @@ import { ArrowRight, Bell, CalendarDays, ChevronLeft, ChevronRight, Clock3, File
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../i18n";
 import { getPatientAppointments } from "../../services/api";
+import { formatDoctorName, translateClinicalTerm } from "../../utils/transliterate";
 import heroImage from "../../assets/schedule-hero.png";
 import styles from "./PatientSchedule.module.css";
 
@@ -28,6 +30,7 @@ const buildCalendar = (month) => {
 
 export default function PatientSchedule() {
   const { token } = useAuth();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [reminders, setReminders] = useState([]);
@@ -86,30 +89,145 @@ export default function PatientSchedule() {
     setSelectedDate(date);
     setMonth(new Date(date.getFullYear(), date.getMonth(), 1));
     setShowReminder(false);
-    toast.success("Reminder added to your schedule.");
+    toast.success(t("schedule.reminderAdded", "Reminder added to your schedule."));
   };
 
+  const weekDays = [
+    { key: "sun", label: t("schedule.sun", "Sun") },
+    { key: "mon", label: t("schedule.mon", "Mon") },
+    { key: "tue", label: t("schedule.tue", "Tue") },
+    { key: "wed", label: t("schedule.wed", "Wed") },
+    { key: "thu", label: t("schedule.thu", "Thu") },
+    { key: "fri", label: t("schedule.fri", "Fri") },
+    { key: "sat", label: t("schedule.sat", "Sat") },
+  ];
+
   return <motion.main className={`${styles.page} workspacePage`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35 }}>
-    <header className={styles.hero}><img src={heroImage} alt="Care calendar with clock and reminder bell" /><div className={styles.heroCopy}><span>CARE CALENDAR</span><h1>Your Schedule</h1><p>Keep track of your appointments, reminders, and follow-ups.</p></div><blockquote>“Small<br />Details.<br /><b>Bigger Care.</b>”</blockquote><button onClick={openReminder}><PlusCircle /> Add Reminder</button></header>
+    <header className={styles.hero}>
+      <img src={heroImage} alt="Care calendar with clock and reminder bell" />
+      <div className={styles.heroCopy}>
+        <span>{t("navigation.schedule", "CARE CALENDAR")}</span>
+        <h1>{t("schedule.pageTitle", "Your Care Schedule")}</h1>
+        <p>{t("schedule.pageSub", "Track scheduled visits, medication reminders, and health checkups on an interactive calendar.")}</p>
+      </div>
+      <blockquote>{t("schedule.quote", "“Small Details. Bigger Care.”")}</blockquote>
+      <button onClick={openReminder}><PlusCircle /> {t("schedule.addReminder", "Add Care Reminder")}</button>
+    </header>
 
     <div className={styles.scheduleLayout}>
       <section className={styles.calendarCard}>
-        <header><div><h2>{month.toLocaleString("en", { month: "long", year: "numeric" })}</h2><p>Select a date to view your scheduled care.</p></div><nav><button onClick={() => changeMonth(-1)} aria-label="Previous month"><ChevronLeft /></button><button onClick={goToday}>Today</button><button onClick={() => changeMonth(1)} aria-label="Next month"><ChevronRight /></button></nav></header>
-        <div className={styles.calendar}><div className={styles.week}>{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <span key={day}>{day}</span>)}</div><div className={styles.days}>{calendarDays.map(({ date, current }) => {
-          const dayEvents = eventsByDate[dateKey(date)] || [];
-          const selected = dateKey(date) === dateKey(selectedDate);
-          return <button key={date.toISOString()} className={`${!current ? styles.outside : ""} ${selected ? styles.selected : ""} ${dayEvents.length ? styles.hasEvent : ""}`} onClick={() => { setSelectedDate(date); if (!current) setMonth(new Date(date.getFullYear(), date.getMonth(), 1)); }}><span>{date.getDate()}</span>{dayEvents.slice(0, 2).map((entry) => <small className={entry.kind === "reminder" ? styles.reminderEvent : ""} key={entry.id}>{entry.kind === "reminder" ? entry.title : entry.specialization || "Appointment"}<i>{formatTime(entry.scheduled_at)}</i></small>)}</button>;
-        })}</div></div>
+        <header>
+          <div>
+            <h2>{month.toLocaleString(language || "en", { month: "long", year: "numeric" })}</h2>
+            <p>{t("schedule.pageSub", "Track scheduled visits, medication reminders, and health checkups on an interactive calendar.")}</p>
+          </div>
+          <nav>
+            <button onClick={() => changeMonth(-1)} aria-label="Previous month"><ChevronLeft /></button>
+            <button onClick={goToday}>{t("schedule.today", "Today")}</button>
+            <button onClick={() => changeMonth(1)} aria-label="Next month"><ChevronRight /></button>
+          </nav>
+        </header>
+        <div className={styles.calendar}>
+          <div className={styles.week}>
+            {weekDays.map(({ key, label }) => <span key={key}>{label}</span>)}
+          </div>
+          <div className={styles.days}>
+            {calendarDays.map(({ date, current }) => {
+              const dayEvents = eventsByDate[dateKey(date)] || [];
+              const selected = dateKey(date) === dateKey(selectedDate);
+              return (
+                <button
+                  key={date.toISOString()}
+                  className={`${!current ? styles.outside : ""} ${selected ? styles.selected : ""} ${dayEvents.length ? styles.hasEvent : ""}`}
+                  onClick={() => { setSelectedDate(date); if (!current) setMonth(new Date(date.getFullYear(), date.getMonth(), 1)); }}
+                >
+                  <span>{date.getDate()}</span>
+                  {dayEvents.slice(0, 2).map((entry) => (
+                    <small className={entry.kind === "reminder" ? styles.reminderEvent : ""} key={entry.id}>
+                      {entry.kind === "reminder" ? entry.title : translateClinicalTerm(entry.specialization, "specializations", language) || t("appointments.inPerson", "Appointment")}
+                      <i>{formatTime(entry.scheduled_at)}</i>
+                    </small>
+                  ))}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </section>
 
       <aside className={styles.sideColumn}>
-        <section className={styles.selectedDay}><span><CalendarDays /></span><div><h2>{selectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</h2><p>{selectedEvents.length ? `You have ${selectedEvents.length} scheduled care event${selectedEvents.length === 1 ? "" : "s"}.` : "No appointments scheduled for this day."}</p></div></section>
-        <section className={styles.upcoming}><header><h2>Upcoming Appointments</h2><button onClick={() => navigate("/patient/appointments")}>View All <ArrowRight /></button></header>{upcoming.map((appointment) => { const date = new Date(appointment.scheduled_at); return <button className={styles.appointment} key={appointment.id} onClick={() => { setSelectedDate(date); setMonth(new Date(date.getFullYear(), date.getMonth(), 1)); }}><time><strong>{date.getDate()}</strong><small>{date.toLocaleString("en", { month: "short" })}</small></time><span><b>Dr. {appointment.doctor_first_name || "Care"} {appointment.doctor_last_name || "Provider"}</b><small>{appointment.specialization || "General consultation"}</small><em><MapPin />{appointment.location || "MediKiosk Clinic"}</em></span><i><Clock3 />{formatTime(appointment.scheduled_at)}</i></button>; })}</section>
-        <section className={styles.quickActions}><h2>Quick Actions</h2><div><button onClick={() => navigate("/patient/doctor")}><span><CalendarDays /></span>Book Appointment</button><button onClick={openReminder}><span><Bell /></span>Add Reminder</button><button onClick={() => navigate("/patient/doctor")}><span><Users /></span>Find Doctors</button><button onClick={() => navigate("/patient/history")}><span><FileText /></span>View Records</button></div></section>
-        <section className={styles.journey}><Stethoscope /><blockquote>Stay on top<br />of your health journey.</blockquote></section>
+        <section className={styles.selectedDay}>
+          <span><CalendarDays /></span>
+          <div>
+            <h2>{selectedDate.toLocaleDateString(language || "en", { day: "numeric", month: "long", year: "numeric" })}</h2>
+            <p>{selectedEvents.length ? `${selectedEvents.length} ${t("schedule.eventsScheduled", "scheduled care events")}.` : t("schedule.noConsultationsDay", "No appointments scheduled for this day.")}</p>
+          </div>
+        </section>
+        <section className={styles.upcoming}>
+          <header>
+            <h2>{t("schedule.upcomingTitle", "Scheduled Consultations")}</h2>
+            <button onClick={() => navigate("/patient/appointments")}>{t("dashboard.viewAll", "View All")} <ArrowRight /></button>
+          </header>
+          {upcoming.map((appointment) => {
+            const date = new Date(appointment.scheduled_at);
+            return (
+              <button
+                className={styles.appointment}
+                key={appointment.id}
+                onClick={() => { setSelectedDate(date); setMonth(new Date(date.getFullYear(), date.getMonth(), 1)); }}
+              >
+                <time>
+                  <strong>{date.getDate()}</strong>
+                  <small>{date.toLocaleString(language || "en", { month: "short" })}</small>
+                </time>
+                <span>
+                  <b>{formatDoctorName({ firstName: appointment.doctor_first_name, lastName: appointment.doctor_last_name }, language)}</b>
+                  <small>{translateClinicalTerm(appointment.specialization, "specializations", language) || t("dashboard.generalPhysician", "General consultation")}</small>
+                  <em><MapPin />{translateClinicalTerm(appointment.location, "locations", language) || t("dashboard.clinicDefault", "MediKiosk Clinic")}</em>
+                </span>
+                <i><Clock3 />{formatTime(appointment.scheduled_at)}</i>
+              </button>
+            );
+          })}
+        </section>
+        <section className={styles.quickActions}>
+          <h2>{t("dashboard.quickActions", "Quick Actions")}</h2>
+          <div>
+            <button onClick={() => navigate("/patient/doctor")}><span><CalendarDays /></span>{t("appointments.bookNew", "Book Appointment")}</button>
+            <button onClick={openReminder}><span><Bell /></span>{t("schedule.addReminder", "Add Reminder")}</button>
+            <button onClick={() => navigate("/patient/doctor")}><span><Users /></span>{t("doctors.pageTitle", "Find Doctors")}</button>
+            <button onClick={() => navigate("/patient/history")}><span><FileText /></span>{t("history.timeline", "View Records")}</button>
+          </div>
+        </section>
+        <section className={styles.journey}><Stethoscope /><blockquote>{t("schedule.journeyQuote", "Stay on top of your health journey.")}</blockquote></section>
       </aside>
     </div>
 
-    <AnimatePresence>{showReminder && <motion.div className={styles.backdrop} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReminder(false)}><motion.section className={styles.modal} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }} onClick={(event) => event.stopPropagation()}><header><div><span>CARE REMINDER</span><h2>Add to your schedule</h2></div><button onClick={() => setShowReminder(false)}><X /></button></header><form onSubmit={addReminder}><label>Reminder title<input value={reminderTitle} onChange={(event) => setReminderTitle(event.target.value)} placeholder="e.g. Take medication" required /></label><label>Date and time<input type="datetime-local" value={reminderAt} onChange={(event) => setReminderAt(event.target.value)} required /></label><button><Bell /> Save Reminder</button></form></motion.section></motion.div>}</AnimatePresence>
+    <AnimatePresence>
+      {showReminder && (
+        <motion.div className={styles.backdrop} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReminder(false)}>
+          <motion.section className={styles.modal} initial={{ opacity: 0, scale: .96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: .96 }} onClick={(event) => event.stopPropagation()}>
+            <header>
+              <div>
+                <span>{t("schedule.careReminderBadge", "CARE REMINDER")}</span>
+                <h2>{t("schedule.addToSchedule", "Add to your schedule")}</h2>
+              </div>
+              <button onClick={() => setShowReminder(false)}><X /></button>
+            </header>
+            <form onSubmit={addReminder}>
+              <label>
+                {t("schedule.reminderTitle", "Reminder title")}
+                <input value={reminderTitle} onChange={(event) => setReminderTitle(event.target.value)} placeholder={t("schedule.reminderTitlePlaceholder", "e.g. Take medication")} required />
+              </label>
+              <label>
+                {t("schedule.reminderDate", "Date and time")}
+                <input type="datetime-local" value={reminderAt} onChange={(event) => setReminderAt(event.target.value)} required />
+              </label>
+              <button><Bell /> {t("schedule.saveReminder", "Save Reminder")}</button>
+            </form>
+          </motion.section>
+        </motion.div>
+      )}
+    </AnimatePresence>
   </motion.main>;
 }

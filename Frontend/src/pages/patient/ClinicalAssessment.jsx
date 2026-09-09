@@ -424,11 +424,11 @@ export default function ClinicalAssessment() {
             ))}
           </div>
 
-          <label className={styles.label}>Or describe in your own words:</label>
+          <label className={styles.label}>{t("assessment.customComplaintPrompt", "Or describe in your own words:")}</label>
           <input
             type="text"
             className={styles.inputField}
-            placeholder={t("assessment.customComplaintPlaceholder")}
+            placeholder={t("assessment.customComplaintPlaceholder", "e.g. Sharp pain in lower back since yesterday")}
             value={customComplaint}
             onChange={(e) => {
               setCustomComplaint(e.target.value);
@@ -437,7 +437,7 @@ export default function ClinicalAssessment() {
           />
 
           <button type="submit" className={styles.primaryBtn} disabled={loading}>
-            {loading ? t("assessment.starting") : t("assessment.beginAssessment")} <Sparkles size={16} />
+            {loading ? t("assessment.starting", "Starting Assessment...") : t("assessment.beginAssessment", "Begin Assessment")} <Sparkles size={16} />
           </button>
         </form>
       )}
@@ -446,7 +446,7 @@ export default function ClinicalAssessment() {
         <div className={styles.chatWindow}>
           <div className={styles.questionCard}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#0d9488", fontSize: "12px", fontWeight: "700", marginBottom: "8px" }}>
-              <Stethoscope size={16} /> CLINICAL AI QUESTION
+              <Stethoscope size={16} /> {t("assessment.intakeAssistant", "CLINICAL AI QUESTION")}
             </div>
             <div className={styles.questionText}>{currentQuestion}</div>
 
@@ -474,7 +474,7 @@ export default function ClinicalAssessment() {
 
             {/* Custom typed / spoken response option */}
             <div className={styles.customAnswerSection}>
-              <span className={styles.customAnswerLabel}>Or type a specific response:</span>
+              <span className={styles.customAnswerLabel}>{t("assessment.typeAnswer", "Or type a specific response:")}</span>
               <div className={styles.inputGroup}>
                 <input
                   type="text"
@@ -566,19 +566,19 @@ export default function ClinicalAssessment() {
                 cursor: "pointer",
               }}
             >
-              {isFinalizing ? "Finalizing..." : "Complete Assessment Now"}
+              {isFinalizing ? t("account.saving", "Finalizing...") : t("assessment.completeAssessmentNow", "Complete Assessment Now")}
             </button>
           </div>
 
           {conversationHistory.length > 0 && (
             <div className={styles.historySection}>
-              <div className={styles.historyTitle}>Intake Transcript</div>
+              <div className={styles.historyTitle}>{t("assessment.intakeTranscript", "Intake Transcript")}</div>
               {conversationHistory.map((msg, idx) => (
                 <div key={idx} className={styles.chatTurn}>
                   {msg.role === "system" ? (
-                    <span className={styles.systemMsg}>Doctor AI: {msg.content}</span>
+                    <span className={styles.systemMsg}>{t("assessment.doctorAi", "Doctor AI:")} {msg.content}</span>
                   ) : (
-                    <div className={styles.patientMsg}>You: {msg.content}</div>
+                    <div className={styles.patientMsg}>{t("assessment.you", "You:")} {msg.content}</div>
                   )}
                 </div>
               ))}
@@ -590,14 +590,14 @@ export default function ClinicalAssessment() {
       {isCompleted && (
         <div className={styles.completionCard}>
           <CheckCircle2 size={48} color="#166534" style={{ margin: "0 auto 16px" }} />
-          <h2>Assessment Complete!</h2>
+          <h2>{t("assessment.assessmentComplete", "Assessment Complete!")}</h2>
           <p style={{ color: "#475569", fontSize: "14px" }}>
-            Your structured clinical history has been successfully created and attached to your record.
+            {t("assessment.assessmentSuccess", "Your structured clinical history has been successfully created and attached to your record.")}
           </p>
 
           {summary && (
             <div className={styles.summaryBox}>
-              <strong>Clinical Intake Summary for Doctor:</strong>
+              <strong>{t("assessment.viewSummary", "Clinical Intake Summary for Doctor:")}</strong>
               <p style={{ marginTop: "8px" }}>{summary}</p>
             </div>
           )}
@@ -608,7 +608,7 @@ export default function ClinicalAssessment() {
               className={styles.primaryBtn}
               style={{ width: "auto", padding: "12px 24px" }}
             >
-              Return to Dashboard
+              {t("assessment.returnDashboard", "Return to Dashboard")}
             </button>
             <button
               onClick={() => navigate("/patient/history")}
@@ -623,7 +623,7 @@ export default function ClinicalAssessment() {
                 fontWeight: "600",
               }}
             >
-              View History
+              {t("navigation.history", "View History")}
             </button>
           </div>
         </div>

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../i18n";
 import { 
   fetchTeleconsultSessions, 
   requestTeleconsult, 
@@ -29,10 +30,12 @@ import {
   sendTeleconsultMessage 
 } from "../../services/api";
 import TeleconsultRoom from "../../components/teleconsult/TeleconsultRoom";
+import { formatDoctorName, translateClinicalTerm } from "../../utils/transliterate";
 import styles from "./PatientTeleconsult.module.css";
 
 export default function PatientTeleconsult() {
   const { token, user } = useAuth();
+  const { t, language } = useLanguage();
 
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -272,7 +275,7 @@ export default function PatientTeleconsult() {
               <h2 style={{ color: "#166534", display: "flex", alignItems: "center", gap: "8px" }}>
                 <Radio size={18} color="#10b981" className={styles.pulsingIcon} /> Approved Calls Ready to Join
               </h2>
-              <p style={{ color: "#15803d" }}>Doctor has approved your request. Click Join to start the live encrypted room.</p>
+              <p style={{ color: "#15803d" }}>{t("teleconsult.approvedNotice", "Doctor has approved your request. Click Join to start the live encrypted room.")}</p>
             </div>
           </div>
 
@@ -295,12 +298,12 @@ export default function PatientTeleconsult() {
                   </div>
                   <span className={`${styles.badge} ${styles.badgeApproved}`}>
                     {session.callType === "video" ? <Video size={12} /> : <Phone size={12} />}
-                    {session.callType === "video" ? "Video Call" : "Voice Call"}
+                    {session.callType === "video" ? t("teleconsult.videoCall", "Video Call") : t("teleconsult.voiceCall", "Voice Call")}
                   </span>
                 </div>
 
                 <div style={{ fontSize: "13px", color: "#334155", background: "#f8fafc", padding: "10px 12px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                  <strong>Reason:</strong> {session.reason}
+                  <strong>{t("teleconsult.reason", "Reason")}:</strong> {session.reason}
                 </div>
 
                 <div style={{ display: "flex", gap: "8px" }}>
@@ -333,10 +336,10 @@ export default function PatientTeleconsult() {
           <div className={styles.cardHeader}>
             <div>
               <h2>Pending Requests</h2>
-              <p>Waiting for the doctor to review and accept your call request.</p>
+              <p>{t("teleconsult.pendingNotice", "Waiting for the doctor to review and accept your call request.")}</p>
             </div>
             <span className={`${styles.badge} ${styles.badgePending}`}>
-              {pendingRequests.length} Pending
+              {pendingRequests.length} {t("teleconsult.waitingDoctor", "Pending")}
             </span>
           </div>
 
@@ -380,8 +383,8 @@ export default function PatientTeleconsult() {
       <section className={styles.card}>
         <div className={styles.cardHeader}>
           <div>
-            <h2>Teleconsultation History</h2>
-            <p>Past completed sessions, doctor advice, and chat transcripts.</p>
+            <h2>{t("teleconsult.allSessions", "Teleconsultation History")}</h2>
+            <p>{t("teleconsult.historyDesc", "Past completed sessions, doctor advice, and chat transcripts.")}</p>
           </div>
         </div>
 
@@ -397,9 +400,9 @@ export default function PatientTeleconsult() {
           <div style={{ padding: "50px", textAlign: "center", color: "#64748b" }}>
             <Video size={36} color="#94a3b8" style={{ marginBottom: "12px" }} />
             <h3 style={{ fontSize: "16px", fontWeight: "600", color: "#0f172a", margin: 0 }}>No Teleconsultations Yet</h3>
-            <p style={{ fontSize: "13px", margin: "6px 0 16px 0" }}>Request a remote video or voice consultation with any of our verified doctors.</p>
+            <p style={{ fontSize: "13px", margin: "6px 0 16px 0" }}>{t("teleconsult.noCallsDesc", "Request a remote video or voice consultation with any of our verified doctors.")}</p>
             <button className={styles.primaryBtn} style={{ margin: "0 auto" }} onClick={() => setIsModalOpen(true)}>
-              <Plus size={16} /> Request First Call
+              <Plus size={16} /> {t("teleconsult.requestConsult", "Request First Call")}
             </button>
           </div>
         ) : (
@@ -430,7 +433,7 @@ export default function PatientTeleconsult() {
                       session.status === "in_call" ? styles.badgeInCall :
                       isCompleted ? styles.badgeCompleted : styles.badgeRejected
                     }`}>
-                      {session.status.replace("_", " ")}
+                      {session.status === "approved" ? t("teleconsult.approved", "Approved") : session.status === "pending_approval" ? t("teleconsult.waitingDoctor", "Pending") : session.status === "in_call" ? t("teleconsult.inCall", "In Call") : session.status === "completed" ? t("teleconsult.sessionCompleted", "Completed") : t("teleconsult.sessionCancelled", "Cancelled")}
                     </span>
                   </div>
 
@@ -453,7 +456,7 @@ export default function PatientTeleconsult() {
                   </div>
 
                   <button className={styles.chatBtn} onClick={() => handleOpenChat(session)}>
-                    <MessageSquare size={14} /> View Chat & Notes
+                    <MessageSquare size={14} /> {t("teleconsult.chatDrawer", "View Chat & Notes")}
                   </button>
                 </div>
               );
@@ -490,7 +493,7 @@ export default function PatientTeleconsult() {
               <form onSubmit={handleRequestSubmit}>
                 {/* Select Doctor */}
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Select Doctor</label>
+                  <label className={styles.label}>{t("teleconsult.selectDoctor", "Select Doctor")}</label>
                   <select
                     className={styles.select}
                     value={selectedDoctorId}
@@ -507,14 +510,14 @@ export default function PatientTeleconsult() {
 
                 {/* Select Call Format (Video vs Voice) */}
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Consultation Format</label>
+                  <label className={styles.label}>{t("teleconsult.callMode", "Consultation Format")}</label>
                   <div className={styles.callTypeSelector}>
                     <div
                       className={`${styles.callTypeOption} ${callType === "video" ? styles.callTypeOptionSelected : ""}`}
                       onClick={() => setCallType("video")}
                     >
                       <Video size={22} />
-                      <strong style={{ fontSize: "13px" }}>HD Video Call</strong>
+                      <strong style={{ fontSize: "13px" }}>{t("teleconsult.videoCall", "HD Video Call")}</strong>
                       <span style={{ fontSize: "11px", color: "#64748b" }}>Camera + Audio</span>
                     </div>
 
@@ -523,7 +526,7 @@ export default function PatientTeleconsult() {
                       onClick={() => setCallType("voice")}
                     >
                       <Phone size={22} />
-                      <strong style={{ fontSize: "13px" }}>Voice Call</strong>
+                      <strong style={{ fontSize: "13px" }}>{t("teleconsult.voiceCall", "Voice Call")}</strong>
                       <span style={{ fontSize: "11px", color: "#64748b" }}>Crystal Clear Audio</span>
                     </div>
                   </div>
@@ -531,7 +534,7 @@ export default function PatientTeleconsult() {
 
                 {/* Primary Health Concern */}
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Reason for Call / Symptoms</label>
+                  <label className={styles.label}>{t("teleconsult.reason", "Reason for Call / Symptoms")}</label>
                   <input
                     type="text"
                     className={styles.input}
@@ -544,7 +547,7 @@ export default function PatientTeleconsult() {
 
                 {/* Additional Patient Notes */}
                 <div className={styles.formGroup}>
-                  <label className={styles.label}>Additional Notes for Doctor (Optional)</label>
+                  <label className={styles.label}>{t("teleconsult.notes", "Additional Notes for Doctor (Optional)")}</label>
                   <textarea
                     className={styles.textarea}
                     placeholder="Any medications currently taking or specific questions..."
@@ -567,7 +570,7 @@ export default function PatientTeleconsult() {
                     className={styles.primaryBtn}
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? "Submitting..." : "Send Call Request"}
+                    {isSubmitting ? t("teleconsult.requesting", "Submitting...") : t("teleconsult.requestBtn", "Send Call Request")}
                   </button>
                 </div>
               </form>
@@ -591,7 +594,7 @@ export default function PatientTeleconsult() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: "14px", marginBottom: "12px" }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700" }}>
-                    Chat with {activeChatSession.doctor?.name}
+                    {t("teleconsult.chatDrawer", "Chat with")} {formatDoctorName(activeChatSession.doctor, language) || activeChatSession.doctor?.name}
                   </h3>
                   <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "#64748b" }}>
                     Direct secure messages & medical advice
@@ -633,7 +636,7 @@ export default function PatientTeleconsult() {
                         }}
                       >
                         <div style={{ fontSize: "10px", opacity: 0.8, marginBottom: "2px", fontWeight: "600" }}>
-                          {isMe ? "You" : msg.senderName}
+                          {isMe ? t("assessment.you", "You") : msg.senderName}
                         </div>
                         <div>{msg.message}</div>
                         <div style={{ fontSize: "9px", opacity: 0.7, textAlign: "right", marginTop: "4px" }}>
@@ -652,7 +655,7 @@ export default function PatientTeleconsult() {
                   className={styles.input}
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Type message to doctor..."
+                  placeholder={t("teleconsult.typeMessage", "Type message to doctor...")}
                 />
                 <button type="submit" className={styles.primaryBtn} disabled={!chatInput.trim() || isSendingChat}>
                   Send
