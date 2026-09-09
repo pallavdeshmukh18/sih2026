@@ -1,8 +1,27 @@
-from embeddings.embed_store import _model, _collection
-try:
-    from embeddings.knowledge_seed import _knowledge_collection
-except ImportError:
-    _knowledge_collection = None
+import re
+from typing import List, Dict, Any
+from embeddings.embed_store import _stored_docs
+from embeddings.knowledge_seed import CLINICAL_KNOWLEDGE_BASE
+
+
+def _score_text(query: str, target_text: str, keywords: List[str] = None) -> float:
+    q_words = set(re.findall(r"\w+", query.lower()))
+    target_words = set(re.findall(r"\w+", target_text.lower()))
+    if not q_words:
+        return 0.0
+
+    # Token overlap score
+    overlap = len(q_words.intersection(target_words)) / len(q_words)
+    score = overlap
+
+    # Boost explicit keyword matches
+    if keywords:
+        q_lower = query.lower()
+        for kw in keywords:
+            if kw.lower() in q_lower:
+                score += 1.5
+
+    return score
 
 
 def semantic_search(
@@ -11,75 +30,52 @@ def semantic_search(
     top_k: int = 5,
     document_id: str = None
 ) -> list[dict]:
-    if _model is None or _collection is None:
-        return []
+    """Searches patient documents using token relevance matching."""
+    matches = []
+    for doc in _stored_docs:
+        meta = doc.get("metadata", {})
+        if meta.get("patient_id") != patient_id:
+            continue
+        if document_id and meta.get("document_id") != document_id:
+            continue
 
-    query_embedding = _model.encode(
-        [query]
-    ).tolist()
-
-    where_filter = {"patient_id": patient_id}
-    if document_id:
-        where_filter = {"document_id": document_id}
-
-    try:
-        results = _collection.query(
-            query_embeddings=query_embedding,
-            n_results=top_k,
-            where=where_filter
-        )
-    except Exception as e:
-        print(f"ChromaDB retrieval error: {e}")
-        return []
-
-    retrieved_results = []
-
-    documents = results.get("documents", [[]])[0]
-    metadatas = results.get("metadatas", [[]])[0]
-    distances = results.get("distances", [[]])[0]
-
-    for doc, metadata, distance in zip(
-        documents,
-        metadatas,
-        distances
-    ):
-        retrieved_results.append({
-            "text": doc,
-            "metadata": metadata,
-            "distance": distance
+        score = _score_text(query, doc["text"])
+        matches.append({
+            "text": doc["text"],
+            "metadata": meta,
+            "distance": 1.0 / (score + 1.0),
+            "score": score
         })
 
-    return retrieved_results
+    matches.sort(key=lambda x: x["score"], reverse=True)
+    return matches[:top_k]
 
 
 def retrieve_clinical_knowledge(
     query: str,
     top_k: int = 2
 ) -> list[dict]:
-    """Retrieves disease-specific clinical guidelines and questioning protocols from ChromaDB."""
-    if _model is None or _knowledge_collection is None:
-        return []
+    """Retrieves disease-specific clinical guidelines and questioning protocols."""
+    scored = []
+    for item in CLINICAL_KNOWLEDGE_BASE:
+        doc_text = f"Condition: {item['condition']}\nCategory: {item['category']}\nKeywords: {', '.join(item['keywords'])}\n"
+        doc_text += "Disease-Specific Questions:\n" + "\n".join([f"- {q}" for q in item["disease_specific_questions"]]) + "\n"
+        doc_text += "Parameter Rephrasing Guidelines:\n"
+        for param, phr in item.get("parameter_rephrasing", {}).items():
+            doc_text += f"  {param}: {phr}\n"
 
-    try:
-        query_embedding = _model.encode([query]).tolist()
-        results = _knowledge_collection.query(
-            query_embeddings=query_embedding,
-            n_results=top_k
-        )
-    except Exception as e:
-        print(f"ChromaDB knowledge retrieval error: {e}")
-        return []
+        score = _score_text(query, doc_text, item.get("keywords", []))
+        if score > 0:
+            scored.append({
+                "text": doc_text,
+                "metadata": {
+                    "category": item["category"],
+                    "condition": item["condition"],
+                    "red_flags": ",".join(item.get("red_flag_triggers", []))
+                },
+                "score": score,
+                "distance": 1.0 / (score + 1.0)
+            })
 
-    retrieved_results = []
-    documents = results.get("documents", [[]])[0]
-    metadatas = results.get("metadatas", [[]])[0]
-    distances = results.get("distances", [[]])[0]
-
-    for doc, metadata, distance in zip(documents, metadatas, distances):
-        retrieved_results.append({
-            "text": doc,
-            "metadata": metadata,
-            "distance": distance
-        })
-
-    return retrieved_results
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    return scored[:top_k]

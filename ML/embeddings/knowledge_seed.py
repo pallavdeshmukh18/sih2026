@@ -1,17 +1,6 @@
 import logging
 from typing import Dict, List, Any
 
-try:
-    import chromadb
-    from sentence_transformers import SentenceTransformer
-    _model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
-    _client = chromadb.PersistentClient(path="./chroma_store")
-    _knowledge_collection = _client.get_or_create_collection(name="clinical_knowledge")
-except Exception as e:
-    _model = None
-    _client = None
-    _knowledge_collection = None
-
 logger = logging.getLogger("medikiosk.embeddings.knowledge_seed")
 
 CLINICAL_KNOWLEDGE_BASE: List[Dict[str, Any]] = [
@@ -105,45 +94,9 @@ CLINICAL_KNOWLEDGE_BASE: List[Dict[str, Any]] = [
 ]
 
 def seed_clinical_knowledge_base(force_reseed: bool = False) -> Dict[str, Any]:
-    """Seeds ChromaDB collection 'clinical_knowledge' with medical guidelines."""
-    if _model is None or _knowledge_collection is None:
-        logger.warning("ChromaDB not available. Knowledge seeding skipped.")
-        return {"status": "skipped", "count": 0}
-
-    existing_count = _knowledge_collection.count()
-    if existing_count > 0 and not force_reseed:
-        return {"status": "already_seeded", "count": existing_count}
-
-    ids = []
-    documents = []
-    metadatas = []
-
-    for item in CLINICAL_KNOWLEDGE_BASE:
-        doc_text = f"Condition: {item['condition']}\nCategory: {item['category']}\nKeywords: {', '.join(item['keywords'])}\n"
-        doc_text += "Disease-Specific Questions:\n" + "\n".join([f"- {q}" for q in item["disease_specific_questions"]]) + "\n"
-        doc_text += "Parameter Rephrasing Guidelines:\n"
-        for param, phr in item["parameter_rephrasing"].items():
-            doc_text += f"  {param}: {phr}\n"
-
-        ids.append(item["id"])
-        documents.append(doc_text)
-        metadatas.append({
-            "category": item["category"],
-            "condition": item["condition"],
-            "red_flags": ",".join(item["red_flag_triggers"])
-        })
-
-    embeddings = _model.encode(documents).tolist()
-
-    _knowledge_collection.add(
-        ids=ids,
-        embeddings=embeddings,
-        documents=documents,
-        metadatas=metadatas
-    )
-
-    logger.info(f"Seeded {len(ids)} clinical knowledge protocols into ChromaDB.")
-    return {"status": "seeded", "count": len(ids)}
+    """In-memory clinical knowledge base ready."""
+    logger.info(f"Loaded {len(CLINICAL_KNOWLEDGE_BASE)} clinical knowledge protocols.")
+    return {"status": "seeded", "count": len(CLINICAL_KNOWLEDGE_BASE)}
 
 if __name__ == "__main__":
     res = seed_clinical_knowledge_base(force_reseed=True)
