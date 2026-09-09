@@ -340,15 +340,33 @@ async function getPatientMedicalHistory(req, res, next) {
         }));
 
         // 4. Fetch Clinical AI Intake Sessions
-        const sessionsRes = await pool.query(
-            `SELECT id, chief_complaint, status, summary, conversation_history, current_state, created_at, updated_at
-             FROM clinical_sessions
-             WHERE patient_id = $1
-             ORDER BY created_at DESC;`,
-            [patientId]
-        );
+        let sessionRows = [];
+        try {
+            const sessionsRes = await pool.query(
+                `SELECT id, chief_complaint, status, summary, conversation_history, current_state, created_at, updated_at
+                 FROM clinical_sessions
+                 WHERE patient_id = $1
+                 ORDER BY created_at DESC;`,
+                [patientId]
+            );
+            sessionRows = sessionsRes.rows;
+        } catch (sessErr) {
+            console.warn("[HISTORY WARNING] Could not query clinical_sessions history with conversation_history:", sessErr.message);
+            try {
+                const fallbackRes = await pool.query(
+                    `SELECT id, chief_complaint, status, summary, current_state, created_at, updated_at
+                     FROM clinical_sessions
+                     WHERE patient_id = $1
+                     ORDER BY created_at DESC;`,
+                    [patientId]
+                );
+                sessionRows = fallbackRes.rows;
+            } catch (e2) {
+                console.warn("[HISTORY WARNING] Fallback clinical_sessions query failed:", e2.message);
+            }
+        }
 
-        const assessments = sessionsRes.rows.map((row) => {
+        const assessments = sessionRows.map((row) => {
             const state = row.current_state || {};
             let history = row.conversation_history;
             if (typeof history === "string") {
