@@ -33,5 +33,9 @@
     "eslint-plugin-react-refresh": "^0.5.4",
     "globals": "^17.11.0",
     "vite": "^8.2.2"
+  },
+  "optionalDependencies": {
+    "@rolldown/binding-darwin-arm64": "^1.2.7",
+    "lightningcss-darwin-arm64": "^1.33.0"
   }
 }

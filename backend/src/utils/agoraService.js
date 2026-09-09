@@ -1,8 +1,8 @@
-const { RtcTokenBuilder, RtcRole } = require("agora-access-token");
+const { RtcTokenBuilder, RtcRole } = require("agora-token");
 
 /**
  * Agora Token Generator Service
- * Generates secure RTC tokens for Doctor & Patient video/voice sessions.
+ * Generates secure Token007 RTC tokens for Doctor & Patient video/voice sessions.
  */
 class AgoraService {
     /**
@@ -20,8 +20,9 @@ class AgoraService {
         const privilegeExpiredTs = currentTimestamp + expireTimeInSeconds;
         const numericUid = typeof uid === "number" && !isNaN(uid) && uid > 0 ? uid : 0;
 
-        // If no app certificate is supplied (e.g. Testing App ID mode), return null token
+        // If no app certificate is supplied, log warning and return null token for testing mode
         if (!appCertificate) {
+            console.warn("[AgoraService] AGORA_APP_CERTIFICATE is not configured in backend/.env.");
             return {
                 appId,
                 channelName,
@@ -33,13 +34,14 @@ class AgoraService {
         }
 
         try {
-            // Build Universal Token006 for Agora Web SDK
+            const rtcRole = role === "subscriber" ? RtcRole.SUBSCRIBER : RtcRole.PUBLISHER;
+            // Build Token007 for Agora Web SDK v4 (6 parameters)
             const token = RtcTokenBuilder.buildTokenWithUid(
                 appId,
                 appCertificate,
                 channelName,
-                numericUid,
-                role === "subscriber" ? RtcRole.SUBSCRIBER : RtcRole.PUBLISHER,
+                numericUid || 0,
+                rtcRole,
                 privilegeExpiredTs
             );
 
@@ -52,7 +54,7 @@ class AgoraService {
                 isTestingMode: false,
             };
         } catch (error) {
-            console.error("Agora Token006 Generation Error:", error.message);
+            console.error("Agora Token007 Generation Error:", error.message);
             return {
                 appId,
                 channelName,
@@ -66,6 +68,3 @@ class AgoraService {
 }
 
 module.exports = AgoraService;
-
-
-
