@@ -101,7 +101,14 @@ export default function PatientDashboard() {
               <h2>{t("dashboard.completeProfileTitle", "Complete Your Health Profile")}</h2>
               <div className={styles.progress}><i /><span>60%</span></div>
               <p>{t("dashboard.completeProfileDesc", "Help your doctor understand you better with a complete medical profile.")}</p>
-              <Link to="/patient/account">{t("dashboard.completeNow", "Complete Now")} <ArrowRight /></Link>
+              <div className={styles.bannerActions}>
+                <Link to="/patient/account" className={styles.completeBtn}>
+                  {t("dashboard.completeNow", "Complete Now")} <ArrowRight />
+                </Link>
+                <Link to="/patient/assessment" className={styles.assessmentBtn}>
+                  <Sparkles size={14} /> Clinical Assessment
+                </Link>
+              </div>
             </div>
             <em>{t("dashboard.profileTagline", "Small Details. Bigger Care.")}</em>
           </section>

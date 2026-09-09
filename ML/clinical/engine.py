@@ -650,6 +650,14 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
             if entity.field in session.missing_fields:
                 session.missing_fields.remove(entity.field)
                 extracted_fields.add(entity.field)
+            
+            # If duration or onset is supplied, clear the other time frame field to prevent duplicate questions
+            if entity.field in ["duration", "onset"]:
+                if "duration" in session.missing_fields:
+                    session.missing_fields.remove("duration")
+                if "onset" in session.missing_fields:
+                    session.missing_fields.remove("onset")
+
             session.answered_fields[entity.field] = entity.value
             session.clinical_entities.append(entity.model_dump())
 
