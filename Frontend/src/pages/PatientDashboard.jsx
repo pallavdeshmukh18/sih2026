@@ -2,15 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Activity, ArrowRight, CalendarDays, Download, FileText, MoreVertical,
-  Pill, Share2, ShieldCheck, Sparkles,
+  Pill, Share2, ShieldCheck, Sparkles, Trash2, X, Info, Calendar, Stethoscope, MapPin, User
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../i18n";
-import { getPatientAppointments, uploadMedicalDocument } from "../services/api";
+import { getPatientAppointments, uploadMedicalDocument, cancelAppointment } from "../services/api";
 import { formatDoctorName, transliterateName } from "../utils/transliterate";
 import careImage from "../assets/indian-care-dashboard.png";
 import gatewayBanner from "../assets/patient-gateway-banner.png";
+import ClinicalSummaryCard from "../components/common/ClinicalSummaryCard";
 import styles from "./PatientDashboard.module.css";
 
 const actionCards = [
@@ -36,13 +37,31 @@ export default function PatientDashboard() {
   const [appointments, setAppointments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [tipIndex, setTipIndex] = useState(0);
+  const [selectedAppt, setSelectedAppt] = useState(null);
 
-  useEffect(() => {
+  const fetchAppointments = () => {
     if (!token) return;
     getPatientAppointments(token).then((res) => {
       if (res.success && Array.isArray(res.appointments)) setAppointments(res.appointments);
     }).catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchAppointments();
   }, [token]);
+
+  const handleCancelAppointment = async (event, apptId) => {
+    event.stopPropagation();
+    if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
+    try {
+      await cancelAppointment(apptId, token);
+      toast.success("Appointment cancelled successfully.");
+      setSelectedAppt(null);
+      fetchAppointments();
+    } catch (err) {
+      toast.error(err.message || "Failed to cancel appointment.");
+    }
+  };
 
   const uploadRecord = async (event) => {
     const file = event.target.files?.[0];
@@ -148,25 +167,161 @@ export default function PatientDashboard() {
             </div>
             <div className={styles.appointments}>
               {displayedAppointments.map((appointment) => {
-                const date = new Date(appointment.scheduled_at);
+                const rawDate = appointment.scheduledAt || appointment.scheduled_at;
+                const date = rawDate ? new Date(rawDate) : new Date();
+                const isValidDate = !isNaN(date.getTime());
+                const docObj = appointment.doctor || {};
+                const docFirstName = docObj.firstName || appointment.doctor_first_name || appointment.doctorFirstName || "Doctor";
+                const docLastName = docObj.lastName || appointment.doctor_last_name || appointment.doctorLastName || "";
+                const docSpec = docObj.specialization || appointment.specialization || appointment.department || t("dashboard.generalPhysician", "General Physician");
+                const docNameFormatted = formatDoctorName({ firstName: docFirstName, lastName: docLastName }, language);
+
                 return (
-                  <article key={appointment.id}>
+                  <article
+                    key={appointment.id}
+                    onClick={() => setSelectedAppt(appointment)}
+                    style={{ cursor: "pointer", position: "relative" }}
+                  >
                     <time>
-                      <small>{date.toLocaleString(language || "en", { month: "short" })}</small>
-                      <strong>{String(date.getDate()).padStart(2, "0")}</strong>
+                      <small>{isValidDate ? date.toLocaleString(language || "en", { month: "short" }) : "---"}</small>
+                      <strong>{isValidDate ? String(date.getDate()).padStart(2, "0") : "--"}</strong>
                     </time>
                     <div>
-                      <strong>{formatDoctorName({ firstName: appointment.doctor_first_name, lastName: appointment.doctor_last_name }, language)}</strong>
-                      <small>{appointment.specialization || appointment.department || t("dashboard.generalPhysician", "General Physician")}</small>
-                      <span>{date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} &nbsp;•&nbsp; {appointment.location || t("dashboard.clinicDefault", "MediKiosk Clinic")}</span>
+                      <strong>{docNameFormatted}</strong>
+                      <small>{docSpec}</small>
+                      <span>
+                        {isValidDate ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "TBD"} &nbsp;•&nbsp; {appointment.location || t("dashboard.clinicDefault", "MediKiosk Clinic")}
+                      </span>
                     </div>
-                    <MoreVertical />
+                    <button
+                      type="button"
+                      onClick={(e) => handleCancelAppointment(e, appointment.id)}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "#ef4444",
+                        cursor: "pointer",
+                        padding: "6px",
+                        borderRadius: "6px",
+                        marginLeft: "auto",
+                      }}
+                      title="Cancel Appointment"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </article>
                 );
               })}
               {displayedAppointments.length === 0 && <div style={{ textAlign: "center", padding: "20px 0", color: "#617471", fontSize: "13px" }}>{t("dashboard.noAppointments", "No upcoming appointments.")}</div>}
             </div>
           </section>
+
+          {/* Appointment Details Modal */}
+          {selectedAppt && (
+            <div style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15, 23, 42, 0.6)",
+              backdropFilter: "blur(4px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
+              padding: "20px"
+            }} onClick={() => setSelectedAppt(null)}>
+              <div style={{
+                background: "#ffffff",
+                borderRadius: "20px",
+                padding: "28px",
+                maxWidth: "500px",
+                width: "100%",
+                boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+                border: "1px solid #e2e8f0"
+              }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                  <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#0f172a", margin: 0 }}>
+                    Appointment Details
+                  </h3>
+                  <button onClick={() => setSelectedAppt(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {(() => {
+                  const rawDate = selectedAppt.scheduledAt || selectedAppt.scheduled_at;
+                  const d = rawDate ? new Date(rawDate) : new Date();
+                  const docObj = selectedAppt.doctor || {};
+                  const docName = formatDoctorName({ firstName: docObj.firstName || selectedAppt.doctor_first_name, lastName: docObj.lastName || selectedAppt.doctor_last_name }, language);
+                  const spec = docObj.specialization || selectedAppt.specialization || "General Medicine";
+
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                      <div style={{ background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: "12px", padding: "16px" }}>
+                        <strong style={{ fontSize: "16px", color: "#0d9488", display: "block" }}>{docName}</strong>
+                        <span style={{ fontSize: "13px", color: "#475569" }}>{spec}</span>
+                      </div>
+
+                      <div style={{ fontSize: "13px", color: "#334155", display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <div>📅 <strong>Scheduled Date:</strong> {!isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { dateStyle: "full" }) : "TBD"}</div>
+                        <div>⏰ <strong>Time Slot:</strong> {!isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "TBD"}</div>
+                        <div>🏥 <strong>Location:</strong> {selectedAppt.location || "MediKiosk Clinic, Mumbai"}</div>
+                        <div>🩺 <strong>Consultation Type:</strong> {selectedAppt.appointmentType === "teleconsultation" ? "Video Call (Teleconsultation)" : "In-Person Visit"}</div>
+                        <div>📌 <strong>Reason:</strong> {selectedAppt.reason || "General Medical Checkup"}</div>
+                        {selectedAppt.notes && (
+                          <div style={{ marginTop: "8px" }}>
+                            <strong style={{ fontSize: "13px", color: "#334155", display: "block", marginBottom: "6px" }}>📝 Clinical Notes & AI Intake Summary:</strong>
+                            <ClinicalSummaryCard
+                              summary={selectedAppt.notes}
+                              chiefComplaint={selectedAppt.reason}
+                              createdAt={selectedAppt.createdAt || selectedAppt.scheduledAt}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "12px" }}>
+                        <button
+                          type="button"
+                          onClick={(e) => handleCancelAppointment(e, selectedAppt.id)}
+                          style={{
+                            background: "#fef2f2",
+                            border: "1px solid #fecaca",
+                            color: "#ef4444",
+                            padding: "10px 18px",
+                            borderRadius: "10px",
+                            fontSize: "13px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px"
+                          }}
+                        >
+                          <Trash2 size={15} /> Cancel Appointment
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAppt(null)}
+                          style={{
+                            background: "#0d9488",
+                            color: "#ffffff",
+                            border: "none",
+                            padding: "10px 20px",
+                            borderRadius: "10px",
+                            fontSize: "13px",
+                            fontWeight: "600",
+                            cursor: "pointer"
+                          }}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
 
           <section className={styles.card}>
             <div className={styles.cardHeader}>

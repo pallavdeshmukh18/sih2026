@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileText, MapPin, MoreHorizontal, Plus, Search, Stethoscope, UserRound } from "lucide-react";
+import { ArrowRight, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileText, MapPin, MoreHorizontal, Plus, Search, Stethoscope, UserRound, Trash2, X, Info, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
-import { getPatientAppointments } from "../../services/api";
+import { getPatientAppointments, cancelAppointment } from "../../services/api";
 import { formatDoctorName, translateClinicalTerm } from "../../utils/transliterate";
 import heroImage from "../../assets/schedule-hero.png";
+import ClinicalSummaryCard from "../../components/common/ClinicalSummaryCard";
 import styles from "./Appointments.module.css";
 
 const fallbackAppointments = [
@@ -16,8 +18,23 @@ const fallbackAppointments = [
   { id: "sample-4", scheduled_at: "2026-08-12T09:00:00", doctor_first_name: "Sarah", doctor_last_name: "Jenkins", specialization: "Cardiology follow-up", appointment_type: "in_person", location: "MediKiosk Clinic, Mumbai", status: "completed" },
 ];
 const upcomingStatuses = new Set(["scheduled", "confirmed", "upcoming"]);
-const dateKey = (value) => { const date = new Date(value); return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`; };
-const doctorName = (appointment, lang = "en") => formatDoctorName({ firstName: appointment.doctor_first_name, lastName: appointment.doctor_last_name }, lang);
+const getApptDate = (app) => {
+  const val = app?.scheduledAt || app?.scheduled_at;
+  const date = val ? new Date(val) : new Date();
+  return isNaN(date.getTime()) ? new Date() : date;
+};
+const dateKey = (value) => {
+  const raw = typeof value === "object" ? (value?.scheduledAt || value?.scheduled_at) : value;
+  const date = new Date(raw);
+  return isNaN(date.getTime()) ? "invalid" : `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+};
+const doctorName = (appointment, lang = "en") => {
+  if (!appointment) return "Doctor";
+  const doc = appointment.doctor || {};
+  const fn = doc.firstName || appointment.doctor_first_name || appointment.doctorFirstName || "Doctor";
+  const ln = doc.lastName || appointment.doctor_last_name || appointment.doctorLastName || "";
+  return formatDoctorName({ firstName: fn, lastName: ln }, lang);
+};
 
 const buildMiniCalendar = (month) => {
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
@@ -46,23 +63,40 @@ export default function Appointments() {
     return status ? status.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase()) : t("appointments.upcoming", "Upcoming");
   };
 
-  useEffect(() => {
-    if (!token) return undefined;
-    let active = true;
+  const [selectedApptModal, setSelectedApptModal] = useState(null);
+
+  const fetchAppointmentsData = () => {
+    if (!token) return;
     getPatientAppointments(token).then((response) => {
-      if (!active || !response.success || !Array.isArray(response.appointments)) return;
+      if (!response.success || !Array.isArray(response.appointments)) return;
       setAppointments(response.appointments);
       const firstUpcoming = response.appointments.find((item) => upcomingStatuses.has(item.status?.toLowerCase())) || response.appointments[0];
-      if (firstUpcoming) { const date = new Date(firstUpcoming.scheduled_at); setMonth(new Date(date.getFullYear(), date.getMonth(), 1)); setSelectedDate(date); }
+      if (firstUpcoming) { const date = getApptDate(firstUpcoming); setMonth(new Date(date.getFullYear(), date.getMonth(), 1)); setSelectedDate(date); }
     }).catch(() => {});
-    return () => { active = false; };
+  };
+
+  useEffect(() => {
+    fetchAppointmentsData();
   }, [token]);
+
+  const handleCancelAppointment = async (e, apptId) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
+    try {
+      await cancelAppointment(apptId, token);
+      toast.success("Appointment cancelled successfully.");
+      setSelectedApptModal(null);
+      fetchAppointmentsData();
+    } catch (err) {
+      toast.error(err.message || "Failed to cancel appointment.");
+    }
+  };
 
   const records = appointments.length ? appointments : fallbackAppointments;
   const upcoming = records.filter((item) => upcomingStatuses.has(item.status?.toLowerCase()));
   const completed = records.filter((item) => item.status?.toLowerCase() === "completed");
-  const thisWeek = upcoming.filter((item) => Math.abs(new Date(item.scheduled_at) - new Date()) <= 7 * 86400000);
-  const specialists = new Set(records.map((item) => item.doctor_id || doctorName(item))).size;
+  const thisWeek = upcoming.filter((item) => Math.abs(getApptDate(item) - new Date()) <= 7 * 86400000);
+  const specialists = new Set(records.map((item) => item.doctorId || item.doctor_id || doctorName(item))).size;
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
     const now = new Date();
@@ -70,8 +104,8 @@ export default function Appointments() {
       const status = item.status?.toLowerCase();
       if (filter === "upcoming" && !upcomingStatuses.has(status)) return false;
       if (filter !== "all" && filter !== "upcoming" && status !== filter) return false;
-      if (range !== "all") { const cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - Number(range)); if (new Date(item.scheduled_at) < cutoff) return false; }
-      return !term || [doctorName(item), item.specialization, item.department, item.location].some((value) => value?.toLowerCase().includes(term));
+      if (range !== "all") { const cutoff = new Date(now); cutoff.setMonth(cutoff.getMonth() - Number(range)); if (getApptDate(item) < cutoff) return false; }
+      return !term || [doctorName(item), item.doctor?.specialization || item.specialization, item.doctor?.department || item.department, item.location].some((value) => value?.toLowerCase().includes(term));
     });
   }, [filter, query, range, records]);
   const miniDays = useMemo(() => buildMiniCalendar(month), [month]);
@@ -143,16 +177,18 @@ export default function Appointments() {
               </thead>
               <tbody>
                 {filtered.map((appointment) => {
-                  const date = new Date(appointment.scheduled_at);
+                  const date = getApptDate(appointment);
                   const status = formatStatus(appointment.status);
+                  const isUpcoming = upcomingStatuses.has(appointment.status?.toLowerCase());
+
                   return (
-                    <motion.tr layout key={appointment.id}>
+                    <motion.tr layout key={appointment.id} onClick={() => setSelectedApptModal(appointment)} style={{ cursor: "pointer" }}>
                       <td>
                         <div className={styles.doctor}>
-                          <span>{appointment.doctor_first_name?.[0] || "D"}{appointment.doctor_last_name?.[0] || "R"}</span>
+                          <span>{(appointment.doctor?.firstName || appointment.doctor_first_name || "D")[0]}{(appointment.doctor?.lastName || appointment.doctor_last_name || "R")[0]}</span>
                           <div>
                             <b>{doctorName(appointment, language)}</b>
-                            <small>{translateClinicalTerm(appointment.specialization, "specializations", language) || translateClinicalTerm(appointment.department, "specializations", language) || t("dashboard.generalPhysician", "General consultation")}</small>
+                            <small>{translateClinicalTerm(appointment.doctor?.specialization || appointment.specialization, "specializations", language) || translateClinicalTerm(appointment.doctor?.department || appointment.department, "specializations", language) || t("dashboard.generalPhysician", "General consultation")}</small>
                           </div>
                         </div>
                       </td>
@@ -168,7 +204,7 @@ export default function Appointments() {
                       <td>
                         <div className={styles.withIcon}>
                           <Stethoscope />
-                          <span>{appointment.appointment_type === "teleconsultation" ? t("appointments.teleconsultation", "Virtual") : t("appointments.inPerson", "In-person")}</span>
+                          <span>{(appointment.appointmentType || appointment.appointment_type) === "teleconsultation" ? t("appointments.teleconsultation", "Virtual") : t("appointments.inPerson", "In-person")}</span>
                         </div>
                       </td>
                       <td>
@@ -180,18 +216,52 @@ export default function Appointments() {
                       <td>
                         <span className={`${styles.status} ${styles[appointment.status?.toLowerCase() || 'upcoming']}`}>{status}</span>
                       </td>
-                      <td>
-                        <button className={styles.more} onClick={() => setExpanded(expanded === appointment.id ? null : appointment.id)}>
-                          <MoreHorizontal />
-                        </button>
-                        <AnimatePresence>
-                          {expanded === appointment.id && (
-                            <motion.div className={styles.popover} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                              <b>{appointment.reason || t("doctors.reasonLabel", "Clinical consultation")}</b>
-                              <p>{appointment.notes || t("doctors.notesLabel", "No additional appointment notes.")}</p>
-                            </motion.div>
+                      <td onClick={(e) => e.stopPropagation()} style={{ textAlign: "right" }}>
+                        <div style={{ display: "inline-flex", gap: "6px", alignItems: "center", justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedApptModal(appointment)}
+                            style={{
+                              background: "#f1f5f9",
+                              border: "1px solid #cbd5e1",
+                              color: "#0f766e",
+                              padding: "4px 8px",
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "3px",
+                              whiteSpace: "nowrap"
+                            }}
+                          >
+                            <Eye size={12} /> Details
+                          </button>
+                          {isUpcoming && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleCancelAppointment(e, appointment.id)}
+                              style={{
+                                background: "#fef2f2",
+                                border: "1px solid #fecaca",
+                                color: "#ef4444",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                fontSize: "11px",
+                                fontWeight: "600",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px",
+                                whiteSpace: "nowrap"
+                              }}
+                              title="Cancel Appointment"
+                            >
+                              <Trash2 size={12} /> Cancel
+                            </button>
                           )}
-                        </AnimatePresence>
+                        </div>
                       </td>
                     </motion.tr>
                   );
@@ -202,6 +272,113 @@ export default function Appointments() {
           </div>
         </section>
       </section>
+
+      {/* Appointment Details Modal */}
+      {selectedApptModal && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(15, 23, 42, 0.6)",
+          backdropFilter: "blur(4px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          padding: "20px"
+        }} onClick={() => setSelectedApptModal(null)}>
+          <div style={{
+            background: "#ffffff",
+            borderRadius: "20px",
+            padding: "28px",
+            maxWidth: "500px",
+            width: "100%",
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+            border: "1px solid #e2e8f0"
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#0f172a", margin: 0 }}>
+                Appointment Details
+              </h3>
+              <button onClick={() => setSelectedApptModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {(() => {
+              const d = getApptDate(selectedApptModal);
+              const docName = doctorName(selectedApptModal, language);
+              const spec = selectedApptModal.doctor?.specialization || selectedApptModal.specialization || "General Medicine";
+
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  <div style={{ background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: "12px", padding: "16px" }}>
+                    <strong style={{ fontSize: "16px", color: "#0d9488", display: "block" }}>{docName}</strong>
+                    <span style={{ fontSize: "13px", color: "#475569" }}>{spec}</span>
+                  </div>
+
+                  <div style={{ fontSize: "13px", color: "#334155", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div>📅 <strong>Scheduled Date:</strong> {!isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { dateStyle: "full" }) : "TBD"}</div>
+                    <div>⏰ <strong>Time Slot:</strong> {!isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "TBD"}</div>
+                    <div>🏥 <strong>Location:</strong> {selectedApptModal.location || "MediKiosk Clinic, Mumbai"}</div>
+                    <div>🩺 <strong>Consultation Type:</strong> {(selectedApptModal.appointmentType || selectedApptModal.appointment_type) === "teleconsultation" ? "Video Call (Teleconsultation)" : "In-Person Visit"}</div>
+                    <div>📌 <strong>Reason / Complaint:</strong> {selectedApptModal.reason || "General Medical Checkup"}</div>
+                    {selectedApptModal.notes && (
+                      <div style={{ marginTop: "8px" }}>
+                        <strong style={{ fontSize: "13px", color: "#334155", display: "block", marginBottom: "6px" }}>📝 Clinical Notes & AI Intake Summary:</strong>
+                        <ClinicalSummaryCard
+                          summary={selectedApptModal.notes}
+                          chiefComplaint={selectedApptModal.reason}
+                          createdAt={selectedApptModal.createdAt || selectedApptModal.scheduledAt}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "12px" }}>
+                    {upcomingStatuses.has(selectedApptModal.status?.toLowerCase()) && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleCancelAppointment(e, selectedApptModal.id)}
+                        style={{
+                          background: "#fef2f2",
+                          border: "1px solid #fecaca",
+                          color: "#ef4444",
+                          padding: "10px 18px",
+                          borderRadius: "10px",
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px"
+                        }}
+                      >
+                        <Trash2 size={15} /> Cancel Appointment
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedApptModal(null)}
+                      style={{
+                        background: "#0d9488",
+                        color: "#ffffff",
+                        border: "none",
+                        padding: "10px 20px",
+                        borderRadius: "10px",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       <aside className={styles.sideColumn}>
         <section className={styles.miniCalendar}>

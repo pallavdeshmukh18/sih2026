@@ -395,6 +395,21 @@ export async function finalizeClinicalSession(sessionId, documentData = null, to
     return apiRequest(`/api/sessions/${sessionId}/finalize`, "POST", { documentData }, token);
 }
 
+/** Delete Clinical Intake Session */
+export async function deleteClinicalSession(sessionId, token) {
+    return apiRequest(`/api/sessions/${sessionId}`, "DELETE", null, token);
+}
+
+/** Cancel / Delete Appointment */
+export async function cancelAppointment(appointmentId, token) {
+    return apiRequest(`/api/appointments/${appointmentId}`, "DELETE", null, token);
+}
+
+/** Get Single Appointment Details by ID */
+export async function getAppointmentById(appointmentId, token) {
+    return apiRequest(`/api/appointments/${appointmentId}`, "GET", null, token);
+}
+
 // ==================================================
 // LONGITUDINAL MEDICAL HISTORY & DOCUMENT ACCESS
 // ==================================================

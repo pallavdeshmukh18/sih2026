@@ -21,5 +21,6 @@ router.post("/:id/voice-turn", uploadAudio.single("file"), sessionController.pro
 router.post("/:id/text-turn", sessionController.processTextTurn);
 router.get("/:id", sessionController.getSessionById);
 router.post("/:id/finalize", sessionController.finalizeSession);
+router.delete("/:id", sessionController.deleteSession);
 
 module.exports = router;

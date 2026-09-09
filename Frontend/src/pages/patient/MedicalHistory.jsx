@@ -5,6 +5,7 @@ import { Activity, AlertCircle, ArrowRight, BrainCircuit, Calendar, CheckCircle2
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
 import { getDocumentDownloadUrl, getPatientMedicalHistory } from "../../services/api";
+import ClinicalSummaryCard from "../../components/common/ClinicalSummaryCard";
 import heroImage from "../../assets/medical-history-hero.png";
 import styles from "./MedicalHistory.module.css";
 
@@ -179,7 +180,6 @@ export default function MedicalHistory() {
               return <motion.article layout className={styles.event} key={event.id ?? index}>
                 <span className={`${styles.eventIcon} ${styles[meta.tone]}`}><Icon /></span>
                 <div className={styles.eventCard}><div className={styles.eventTop}><div><span className={`${styles.category} ${styles[meta.tone]}`}>{event.type || meta.label}</span><span className={styles.provenance}>{event.verificationStatus === "verified" || event.type === "Consultation" ? <CheckCircle2 /> : event.verificationStatus === "ai_extracted" ? <BrainCircuit /> : <User />}{event.verificationStatus === "verified" || event.type === "Consultation" ? t("history.provenanceVerified", "Verified") : event.verificationStatus === "ai_extracted" ? t("history.provenanceAi", "AI extracted") : t("history.provenancePatient", "Patient reported")}</span><h3>{event.title || meta.label}</h3>{event.subtitle && <p>{event.subtitle}</p>}</div><time><Calendar />{formatDate(event.date)}</time></div>
-                  {event.details && <p className={styles.summary}>{event.details}</p>}
                   <footer><small>{t("history.source", "Source:")} {event.source || "MediKiosk Health System"}</small><div>{event.documentId && <button onClick={() => openDocument(event.documentId)}>{t("history.viewDocument", "View document")}</button>}<button onClick={() => setExpandedId(isExpanded ? null : (event.id ?? index))}>{isExpanded ? t("history.collapseDetails", "Less") : t("history.expandDetails", "Details")}{isExpanded ? <ChevronUp /> : <ChevronDown />}</button></div></footer>
                   <AnimatePresence>
                     {isExpanded && (
@@ -189,10 +189,15 @@ export default function MedicalHistory() {
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                       >
-                        <b>{t("history.expandDetails", "Recorded Details & Clinical Summary")}</b>
-                        <p style={{ marginTop: "4px", whiteSpace: "pre-wrap" }}>
-                          {event.clinicalNotes || event.treatmentNotes || event.details || "No additional clinical parameters recorded."}
-                        </p>
+                        <ClinicalSummaryCard
+                          summary={event.clinicalNotes || event.treatmentNotes || event.details || ""}
+                          chiefComplaint={event.title}
+                          answeredFields={event.answeredFields}
+                          redFlags={event.redFlags}
+                          patientName={history?.patient?.name || "Patient"}
+                          date={formatDate(event.date)}
+                          style={{ marginTop: "10px" }}
+                        />
 
                         {/* Render Clinical Intake Chat History Transcript if present */}
                         {event.chatHistory && Array.isArray(event.chatHistory) && event.chatHistory.length > 0 && (

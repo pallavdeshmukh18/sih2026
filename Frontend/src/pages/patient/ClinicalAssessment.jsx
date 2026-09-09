@@ -7,9 +7,14 @@ import {
   sendClinicalVoiceTurn,
   finalizeClinicalSession,
   getPatientAppointments,
+  getPatientMedicalHistory,
+  fetchPublicDoctors,
+  createAppointment,
+  deleteClinicalSession,
 } from "../../services/api";
-import { ArrowLeft, Send, CheckCircle2, AlertCircle, Sparkles, Stethoscope, Mic, Square, Loader2 } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle2, AlertCircle, Sparkles, Stethoscope, Mic, Square, Loader2, Calendar, User, Clock, Check, Trash2 } from "lucide-react";
 import { useLanguage } from "../../i18n";
+import ClinicalSummaryCard from "../../components/common/ClinicalSummaryCard";
 import styles from "./ClinicalAssessment.module.css";
 
 const COMMON_CHIEF_COMPLAINTS = [
@@ -111,63 +116,120 @@ export default function ClinicalAssessment() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const [pastAssessments, setPastAssessments] = useState([]);
+  const [assessmentMode, setAssessmentMode] = useState("new"); // "new" | "existing"
+  const [selectedPastAssessment, setSelectedPastAssessment] = useState(null);
+
+  // Target Doctor & Direct Booking state
+  const doctorIdFromUrl = searchParams.get("doctorId");
   const complaintFromUrl = searchParams.get("complaint");
+  const [targetDoctor, setTargetDoctor] = useState(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingDate, setBookingDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0);
+    return tomorrow.toISOString().slice(0, 16);
+  });
+  const [bookingType, setBookingType] = useState("in_person");
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
 
   useEffect(() => {
-    async function loadAppointments() {
+    async function loadData() {
       if (!token) return;
       try {
-        const res = await getPatientAppointments(token);
-        if (res.success && Array.isArray(res.appointments) && res.appointments.length > 0) {
-          setAppointments(res.appointments);
-          if (!selectedAppointmentId) {
-            setSelectedAppointmentId(appointmentIdFromUrl || res.appointments[0].id);
+        const [apptRes, histRes, docsRes] = await Promise.allSettled([
+          getPatientAppointments(token),
+          getPatientMedicalHistory(token),
+          doctorIdFromUrl ? fetchPublicDoctors(token) : Promise.resolve(null)
+        ]);
+
+        if (apptRes.status === "fulfilled" && apptRes.value?.success && Array.isArray(apptRes.value?.appointments)) {
+          setAppointments(apptRes.value.appointments);
+          if (!selectedAppointmentId && apptRes.value.appointments.length > 0) {
+            setSelectedAppointmentId(appointmentIdFromUrl || apptRes.value.appointments[0].id);
           }
         }
-      } catch (err) {
-        console.warn("Could not load patient appointments for assessment:", err.message);
-      }
-    }
-    loadAppointments();
-  }, [token, appointmentIdFromUrl]);
 
-  // Auto-start assessment if redirected from doctor booking with complaint
-  useEffect(() => {
-    if (!token || sessionId || loading || !complaintFromUrl) return;
+        const rawAssessments = histRes.value?.history?.assessments || histRes.value?.assessments || [];
+        if (histRes.status === "fulfilled" && histRes.value?.success && Array.isArray(rawAssessments)) {
+          const valid = rawAssessments.filter((a) => a.summary || a.chiefComplaint);
+          setPastAssessments(valid);
+          if (valid.length > 0) {
+            setSelectedPastAssessment(valid[0]);
+          }
+        }
 
-    async function autoStart() {
-      setLoading(true);
-      setError(null);
-      try {
-        const activeLang = currentLanguage || "en";
-        setSessionLanguage(activeLang);
-        setChiefComplaint(complaintFromUrl);
-
-        const payload = {
-          chiefComplaint: complaintFromUrl,
-          appointmentId: appointmentIdFromUrl || selectedAppointmentId || undefined,
-          language: activeLang,
-        };
-
-        const res = await startClinicalSession(payload, token);
-        if (res.success && res.sessionId) {
-          const firstQ = res.nextQuestion || res.firstQuestion;
-          setSessionId(res.sessionId);
-          setCurrentQuestion(firstQ);
-          setOptions(res.options || []);
-          setConversationHistory([
-            { role: "system", content: firstQ },
-          ]);
+        if (docsRes.status === "fulfilled" && docsRes.value?.success && Array.isArray(docsRes.value?.doctors)) {
+          const doc = docsRes.value.doctors.find((d) => String(d.id) === String(doctorIdFromUrl));
+          if (doc) setTargetDoctor(doc);
         }
       } catch (err) {
-        console.error("Auto start session failed:", err);
-      } finally {
-        setLoading(false);
+        console.warn("Could not load initial data for assessment:", err.message);
       }
     }
+    loadData();
+  }, [token, appointmentIdFromUrl, doctorIdFromUrl]);
 
-    autoStart();
-  }, [token, complaintFromUrl, sessionId, loading, appointmentIdFromUrl, selectedAppointmentId, currentLanguage]);
+  const handleSelectPastAssessment = (assessment) => {
+    setSelectedPastAssessment(assessment);
+  };
+
+  const handleDeletePastAssessment = async (e, assessmentId) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this past clinical assessment?")) return;
+    try {
+      await deleteClinicalSession(assessmentId, token);
+      const updated = pastAssessments.filter((a) => a.id !== assessmentId);
+      setPastAssessments(updated);
+      if (selectedPastAssessment?.id === assessmentId) {
+        const next = updated[0] || null;
+        setSelectedPastAssessment(next);
+        if (!next) setAssessmentMode("new");
+      }
+    } catch (err) {
+      setError("Failed to delete clinical assessment. Please try again.");
+    }
+  };
+
+  const handleApplyPastAssessment = () => {
+    if (!selectedPastAssessment) return;
+    setSessionId(selectedPastAssessment.id);
+    setChiefComplaint(selectedPastAssessment.chiefComplaint || "Clinical Consultation");
+    setSummary(selectedPastAssessment.summary || `Intake Summary for ${selectedPastAssessment.chiefComplaint}`);
+    setConversationHistory(selectedPastAssessment.conversationHistory || []);
+    setIsCompleted(true);
+  };
+
+  const handleCreateDirectBooking = async (e) => {
+    e.preventDefault();
+    if (!targetDoctor || (!sessionId && !selectedPastAssessment?.id)) return;
+    setBookingSubmitting(true);
+    try {
+      const activeSessionId = sessionId || selectedPastAssessment?.id;
+      const activeReason = chiefComplaint || selectedPastAssessment?.chiefComplaint || "Clinical Consultation";
+      await createAppointment(
+        {
+          doctorId: targetDoctor.id,
+          scheduledAt: new Date(bookingDate).toISOString(),
+          durationMinutes: 30,
+          appointmentType: bookingType,
+          reason: activeReason,
+          notes: summary,
+          sessionId: activeSessionId
+        },
+        token
+      );
+      setShowBookingModal(false);
+      navigate("/patient/dashboard?bookingSuccess=1");
+    } catch (err) {
+      setError(err.message || "Failed to book appointment. Please try again.");
+    } finally {
+      setBookingSubmitting(false);
+    }
+  };
+
+
 
   const handleStartSession = async (e) => {
     e.preventDefault();
@@ -436,57 +498,166 @@ export default function ClinicalAssessment() {
       )}
 
       {!sessionId && (
-        <form onSubmit={handleStartSession} className={styles.startCard}>
-          {appointments.length > 0 && (
-            <div style={{ marginBottom: "20px" }}>
-              <label className={styles.label}>{t("assessment.selectApptOptional")}:</label>
-              <select
-                value={selectedAppointmentId}
-                onChange={(e) => setSelectedAppointmentId(e.target.value)}
-                className={styles.inputField}
+        <div className={styles.startCard}>
+          {pastAssessments.length > 0 && (
+            <div className={styles.modeTabs}>
+              <button
+                type="button"
+                className={`${styles.modeTab} ${assessmentMode === "new" ? styles.modeTabActive : ""}`}
+                onClick={() => setAssessmentMode("new")}
               >
-                {appointments.map((appt) => (
-                  <option key={appt.id} value={appt.id}>
-                    Dr. {appt.doctor_first_name} {appt.doctor_last_name} ({appt.specialization || "General"}) - {new Date(appt.scheduled_at).toLocaleDateString()}
-                  </option>
-                ))}
-              </select>
+                <Sparkles size={15} /> {t("assessment.startNewTest", "Start New Assessment")}
+              </button>
+              <button
+                type="button"
+                className={`${styles.modeTab} ${assessmentMode === "existing" ? styles.modeTabActive : ""}`}
+                onClick={() => setAssessmentMode("existing")}
+              >
+                <Stethoscope size={15} /> {t("assessment.loadPreviousTest", "Load Earlier Assessment")} ({pastAssessments.length})
+              </button>
             </div>
           )}
 
-          <label className={styles.label}>{t("assessment.chiefComplaintPrompt")}</label>
-          <div className={styles.complaintChips}>
-            {COMMON_CHIEF_COMPLAINTS.map((item) => (
-              <button
-                type="button"
-                key={item}
-                className={`${styles.chip} ${chiefComplaint === item ? styles.chipActive : ""}`}
-                onClick={() => {
-                  setChiefComplaint(item);
-                  setCustomComplaint("");
+          {assessmentMode === "existing" && pastAssessments.length > 0 ? (
+            <div className={styles.existingAssessmentSection}>
+              <label className={styles.label}>
+                {t("assessment.selectPastPrompt", "Select a previous clinical assessment to load its summary for your doctor:")}
+              </label>
+
+              <div className={styles.pastAssessmentsList}>
+                {pastAssessments.map((item) => {
+                  const isSelected = selectedPastAssessment?.id === item.id;
+                  const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleDateString(undefined, { dateStyle: "medium" }) : "Recent";
+                  return (
+                    <div
+                      key={item.id}
+                      className={`${styles.pastAssessmentCard} ${isSelected ? styles.pastAssessmentCardSelected : ""}`}
+                      onClick={() => handleSelectPastAssessment(item)}
+                    >
+                      <div className={styles.pastHeader}>
+                        <span className={styles.pastTitle}>{item.chiefComplaint || "Clinical Intake Session"}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span className={styles.pastDate}>{dateStr}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeletePastAssessment(e, item.id)}
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: "#ef4444",
+                              cursor: "pointer",
+                              padding: "4px",
+                              borderRadius: "4px",
+                              display: "inline-flex",
+                              alignItems: "center"
+                            }}
+                            title="Delete this assessment"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </div>
+                      <p className={styles.pastSnippet}>
+                        Intake Assessment Session ({item.conversationHistory ? `${item.conversationHistory.length} responses` : "Completed"})
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {selectedPastAssessment && (
+                <ClinicalSummaryCard
+                  summary={selectedPastAssessment.summary || ""}
+                  chiefComplaint={selectedPastAssessment.chiefComplaint}
+                  answeredFields={selectedPastAssessment.answeredFields}
+                  redFlags={selectedPastAssessment.redFlags}
+                  patientName={user?.name || user?.firstName || "Patient"}
+                  style={{ marginTop: "12px" }}
+                />
+              )}
+
+              <div style={{ display: "flex", gap: "12px", marginTop: "20px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className={styles.primaryBtn}
+                  onClick={handleApplyPastAssessment}
+                  disabled={!selectedPastAssessment}
+                  style={{ flex: 1, minWidth: "200px" }}
+                >
+                  <CheckCircle2 size={16} /> {t("assessment.useThisSummary", "Use This Assessment Summary")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAssessmentMode("new")}
+                  style={{
+                    padding: "12px 20px",
+                    borderRadius: "10px",
+                    border: "1px solid #cbd5e1",
+                    background: "#ffffff",
+                    color: "#475569",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                  }}
+                >
+                  {t("assessment.startNewInstead", "Start New Assessment Instead")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleStartSession}>
+              {appointments.length > 0 && (
+                <div style={{ marginBottom: "20px" }}>
+                  <label className={styles.label}>{t("assessment.selectApptOptional")}:</label>
+                  <select
+                    value={selectedAppointmentId}
+                    onChange={(e) => setSelectedAppointmentId(e.target.value)}
+                    className={styles.inputField}
+                  >
+                    {appointments.map((appt) => (
+                      <option key={appt.id} value={appt.id}>
+                        Dr. {appt.doctor_first_name} {appt.doctor_last_name} ({appt.specialization || "General"}) - {new Date(appt.scheduled_at).toLocaleDateString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <label className={styles.label}>{t("assessment.chiefComplaintPrompt")}</label>
+              <div className={styles.complaintChips}>
+                {COMMON_CHIEF_COMPLAINTS.map((item) => (
+                  <button
+                    type="button"
+                    key={item}
+                    className={`${styles.chip} ${chiefComplaint === item ? styles.chipActive : ""}`}
+                    onClick={() => {
+                      setChiefComplaint(item);
+                      setCustomComplaint("");
+                    }}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+
+              <label className={styles.label}>{t("assessment.customComplaintPrompt", "Or describe in your own words:")}</label>
+              <input
+                type="text"
+                className={styles.inputField}
+                placeholder={t("assessment.customComplaintPlaceholder", "e.g. Sharp pain in lower back since yesterday")}
+                value={customComplaint}
+                onChange={(e) => {
+                  setCustomComplaint(e.target.value);
+                  setChiefComplaint("");
                 }}
-              >
-                {item}
+              />
+
+              <button type="submit" className={styles.primaryBtn} disabled={loading}>
+                {loading ? t("assessment.starting", "Starting Assessment...") : t("assessment.beginAssessment", "Begin Assessment")} <Sparkles size={16} />
               </button>
-            ))}
-          </div>
-
-          <label className={styles.label}>{t("assessment.customComplaintPrompt", "Or describe in your own words:")}</label>
-          <input
-            type="text"
-            className={styles.inputField}
-            placeholder={t("assessment.customComplaintPlaceholder", "e.g. Sharp pain in lower back since yesterday")}
-            value={customComplaint}
-            onChange={(e) => {
-              setCustomComplaint(e.target.value);
-              setChiefComplaint("");
-            }}
-          />
-
-          <button type="submit" className={styles.primaryBtn} disabled={loading}>
-            {loading ? t("assessment.starting", "Starting Assessment...") : t("assessment.beginAssessment", "Begin Assessment")} <Sparkles size={16} />
-          </button>
-        </form>
+            </form>
+          )}
+        </div>
       )}
 
       {sessionId && !isCompleted && (
@@ -643,17 +814,46 @@ export default function ClinicalAssessment() {
           </p>
 
           {summary && (
-            <div className={styles.summaryBox}>
-              <strong>{t("assessment.viewSummary", "Clinical Intake Summary for Doctor:")}</strong>
-              <p style={{ marginTop: "8px" }}>{summary}</p>
-            </div>
+            <ClinicalSummaryCard
+              summary={summary}
+              chiefComplaint={chiefComplaint}
+              answeredFields={selectedPastAssessment?.answeredFields}
+              redFlags={selectedPastAssessment?.redFlags}
+              patientName={user?.name || user?.firstName || "Patient"}
+              style={{ marginTop: "20px", textAlign: "left" }}
+            />
           )}
 
-          <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "24px" }}>
+          <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "24px", flexWrap: "wrap" }}>
+            {targetDoctor ? (
+              <button
+                onClick={() => setShowBookingModal(true)}
+                className={styles.primaryBtn}
+                style={{ width: "auto", padding: "12px 24px", background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)", color: "#fff", border: "none" }}
+              >
+                📅 Confirm Appointment with Dr. {targetDoctor.firstName} {targetDoctor.lastName}
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate("/patient/doctor")}
+                className={styles.primaryBtn}
+                style={{ width: "auto", padding: "12px 24px", background: "linear-gradient(135deg, #0d9488 0%, #059669 100%)", color: "#fff", border: "none" }}
+              >
+                📅 Select Doctor & Book Appointment
+              </button>
+            )}
             <button
               onClick={() => navigate("/patient/dashboard")}
-              className={styles.primaryBtn}
-              style={{ width: "auto", padding: "12px 24px" }}
+              style={{
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                color: "#334155",
+                padding: "12px 24px",
+                borderRadius: "12px",
+                fontSize: "14px",
+                cursor: "pointer",
+                fontWeight: "600",
+              }}
             >
               {t("assessment.returnDashboard", "Return to Dashboard")}
             </button>
@@ -672,6 +872,108 @@ export default function ClinicalAssessment() {
             >
               {t("navigation.history", "View History")}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Doctor Booking Modal */}
+      {showBookingModal && targetDoctor && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(15, 23, 42, 0.6)",
+          backdropFilter: "blur(4px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          padding: "20px"
+        }}>
+          <div style={{
+            background: "#ffffff",
+            borderRadius: "20px",
+            padding: "28px",
+            maxWidth: "480px",
+            width: "100%",
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+            border: "1px solid #e2e8f0"
+          }}>
+            <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>
+              Confirm Appointment
+            </h3>
+            <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "20px" }}>
+              Booking with <strong>Dr. {targetDoctor.firstName} {targetDoctor.lastName}</strong> ({targetDoctor.specialization || "General Medicine"})
+            </p>
+
+            <form onSubmit={handleCreateDirectBooking}>
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#334155", marginBottom: "6px" }}>
+                  Select Date & Time:
+                </label>
+                <input
+                  type="datetime-local"
+                  value={bookingDate}
+                  onChange={(e) => setBookingDate(e.target.value)}
+                  className={styles.inputField}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: "20px" }}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: "600", color: "#334155", marginBottom: "6px" }}>
+                  Consultation Type:
+                </label>
+                <select
+                  value={bookingType}
+                  onChange={(e) => setBookingType(e.target.value)}
+                  className={styles.inputField}
+                >
+                  <option value="in_person">In-Person Consultation</option>
+                  <option value="video">Teleconsultation (Video Call)</option>
+                </select>
+              </div>
+
+              <div style={{ background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: "10px", padding: "12px", marginBottom: "20px", fontSize: "12px", color: "#0f766e" }}>
+                <strong>Attached Clinical Summary:</strong>
+                <p style={{ margin: "4px 0 0 0", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                  {summary
+                    ? summary
+                        .replace(/###/g, "")
+                        .replace(/\*\*/g, "")
+                        .replace(/\*/g, "")
+                        .replace(/🩺|📋|🚨/g, "")
+                        .trim()
+                    : "Intake assessment ready for physician review."}
+                </p>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowBookingModal(false)}
+                  style={{
+                    padding: "10px 18px",
+                    borderRadius: "10px",
+                    border: "1px solid #cbd5e1",
+                    background: "#ffffff",
+                    color: "#475569",
+                    fontSize: "14px",
+                    cursor: "pointer"
+                  }}
+                  disabled={bookingSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={styles.primaryBtn}
+                  style={{ width: "auto", padding: "10px 24px" }}
+                  disabled={bookingSubmitting}
+                >
+                  {bookingSubmitting ? "Booking..." : "Confirm & Complete Booking"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
