@@ -17,11 +17,13 @@ function errorHandler(err, req, res, next) {
         });
     }
 
+    if (err.code === "23P01") return res.status(409).json({ success: false, message: "This appointment overlaps another active booking." });
+    if (err.code === "22P02" || err.code === "22007" || err.code === "22008") return res.status(400).json({ success: false, message: "Invalid identifier or date." });
     const statusCode = err.statusCode || (res.statusCode >= 400 ? res.statusCode : 500);
 
     return res.status(statusCode).json({
         success: false,
-        message: err.message || "An internal server error occurred",
+        message: statusCode >= 500 ? "An internal server error occurred. Please try again." : (err.message || "Request failed."),
         ...(process.env.NODE_ENV !== "production" && { stack: err.stack }),
     });
 }

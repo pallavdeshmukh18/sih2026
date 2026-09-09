@@ -1008,10 +1008,14 @@ async function revokeDoctorAccess(req, res, next) {
         const { relationshipId } = req.params;
 
         const result = await pool.query(
-            `UPDATE patient_doctor_relationships
-             SET status = 'revoked', updated_at = CURRENT_TIMESTAMP
-             WHERE id = $1 AND patient_id = $2
-             RETURNING *;`,
+            `WITH revoked AS (
+                UPDATE patient_doctor_relationships SET status = 'revoked', updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1 AND patient_id = $2 RETURNING *
+             ), revoked_documents AS (
+                UPDATE document_access da SET revoked_at = CURRENT_TIMESTAMP
+                FROM documents d, revoked r
+                WHERE da.document_id = d.id AND d.patient_id = r.patient_id AND da.user_id = r.doctor_id
+             ) SELECT * FROM revoked;`,
             [relationshipId, patientId]
         );
 

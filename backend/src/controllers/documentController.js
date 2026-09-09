@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { canAccessDocument, documentConsentSql } = require("../services/documentAccessService");
 const pool = require("../config/db");
 const mlService = require("../services/mlService");
 const supabaseStorageService = require("../services/supabaseStorageService");
@@ -10,6 +11,8 @@ const vectorService = require("../services/vectorService");
  */
 async function uploadDocument(req, res, next) {
     const client = await pool.connect();
+    let uploadedStoragePath = null;
+    let committed = false;
     try {
         if (!req.file || !req.file.buffer) {
             return res.status(400).json({
@@ -42,6 +45,7 @@ async function uploadDocument(req, res, next) {
             mimeType
         );
 
+        uploadedStoragePath = storageResult.storagePath;
         await client.query("BEGIN;");
 
         // 2. Insert into documents table
@@ -71,6 +75,7 @@ async function uploadDocument(req, res, next) {
         );
 
         await client.query("COMMIT;");
+        committed = true;
 
         // 4. Run OCR & Structured Entity Extraction via FastAPI ML Service
         let ocrResult = null;
@@ -87,31 +92,18 @@ async function uploadDocument(req, res, next) {
             ocrText = ocrResult.ocr_text || "";
             extractedEntities = ocrResult.extracted || null;
         } catch (ocrErr) {
-            console.warn("[OCR WARNING] OCR service error (using fallback OCR):", ocrErr.message);
+            console.warn("[OCR WARNING] OCR service error:", ocrErr.message);
         }
 
-        if (!ocrText) {
-            ocrText = `Patient Medical Record: ${filename}\nDate: ${new Date().toLocaleDateString()}\nRx:\n1. Amoxicillin 500mg - Twice daily after meals (5 days)\n2. Paracetamol 650mg - As needed for fever (3 days)\nAdvice: Take rest and drink warm water.`;
-            extractedEntities = {
-                document_type: "prescription",
-                document_date: new Date().toLocaleDateString(),
-                diagnoses: ["Prescription / Medical Record"],
-                medications: [
-                    { medicine: "Amoxicillin", dose: "500mg", frequency: "Twice daily after meals", duration: "5 days" },
-                    { medicine: "Paracetamol", dose: "650mg", frequency: "As needed for fever", duration: "3 days" }
-                ],
-                lab_results: [],
-                procedures: [],
-                raw_text: ocrText
-            };
+        const ocrStatus = typeof ocrText === "string" && ocrText.trim() ? "completed" : "failed";
+        if (ocrStatus === "failed") {
+            ocrText = "";
+            extractedEntities = null;
         }
-
-        // 5. Store OCR result in document_ocr table
         await pool.query(
             `INSERT INTO document_ocr (document_id, extracted_text, extracted_entities, status, processed_at)
-             VALUES ($1, $2, $3, 'completed', CURRENT_TIMESTAMP)
-             ON CONFLICT DO NOTHING;`,
-            [documentId, ocrText, JSON.stringify(extractedEntities)]
+             VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP);`,
+            [documentId, ocrText, JSON.stringify(extractedEntities), ocrStatus]
         );
 
         // Store AI summary in ai_summaries table if available
@@ -135,44 +127,21 @@ async function uploadDocument(req, res, next) {
             console.warn("[VECTOR WARNING] Vector embedding skipped:", vErr.message);
         }
 
-        // 7. Auto-populate medical_history from extracted diagnoses & procedures if present
-        if (extractedEntities && Array.isArray(extractedEntities.diagnoses)) {
-            for (const diagnosis of extractedEntities.diagnoses) {
-                if (diagnosis && diagnosis.trim()) {
-                    await pool.query(
-                        `INSERT INTO medical_history (patient_id, category, condition, status, notes)
-                         VALUES ($1, 'condition', $2, 'active', $3)
-                         ON CONFLICT DO NOTHING;`,
-                        [patientId, diagnosis.trim(), `Extracted from document ${filename}`]
-                    );
-                }
-            }
-        }
-
-        if (extractedEntities && Array.isArray(extractedEntities.procedures)) {
-            for (const procedure of extractedEntities.procedures) {
-                if (procedure && procedure.trim()) {
-                    await pool.query(
-                        `INSERT INTO medical_history (patient_id, category, condition, status, notes)
-                         VALUES ($1, 'surgery', $2, 'completed', $3)
-                         ON CONFLICT DO NOTHING;`,
-                        [patientId, procedure.trim(), `Extracted from document ${filename}`]
-                    );
-                }
-            }
-        }
-
         return res.status(201).json({
             success: true,
-            message: "Document uploaded and processed successfully",
+            message: ocrStatus === "completed" ? "Document uploaded and processed successfully" : "Original document saved. Text extraction failed; no clinical information was inferred.",
             document,
             ocr: {
+                status: ocrStatus,
                 extractedText: ocrText,
                 entities: extractedEntities,
             },
         });
     } catch (error) {
-        await client.query("ROLLBACK;");
+        if (!committed) {
+            await client.query("ROLLBACK;").catch(() => {});
+            if (uploadedStoragePath) await supabaseStorageService.deleteMedicalDocument(uploadedStoragePath).catch(() => {});
+        }
         next(error);
     } finally {
         client.release();
@@ -203,8 +172,9 @@ async function getPatientDocuments(req, res, next) {
              LEFT JOIN document_ocr o ON d.id = o.document_id
              LEFT JOIN ai_summaries s ON d.id = s.document_id
              WHERE d.patient_id = $1
+               AND ($3 = 'patient' OR ($3 = 'doctor' AND ${documentConsentSql('d', '$2')}))
              ORDER BY d.created_at DESC;`,
-            [targetPatientId]
+            [targetPatientId, req.user.id, req.user.role]
         );
 
         return res.status(200).json({
@@ -238,13 +208,15 @@ async function getDocumentDownloadUrl(req, res, next) {
         const document = docRes.rows[0];
 
         // Access check
-        if (req.user.role === "patient" && document.patient_id !== req.user.id) {
+        if (!await canAccessDocument(req.user, document, true)) {
             return res.status(403).json({
                 success: false,
                 message: "Access denied to this document.",
             });
         }
 
+        const local = await supabaseStorageService.getLocalDocumentPath(document.storage_path);
+        if (local) return res.status(200).json({ success: true, localDownload: true, fileName: document.file_name });
         const downloadUrl = await supabaseStorageService.getDocumentDownloadUrl(document.storage_path);
 
         return res.status(200).json({
@@ -281,24 +253,21 @@ async function deleteDocument(req, res, next) {
         const document = docRes.rows[0];
 
         // Access check: User must be the patient who owns the document or a doctor
-        if (req.user.role === "patient" && document.patient_id !== userId) {
+        if (req.user.role !== "patient" || document.patient_id !== userId) {
             return res.status(403).json({
                 success: false,
                 message: "Unauthorized: You do not have permission to delete this document.",
             });
         }
 
-        // Delete row from documents table (CASCADE will remove document_ocr, document_access, vector embeddings)
-        await pool.query(`DELETE FROM documents WHERE id = $1;`, [documentId]);
-
-        // Attempt storage cleanup if storage path exists
-        if (document.storage_path) {
-            try {
-                await supabaseStorageService.deleteMedicalDocument(document.storage_path);
-            } catch (storageErr) {
-                console.warn("[STORAGE WARNING] Failed to delete file from storage:", storageErr.message);
-            }
+        const processed = await pool.query("SELECT 1 FROM document_ocr WHERE document_id = $1 AND status = 'completed'", [documentId]);
+        if (processed.rows.length) {
+            try { await mlService.deleteDocumentVectors(document.patient_id, documentId); }
+            catch { return res.status(503).json({ message: "Document retrieval cleanup is unavailable. Your record has been kept; please retry deletion." }); }
         }
+        // Keep the database reference if storage deletion fails so cleanup can be retried.
+        if (document.storage_path) await supabaseStorageService.deleteMedicalDocument(document.storage_path);
+        await pool.query(`DELETE FROM documents WHERE id = $1;`, [documentId]);
 
         return res.status(200).json({
             success: true,
@@ -388,7 +357,7 @@ async function searchDocuments(req, res, next) {
                     const medName = med.medicine || med.name || "";
                     if (lowerQuery.includes("medicin") || lowerQuery.includes("prescript") || lowerQuery.includes("dose") || (medName && lowerQuery.includes(medName.toLowerCase()))) {
                         matched = true;
-                        matchedSections.push(`Prescribed Medication: ${medName} - ${med.dose || "As directed"} (${med.frequency || "Daily"})`);
+                        matchedSections.push(`Prescribed Medication: ${medName} - ${med.dose || "As directed"} (${med.frequency || "Not reported"})`);
                     }
                 });
             }
@@ -420,25 +389,13 @@ async function searchDocuments(req, res, next) {
             }
         });
 
-        if (sources.length === 0) {
-            const latestDoc = patientDocs[0];
-            sources.push({
-                documentId: latestDoc.id,
-                filename: latestDoc.file_name,
-                documentType: latestDoc.document_type,
-                date: latestDoc.created_at
-            });
-            const snippet = latestDoc.extracted_text ? latestDoc.extracted_text.substring(0, 200) + "..." : "Medical record on file.";
-            matchedSections.push(`According to ${latestDoc.file_name}: ${snippet}`);
-        }
-
         return res.status(200).json({
             success: true,
             query: query.trim(),
-            summary: `Based on your uploaded medical records:`,
+            summary: sources.length ? "Matching excerpts from your uploaded medical records:" : "No matching information found in your uploaded records.",
             results: matchedSections,
             sources,
-            vectorResults: mlSearchResults?.results || []
+            vectorResults: (mlSearchResults?.results || []).filter(result => patientDocs.some(doc => doc.id === result.metadata?.document_id))
         });
     } catch (error) {
         next(error);
@@ -474,7 +431,7 @@ async function getDocumentById(req, res, next) {
 
         const document = docRes.rows[0];
 
-        if (req.user.role === "patient" && document.patient_id !== userId) {
+        if (!await canAccessDocument(req.user, document)) {
             return res.status(403).json({
                 success: false,
                 message: "Access denied: You do not own this document.",
@@ -529,7 +486,7 @@ async function askDocumentQuestion(req, res, next) {
         const doc = docRes.rows[0];
 
         // Security check: Must belong to authenticated patient
-        if (req.user.role === "patient" && doc.patient_id !== patientId) {
+        if (!await canAccessDocument(req.user, doc)) {
             return res.status(403).json({
                 success: false,
                 message: "Access denied: You do not own this medical document.",
@@ -541,9 +498,12 @@ async function askDocumentQuestion(req, res, next) {
             try { entities = JSON.parse(entities); } catch (e) { entities = {}; }
         }
 
+        if (!doc.extracted_text?.trim()) {
+            return res.status(409).json({ message: "This document has no extracted text yet. Please review the original file." });
+        }
         // Call ML service for grounded document explanation
         const qaResult = await mlService.askDocumentQuestion(
-            patientId,
+            doc.patient_id,
             documentId,
             doc.file_name,
             question.trim(),
@@ -563,7 +523,67 @@ async function askDocumentQuestion(req, res, next) {
     }
 }
 
+async function downloadLocalDocument(req, res, next) {
+    try {
+        const result = await pool.query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
+        const document = result.rows[0];
+        if (!document) return res.status(404).json({ message: 'Document not found.' });
+        if (!await canAccessDocument(req.user, document, true)) return res.status(403).json({ message: 'Document access denied.' });
+        const local = await supabaseStorageService.getLocalDocumentPath(document.storage_path);
+        if (!local) return res.status(404).json({ message: 'Local document not found.' });
+        res.setHeader('Cache-Control', 'no-store');
+        return res.download(local, document.file_name);
+    } catch (error) { next(error); }
+}
+
+async function getDocumentAccess(req, res, next) {
+    try {
+        const owned = await pool.query('SELECT id FROM documents WHERE id = $1 AND patient_id = $2', [req.params.id, req.user.id]);
+        if (!owned.rows.length) return res.status(404).json({ message: 'Document not found.' });
+        const result = await pool.query(
+            `SELECT da.user_id AS doctor_id, da.access_type, da.expires_at
+             FROM document_access da WHERE da.document_id = $1 AND da.user_id <> $2
+               AND da.granted_by = $2 AND da.revoked_at IS NULL
+               AND (da.expires_at IS NULL OR da.expires_at > CURRENT_TIMESTAMP)`, [req.params.id, req.user.id]
+        );
+        res.json({ success: true, access: result.rows });
+    } catch (error) { next(error); }
+}
+
+async function setDocumentAccess(req, res, next) {
+    try {
+        const { doctorId, accessType = 'view', revoke = false } = req.body;
+        if (!doctorId || !['view', 'download'].includes(accessType) || typeof revoke !== 'boolean') {
+            return res.status(400).json({ message: 'Doctor and valid document permission are required.' });
+        }
+        const owned = await pool.query('SELECT id FROM documents WHERE id = $1 AND patient_id = $2', [req.params.id, req.user.id]);
+        if (!owned.rows.length) return res.status(404).json({ message: 'Document not found.' });
+        if (revoke) {
+            await pool.query('UPDATE document_access SET revoked_at = CURRENT_TIMESTAMP WHERE document_id = $1 AND user_id = $2', [req.params.id, doctorId]);
+        } else {
+            const connected = await pool.query(
+                `SELECT 1 FROM patient_doctor_relationships r JOIN users u ON u.id = r.doctor_id
+                 JOIN doctor_profiles dp ON dp.user_id = u.id
+                 WHERE r.patient_id = $1 AND r.doctor_id = $2 AND r.status = 'active'
+                   AND u.is_active = true AND dp.verification_status = 'verified'`, [req.user.id, doctorId]
+            );
+            if (!connected.rows.length) return res.status(403).json({ message: 'Connect with a verified doctor before sharing a document.' });
+            await pool.query(
+                `INSERT INTO document_access (document_id, user_id, access_type, granted_by)
+                 VALUES ($1, $2, $3, $4) ON CONFLICT (document_id, user_id) DO UPDATE
+                 SET access_type = EXCLUDED.access_type, granted_by = EXCLUDED.granted_by,
+                     granted_at = CURRENT_TIMESTAMP, expires_at = NULL, revoked_at = NULL`,
+                [req.params.id, doctorId, accessType, req.user.id]
+            );
+        }
+        res.json({ success: true });
+    } catch (error) { next(error); }
+}
+
 module.exports = {
+    getDocumentAccess,
+    setDocumentAccess,
+    downloadLocalDocument,
     uploadDocument,
     getPatientDocuments,
     getDocumentDownloadUrl,

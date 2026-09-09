@@ -15,7 +15,7 @@ const { sendEmailOTP } = require("../services/emailService");
 const googleAuthService = require("../services/googleAuthService");
 const oauthExchangeService = require("../services/oauthExchangeService");
 
-const JWT_SECRET = process.env.JWT_SECRET || "medikiosk_jwt_secret_key_change_in_production";
+const { JWT_SECRET } = require("../config/auth");
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
 
 // ==================================================

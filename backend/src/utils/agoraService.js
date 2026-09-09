@@ -13,9 +13,12 @@ class AgoraService {
      * @param {number} expireTimeInSeconds Expiration duration in seconds (default 24h = 86400)
      */
     static generateRtcToken(channelName, uid = 0, role = "publisher", expireTimeInSeconds = 86400) {
-        const appId = (process.env.AGORA_APP_ID || process.env.VITE_AGORA_APP_ID || "fd374bd20e2e4cec988fc77c63f8eb38").trim();
+        const appId = (process.env.AGORA_APP_ID || process.env.VITE_AGORA_APP_ID || "").trim();
         const appCertificate = (process.env.AGORA_APP_CERTIFICATE || "").trim();
 
+        if (!appId || (!appCertificate && process.env.NODE_ENV === "production")) {
+            throw Object.assign(new Error("Secure calling is not configured."), { statusCode: 503 });
+        }
         const currentTimestamp = Math.floor(Date.now() / 1000);
         const privilegeExpiredTs = currentTimestamp + expireTimeInSeconds;
         const numericUid = typeof uid === "number" && !isNaN(uid) && uid > 0 ? uid : 0;
@@ -53,14 +56,7 @@ class AgoraService {
             };
         } catch (error) {
             console.error("Agora Token006 Generation Error:", error.message);
-            return {
-                appId,
-                channelName,
-                token: null,
-                uid: numericUid,
-                expiresAt: privilegeExpiredTs,
-                isTestingMode: true,
-            };
+            throw Object.assign(new Error("Call authorization failed."), { statusCode: 503 });
         }
     }
 }

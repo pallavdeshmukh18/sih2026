@@ -7,6 +7,7 @@ const authorizeRoles = require("../middleware/rbacMiddleware");
 // All receptionist routes require authentication and staff/doctor/receptionist/admin role
 router.use(authenticateToken);
 router.use(authorizeRoles("receptionist", "admin", "doctor", "nurse"));
+router.use(require("../middleware/practiceMiddleware"));
 
 router.get("/stats", receptionistController.getReceptionistStats);
 router.get("/appointments", receptionistController.getReceptionistAppointments);

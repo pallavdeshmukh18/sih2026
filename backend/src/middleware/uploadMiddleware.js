@@ -10,7 +10,7 @@ const audioFileFilter = (req, file, cb) => {
     if (allowedExtensions.includes(ext)) {
         cb(null, true);
     } else {
-        cb(new Error(`Unsupported audio format '${ext}'. Allowed: ${allowedExtensions.join(", ")}`), false);
+        cb(Object.assign(new Error(`Unsupported audio format '${ext}'. Allowed: ${allowedExtensions.join(", ")}`), { statusCode: 400 }), false);
     }
 };
 
@@ -21,7 +21,7 @@ const documentFileFilter = (req, file, cb) => {
     if (allowedExtensions.includes(ext)) {
         cb(null, true);
     } else {
-        cb(new Error(`Unsupported document format '${ext}'. Allowed: ${allowedExtensions.join(", ")}`), false);
+        cb(Object.assign(new Error(`Unsupported document format '${ext}'. Allowed: ${allowedExtensions.join(", ")}`), { statusCode: 400 }), false);
     }
 };
 
@@ -33,7 +33,7 @@ const uploadAudio = multer({
 
 const uploadDocument = multer({
     storage,
-    limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+    limits: { fileSize: 15 * 1024 * 1024 }, // Match the patient upload limit
     fileFilter: documentFileFilter,
 });
 
