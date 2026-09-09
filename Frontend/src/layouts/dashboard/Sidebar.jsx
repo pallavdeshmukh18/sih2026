@@ -91,7 +91,7 @@ const Sidebar = ({ onHoverChange }) => {
                         </NavLink>
                     )}
                     
-                    {role !== 'receptionist' && (
+                    {role === 'patient' && (
                         <NavLink to={`${basePath}/schedule`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                             <Calendar size={20} />
                             <span>{t('navigation.schedule')}</span>

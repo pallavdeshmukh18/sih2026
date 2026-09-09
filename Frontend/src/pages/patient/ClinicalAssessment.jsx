@@ -9,6 +9,8 @@ import {
   finalizeClinicalSession,
   getPatientAppointments,
   getMedicalId,
+  fetchPublicDoctors,
+  createAppointment,
 } from "../../services/api";
 import {
   Activity,
@@ -103,6 +105,7 @@ export default function ClinicalAssessment() {
   const [searchParams] = useSearchParams();
 
   const appointmentIdFromUrl = searchParams.get("appointmentId");
+  const doctorIdFromUrl = searchParams.get("doctorId");
 
   const [appointments, setAppointments] = useState([]);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState(appointmentIdFromUrl || "");
@@ -121,6 +124,18 @@ export default function ClinicalAssessment() {
   const [summary, setSummary] = useState("");
   const [error, setError] = useState(null);
   const [healthSummary, setHealthSummary] = useState(null);
+  const [doctors, setDoctors] = useState([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState(doctorIdFromUrl || "");
+  const [targetDoctor, setTargetDoctor] = useState(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingDate, setBookingDate] = useState(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(10, 0, 0, 0);
+    return tomorrow.toISOString().slice(0, 16);
+  });
+  const [bookingType, setBookingType] = useState("in_person");
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
 
   // Voice Input States
   const [sessionLanguage, setSessionLanguage] = useState(currentLanguage || "en");
@@ -137,6 +152,22 @@ export default function ClinicalAssessment() {
       if (response.success && response.medicalId) setHealthSummary(response.medicalId);
     }).catch(() => {});
   }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetchPublicDoctors(token).then((response) => {
+      if (response.success && Array.isArray(response.doctors)) {
+        setDoctors(response.doctors);
+        const initialDoctorId = doctorIdFromUrl || "";
+        setSelectedDoctorId(initialDoctorId);
+        setTargetDoctor(response.doctors.find((doctor) => String(doctor.id) === String(initialDoctorId)) || null);
+      }
+    }).catch(() => {});
+  }, [token, doctorIdFromUrl]);
+
+  useEffect(() => {
+    setTargetDoctor(doctors.find((doctor) => String(doctor.id) === String(selectedDoctorId)) || null);
+  }, [doctors, selectedDoctorId]);
 
   useEffect(() => {
     let interval = null;
@@ -447,6 +478,32 @@ export default function ClinicalAssessment() {
     }
   };
 
+  const handleCreateBooking = async (event) => {
+    event.preventDefault();
+    if (!selectedDoctorId || !sessionId) {
+      setError("Please select a doctor before confirming the appointment.");
+      return;
+    }
+    setBookingSubmitting(true);
+    try {
+      await createAppointment({
+        doctorId: selectedDoctorId,
+        scheduledAt: new Date(bookingDate).toISOString(),
+        durationMinutes: 30,
+        appointmentType: bookingType,
+        reason: chiefComplaint || "Clinical Consultation",
+        notes: summary,
+        sessionId,
+      }, token);
+      setShowBookingModal(false);
+      navigate("/patient/dashboard?bookingSuccess=1");
+    } catch (bookingError) {
+      setError(bookingError.message || "Failed to book appointment. Please try again.");
+    } finally {
+      setBookingSubmitting(false);
+    }
+  };
+
   return (
     <motion.main
       className={`${styles.page} workspacePage`}
@@ -754,6 +811,13 @@ export default function ClinicalAssessment() {
 
               <div className={styles.completionActions}>
                 <button
+                  onClick={() => setShowBookingModal(true)}
+                  className={styles.startBtn}
+                  style={{ width: "auto", padding: "0 24px" }}
+                >
+                  {targetDoctor ? `Book with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Book an Appointment"}
+                </button>
+                <button
                   onClick={() => navigate("/patient/dashboard")}
                   className={styles.startBtn}
                   style={{ width: "auto", padding: "0 24px" }}
@@ -780,6 +844,41 @@ export default function ClinicalAssessment() {
                 <span className={styles.stepNum}>1</span>
                 <div>
                   <strong>{t("assessment.step1Title", "Select Chief Complaint")}</strong>
+
+              {showBookingModal && (
+                <div className={styles.bookingOverlay} role="dialog" aria-modal="true" aria-label="Book an appointment">
+                  <form className={styles.bookingModal} onSubmit={handleCreateBooking}>
+                    <h2>Book an Appointment</h2>
+                    <p>{targetDoctor ? `Booking with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Choose a convenient time for your consultation."}</p>
+                    <label>
+                      Select doctor
+                      <select value={selectedDoctorId} onChange={(event) => setSelectedDoctorId(event.target.value)} required>
+                        <option value="">Choose a doctor</option>
+                        {doctors.map((doctor) => (
+                          <option key={doctor.id} value={doctor.id}>
+                            {doctor.name || `Dr. ${doctor.firstName || ""} ${doctor.lastName || ""}`.trim()} {doctor.specialization ? `- ${doctor.specialization}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Date and time
+                      <input type="datetime-local" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} required />
+                    </label>
+                    <label>
+                      Consultation type
+                      <select value={bookingType} onChange={(event) => setBookingType(event.target.value)}>
+                        <option value="in_person">In-person consultation</option>
+                        <option value="video">Teleconsultation</option>
+                      </select>
+                    </label>
+                    <div className={styles.bookingActions}>
+                      <button type="button" className={styles.secondaryBtn} onClick={() => setShowBookingModal(false)}>Cancel</button>
+                      <button type="submit" className={styles.startBtn} disabled={bookingSubmitting}>{bookingSubmitting ? "Booking..." : "Confirm Booking"}</button>
+                    </div>
+                  </form>
+                </div>
+              )}
                   <p>{t("assessment.step1Desc", "Pick your primary symptom or enter a description.")}</p>
                 </div>
               </div>

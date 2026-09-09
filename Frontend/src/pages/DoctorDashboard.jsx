@@ -143,7 +143,7 @@ export default function DoctorDashboard() {
 
         <aside className={styles.sideColumn}>
           <section className={`${styles.card} ${styles.calendarCard}`}>
-            <header><h2>Your Schedule</h2><button onClick={() => navigate("/doctor/schedule")}>View Calendar <ArrowRight /></button></header>
+            <header><h2>Your Schedule</h2><button onClick={() => navigate("/doctor/appointments")}>View Appointments <ArrowRight /></button></header>
             <div className={styles.calendar}>
               <div className={styles.calendarHead}><strong>{calendarDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</strong><div><button onClick={() => changeMonth(-1)}><ChevronLeft /></button><button onClick={() => changeMonth(1)}><ChevronRight /></button></div></div>
               <div className={styles.week}>{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div>
