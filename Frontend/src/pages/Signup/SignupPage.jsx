@@ -18,6 +18,7 @@ import {
 import toast from "react-hot-toast";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  API_BASE_URL,
   loginDoctor,
   loginPatientEmail,
   loginPatientPhone,
@@ -163,8 +164,7 @@ export default function SignupPage() {
   };
 
   const googleSignup = () => {
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-    window.location.href = `${apiBaseUrl}/api/auth/patient/google`;
+    window.location.href = `${API_BASE_URL}/api/auth/patient/google`;
   };
 
   return (

@@ -3,7 +3,11 @@
  * Interacts with backend API endpoints at VITE_API_BASE_URL (http://localhost:5001)
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001";
+export const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL ||
+    (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+        ? "https://sih2026-backend-viab.onrender.com"
+        : "http://127.0.0.1:5001");
 
 /**
  * Generic Fetch Wrapper with JSON and Auth Authorization Header

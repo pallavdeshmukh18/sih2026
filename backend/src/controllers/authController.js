@@ -1172,18 +1172,69 @@ async function verifyLoginEmail(req, res) {
 // ==================================================
 
 /**
+ * Generate a cryptographically signed HMAC-SHA256 OAuth state token
+ */
+function generateOAuthState() {
+    const timestamp = Date.now().toString();
+    const nonce = crypto.randomBytes(16).toString("hex");
+    const secret = JWT_SECRET || process.env.JWT_SECRET || "medikiosk_oauth_state_secret_2026";
+    const payload = `${timestamp}:${nonce}`;
+    const signature = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+    return `${timestamp}.${nonce}.${signature}`;
+}
+
+/**
+ * Verify OAuth state token (via cookie match or cryptographic HMAC signature)
+ */
+function verifyOAuthState(state, storedCookieState = null) {
+    if (!state) return false;
+
+    // If cookie matches returned state, accept immediately
+    if (storedCookieState && state === storedCookieState) {
+        return true;
+    }
+
+    // Verify cryptographic signature and timestamp expiration
+    const parts = state.split(".");
+    if (parts.length !== 3) return false;
+
+    const [timestampStr, nonce, signature] = parts;
+    const timestamp = parseInt(timestampStr, 10);
+    if (isNaN(timestamp)) return false;
+
+    // Reject state tokens older than 15 minutes or from the future
+    const now = Date.now();
+    if (now - timestamp > 15 * 60 * 1000 || timestamp - now > 60 * 1000) {
+        return false;
+    }
+
+    const secret = JWT_SECRET || process.env.JWT_SECRET || "medikiosk_oauth_state_secret_2026";
+    const payload = `${timestampStr}:${nonce}`;
+    const expectedSignature = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+
+    try {
+        const sigBuf = Buffer.from(signature, "hex");
+        const expBuf = Buffer.from(expectedSignature, "hex");
+        if (sigBuf.length !== expBuf.length) return false;
+        return crypto.timingSafeEqual(sigBuf, expBuf);
+    } catch {
+        return false;
+    }
+}
+
+/**
  * 9. Initiate Google OAuth 2.0 Consent Flow
  * GET /api/auth/patient/google
  */
 async function initiateGoogleAuth(req, res) {
     try {
-        const state = crypto.randomBytes(32).toString("hex");
+        const state = generateOAuthState();
 
         res.cookie("google_oauth_state", state, {
             httpOnly: true,
-            maxAge: 10 * 60 * 1000, // 10 minutes
-            sameSite: "lax",
-            secure: process.env.NODE_ENV === "production",
+            maxAge: 15 * 60 * 1000, // 15 minutes
+            sameSite: "none",
+            secure: true,
         });
 
         const authUrl = googleAuthService.getGoogleAuthUrl(state);
@@ -1212,9 +1263,15 @@ async function handleGoogleCallback(req, res) {
         }
 
         const storedState = req.cookies ? req.cookies.google_oauth_state : null;
-        res.clearCookie("google_oauth_state");
+        try {
+            res.clearCookie("google_oauth_state", {
+                httpOnly: true,
+                sameSite: "none",
+                secure: true,
+            });
+        } catch (e) {}
 
-        if (!state || !storedState || state !== storedState) {
+        if (!state || !verifyOAuthState(state, storedState)) {
             return res.status(400).json({
                 message: "Invalid OAuth state parameter (CSRF protection failed).",
             });
@@ -1236,6 +1293,8 @@ async function handleGoogleCallback(req, res) {
             [sub]
         );
 
+        const defaultFrontendUrl = process.env.FRONTEND_URL || "https://sih2026-blond.vercel.app";
+
         if (existingGoogleUser.rows.length > 0) {
             const user = existingGoogleUser.rows[0];
 
@@ -1251,7 +1310,6 @@ async function handleGoogleCallback(req, res) {
                 { expiresIn: JWT_EXPIRES_IN }
             );
 
-            const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
             const exchangeCode = oauthExchangeService.createExchangeCode({
                 token,
                 user: {
@@ -1263,7 +1321,7 @@ async function handleGoogleCallback(req, res) {
                 },
             });
 
-            return res.redirect(`${frontendUrl}/auth/google/callback?code=${exchangeCode}`);
+            return res.redirect(`${defaultFrontendUrl}/auth/google/callback?code=${exchangeCode}`);
         }
 
         // Step B: Account Collision Check - check if email is registered via another login method (e.g. email/phone)
@@ -1305,7 +1363,6 @@ async function handleGoogleCallback(req, res) {
             { expiresIn: JWT_EXPIRES_IN }
         );
 
-        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
         const exchangeCode = oauthExchangeService.createExchangeCode({
             token,
             user: {
@@ -1317,7 +1374,7 @@ async function handleGoogleCallback(req, res) {
             },
         });
 
-        return res.redirect(`${frontendUrl}/auth/google/callback?code=${exchangeCode}`);
+        return res.redirect(`${defaultFrontendUrl}/auth/google/callback?code=${exchangeCode}`);
     } catch (error) {
         await client.query("ROLLBACK;");
         console.error("Error in handleGoogleCallback:", error.message);

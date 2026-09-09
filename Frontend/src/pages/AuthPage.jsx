@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+    API_BASE_URL,
     loginPatientPhone,
     verifyPatientPhoneLogin,
     registerPatientPhone,
@@ -217,8 +218,7 @@ const AuthPage = () => {
     };
 
     const handleGoogleClick = () => {
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-        window.location.href = `${apiBaseUrl}/api/auth/patient/google`;
+        window.location.href = `${API_BASE_URL}/api/auth/patient/google`;
     };
 
     return (
