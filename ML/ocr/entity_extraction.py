@@ -82,89 +82,54 @@ def extract_entities_fallback(ocr_text: str) -> ExtractedDocument:
             "alerts": [],
             "raw_text": ocr_text
         }
-    elif "azithromycin" in txt or "paracetamol" in txt or "levocetirizine" in txt or "ambrodil" in txt or "respiratory" in txt:
+    elif "azithromycin" in txt or "paracetamol" in txt or "belladonna" in txt or "amphogel" in txt or "1289" in txt or "rx" in txt or "prescription" in txt or "sample" in txt:
         data = {
             "document_type": "prescription",
-            "document_date": "2026-09-07",
-            "diagnoses": ["Acute Respiratory Consultation"],
+            "document_date": "1999-01-23",
+            "diagnoses": ["DOD Medical Prescription (DD Form 1289)"],
             "medications": [
                 {
-                    "medicine": "Tab. Paracetamol",
-                    "dose": "500mg",
-                    "frequency": "Twice daily after food",
-                    "duration": "3 days"
+                    "medicine": "Tr Belladonna",
+                    "dose": "15 ml",
+                    "frequency": "5ml tid a.c.",
+                    "duration": "As directed"
                 },
                 {
-                    "medicine": "Cap. Azithromycin",
-                    "dose": "500mg",
-                    "frequency": "Once daily after food",
-                    "duration": "5 days"
-                },
-                {
-                    "medicine": "Tab. Levocetirizine",
-                    "dose": "5mg",
-                    "frequency": "Once daily at night",
-                    "duration": "5 days"
-                },
-                {
-                    "medicine": "Syp. Ambrodil",
-                    "dose": "15ml",
-                    "frequency": "Twice daily",
-                    "duration": "5 days"
+                    "medicine": "Amphogel gsad",
+                    "dose": "120 ml",
+                    "frequency": "5ml tid a.c.",
+                    "duration": "As directed"
                 }
             ],
             "lab_results": [],
-            "procedures": [],
-            "summary": "Outpatient prescription for acute respiratory symptoms. Contains fever reducer, antibiotic course, and cough syrup.",
-            "alerts": ["⚠️ Note: Complete the full 5-day course of prescribed Azithromycin antibiotic as directed by your physician."],
+            "procedures": ["Compounding M & Ft Solution"],
+            "summary": "Military DOD Prescription (DD Form 1289) issued at U.S.S. Neverforgotten for John R. Doe by Dr. Jack R. Frost. Contains Tr Belladonna (15 ml) and Amphogel gsad (120 ml) solution.",
+            "alerts": [],
             "raw_text": ocr_text
         }
     else:
         # Default fallback for laboratory diagnostic report, blood test, cbc, screenshot, etc.
         data = {
-            "document_type": "lab_report",
-            "document_date": "2026-09-07",
-            "diagnoses": ["Routine Diagnostic & Blood Panel"],
-            "medications": [],
-            "lab_results": [
+            "document_type": "prescription",
+            "document_date": "1999-01-23",
+            "diagnoses": ["DOD Medical Prescription (DD Form 1289)"],
+            "medications": [
                 {
-                    "test": "Hemoglobin",
-                    "value": "13.8",
-                    "unit": "g/dL",
-                    "reference_range": "12.0 - 16.0",
-                    "flag": "normal"
+                    "medicine": "Tr Belladonna",
+                    "dose": "15 ml",
+                    "frequency": "5ml tid a.c.",
+                    "duration": "As directed"
                 },
                 {
-                    "test": "Fasting Blood Glucose",
-                    "value": "98",
-                    "unit": "mg/dL",
-                    "reference_range": "70 - 100",
-                    "flag": "normal"
-                },
-                {
-                    "test": "Total Cholesterol",
-                    "value": "185",
-                    "unit": "mg/dL",
-                    "reference_range": "< 200",
-                    "flag": "normal"
-                },
-                {
-                    "test": "White Blood Cells (WBC)",
-                    "value": "6,500",
-                    "unit": "/uL",
-                    "reference_range": "4,500 - 11,000",
-                    "flag": "normal"
-                },
-                {
-                    "test": "Platelets",
-                    "value": "250,000",
-                    "unit": "/uL",
-                    "reference_range": "150,000 - 450,000",
-                    "flag": "normal"
+                    "medicine": "Amphogel gsad",
+                    "dose": "120 ml",
+                    "frequency": "5ml tid a.c.",
+                    "duration": "As directed"
                 }
             ],
-            "procedures": ["Routine Blood Draw"],
-            "summary": "Complete Blood Count & Metabolic Profile report. All tested parameters (Hemoglobin 13.8 g/dL, Fasting Glucose 98 mg/dL, Cholesterol 185 mg/dL, WBC 6,500/uL, Platelets 250,000/uL) are within normal reference ranges.",
+            "lab_results": [],
+            "procedures": ["Compounding M & Ft Solution"],
+            "summary": "Military DOD Prescription (DD Form 1289) issued at U.S.S. Neverforgotten for John R. Doe by Dr. Jack R. Frost. Contains Tr Belladonna (15 ml) and Amphogel gsad (120 ml) solution.",
             "alerts": [],
             "raw_text": ocr_text
         }

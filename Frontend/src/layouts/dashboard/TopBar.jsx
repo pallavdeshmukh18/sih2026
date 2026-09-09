@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Activity, ChevronRight, Mail, Settings, Globe } from 'lucide-react';
+import { Activity, ChevronRight, Settings, Globe } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage, LANGUAGE_OPTIONS } from '../../i18n';
 import styles from './TopBar.module.css';
@@ -31,8 +31,7 @@ export default function TopBar() {
       </select>
     </div>
     <span className={styles.portal}>{role === "patient" ? t("common.patientPortal", "patient portal") : role === 'receptionist' ? 'Front Desk' : role === 'doctor' ? 'Doctor Portal' : `${role} portal`}</span>
-    <Link aria-label={t("common.messages", "Messages")} className={styles.iconButton} to={`/${role}/mail`}><Mail size={19}/></Link>
-    <Link aria-label={t("common.settings", "Account settings")} className={styles.iconButton} to={`/${role}/account`}><Settings size={19}/></Link>
+    <Link aria-label={t("common.settings", "Settings")} className={styles.iconButton} to={`/${role}/settings`}><Settings size={19}/></Link>
     <Link className={styles.profile} to={`/${role}/account`}><span className={styles.avatar}>{user?.firstName?.[0] || 'U'}{user?.lastName?.[0]}</span><span className={styles.userName}>{user?.firstName || t("navigation.account", "Your account")}<small>{role === 'receptionist' ? 'Front Desk' : role}</small></span></Link>
   </div>
  </header>;

@@ -22,6 +22,8 @@ export default function Account() {
     gender: user?.profile?.gender || "",
     state: user?.onboarding?.state || "",
     preferredLanguage: user?.onboarding?.preferredLanguage || language || "en",
+    interactionMode: user?.onboarding?.interactionMode || "voice_touch",
+    accessibilityPreference: user?.onboarding?.accessibilityPreference || "none",
   }));
   const [phoneModal, setPhoneModal] = useState(false);
   const [phoneStep, setPhoneStep] = useState(1);
@@ -49,6 +51,8 @@ export default function Account() {
         gender: form.gender || null,
         state: form.state,
         preferredLanguage: form.preferredLanguage,
+        interactionMode: form.interactionMode,
+        accessibilityPreference: form.accessibilityPreference,
       }, token);
       changeLanguage(form.preferredLanguage);
       await refreshUser();
@@ -125,6 +129,8 @@ export default function Account() {
                 <label>Gender<select name="gender" value={form.gender} onChange={update}><option value="">Select gender</option><option>Male</option><option>Female</option><option>Other</option></select></label>
                 <label>State<select name="state" value={form.state} onChange={update}><option value="">Select State or UT</option>{INDIAN_STATES_AND_UTS.map((state) => <option key={state.name}>{state.name}</option>)}</select></label>
                 <label>Language<select name="preferredLanguage" value={form.preferredLanguage} onChange={update}>{SUPPORTED_LANGUAGES.map((item) => <option key={item.code} value={item.code}>{item.name} ({item.nativeName})</option>)}</select></label>
+                <label>Interaction Mode<select name="interactionMode" value={form.interactionMode} onChange={update}><option value="voice_touch">Voice + Touch Screen</option><option value="voice">Voice Only</option><option value="touch">Touch Screen Only</option></select></label>
+                <label>Accessibility Preference<select name="accessibilityPreference" value={form.accessibilityPreference} onChange={update}><option value="none">Standard Interface</option><option value="large_text">Larger Text</option><option value="voice_guidance">Audio Voiceover</option><option value="hearing_assistance">Visual Highlights</option></select></label>
                 <button className={styles.save} disabled={saving}><Save /> {saving ? "Saving…" : "Save Changes"}</button>
               </motion.form>
             ) : (
@@ -136,6 +142,8 @@ export default function Account() {
                 <div><dt>Email Address</dt><dd>{user?.email || "Not linked"}</dd></div>
                 <div><dt>Address</dt><dd>{user?.onboarding?.state ? `${user.onboarding.state}, India` : "India"}</dd></div>
                 <div><dt>Language</dt><dd>{SUPPORTED_LANGUAGES.find((item) => item.code === (user?.onboarding?.preferredLanguage || language))?.name || "English"}</dd></div>
+                <div><dt>Interaction Mode</dt><dd>{user?.onboarding?.interactionMode === "voice" ? "Voice Only" : user?.onboarding?.interactionMode === "touch" ? "Touch Screen Only" : "Voice + Touch Screen"}</dd></div>
+                <div><dt>Accessibility Preference</dt><dd>{user?.onboarding?.accessibilityPreference === "large_text" ? "Larger Text" : user?.onboarding?.accessibilityPreference === "voice_guidance" ? "Audio Voiceover" : user?.onboarding?.accessibilityPreference === "hearing_assistance" ? "Visual Highlights" : "Standard Interface"}</dd></div>
               </motion.dl>
             )}
           </AnimatePresence>

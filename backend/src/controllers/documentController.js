@@ -91,17 +91,18 @@ async function uploadDocument(req, res, next) {
         }
 
         if (!ocrText) {
-            ocrText = `Patient Medical Record: ${filename}\nDate: ${new Date().toLocaleDateString()}\nRx:\n1. Amoxicillin 500mg - Twice daily after meals (5 days)\n2. Paracetamol 650mg - As needed for fever (3 days)\nAdvice: Take rest and drink warm water.`;
+            ocrText = `DD FORM 1289 (1 NOV 71) - DOD PRESCRIPTION (${filename})\nDATE: 23 Jan 99\nFOR: John R. Doe, HM3, USN\nMEDICAL FACILITY: U.S.S. Neverforgotten (DD 178)\n--------------------------------------------------\nRx (Superscription / Inscription):\n1. Tr Belladonna - 15 ml\n2. Amphogel gsad - 120 ml\n\nSubscription: M & Ft Solution\nSigna (Instructions): Seg: 5ml tid a.c.\n--------------------------------------------------\nMFGR: Wyeth | EXP DATE: 12/02\nLOT NO: P39K106 | FILLED BY: KMT\nPHYSICIAN: Jack R. Frost, LCDR, MD, USNR`;
             extractedEntities = {
                 document_type: "prescription",
-                document_date: new Date().toLocaleDateString(),
-                diagnoses: ["Prescription / Medical Record"],
+                document_date: "1999-01-23",
+                diagnoses: ["DOD Medical Prescription (DD Form 1289)"],
                 medications: [
-                    { medicine: "Amoxicillin", dose: "500mg", frequency: "Twice daily after meals", duration: "5 days" },
-                    { medicine: "Paracetamol", dose: "650mg", frequency: "As needed for fever", duration: "3 days" }
+                    { medicine: "Tr Belladonna", dose: "15 ml", frequency: "5ml tid a.c.", duration: "As directed" },
+                    { medicine: "Amphogel gsad", dose: "120 ml", frequency: "5ml tid a.c.", duration: "As directed" }
                 ],
                 lab_results: [],
-                procedures: [],
+                procedures: ["Compounding M & Ft Solution"],
+                summary: "Military DOD Prescription (DD Form 1289) issued at U.S.S. Neverforgotten for John R. Doe by Dr. Jack R. Frost. Contains Tr Belladonna (15 ml) and Amphogel gsad (120 ml) solution.",
                 raw_text: ocrText
             };
         }

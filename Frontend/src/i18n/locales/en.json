@@ -14,7 +14,10 @@
     "edit": "Edit",
     "search": "Search",
     "actions": "Actions",
-    "logout": "Log Out"
+    "logout": "Log Out",
+    "step": "Step",
+    "of": "of",
+    "recommended": "Recommended"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -27,7 +30,6 @@
     "documents": "Documents",
     "bedManager": "Bed Manager",
     "payment": "Payment",
-    "mail": "Mail",
     "applications": "APPLICATIONS",
     "others": "OTHERS"
   },

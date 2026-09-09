@@ -14,7 +14,10 @@
     "edit": "संपादित करें",
     "search": "खोजें",
     "actions": "कार्रवाइयां",
-    "logout": "लॉग आउट"
+    "logout": "लॉग आउट",
+    "step": "चरण",
+    "of": "का",
+    "recommended": "अनुशंसित"
   },
   "navigation": {
     "dashboard": "डैशबोर्ड",
