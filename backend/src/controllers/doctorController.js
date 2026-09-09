@@ -1,4 +1,53 @@
 const pool = require("../config/db");
+const { documentConsentSql } = require("../services/documentAccessService");
+const { normalizeEmail, isValidEmail } = require("../utils/emailUtils");
+
+async function updateOwnProfile(req, res, next) {
+    const client = await pool.connect();
+    try {
+        const doctorId = req.user.id;
+        const { firstName, lastName, email, registrationNumber, specialization } = req.body;
+        const normalizedEmail = normalizeEmail(email);
+
+        if (!firstName?.trim() || !normalizedEmail || !registrationNumber?.trim() || !specialization?.trim()) {
+            return res.status(400).json({ message: "First name, email, medical registration number, and specialization are required." });
+        }
+        if (!isValidEmail(normalizedEmail)) {
+            return res.status(400).json({ message: "Invalid email address format." });
+        }
+
+        await client.query("BEGIN");
+        const emailOwner = await client.query("SELECT id FROM users WHERE email = $1 AND id <> $2", [normalizedEmail, doctorId]);
+        if (emailOwner.rows.length) {
+            await client.query("ROLLBACK");
+            return res.status(409).json({ message: "That email address is already in use." });
+        }
+        const registrationOwner = await client.query(
+            "SELECT user_id FROM doctor_profiles WHERE registration_number = $1 AND user_id <> $2",
+            [registrationNumber.trim(), doctorId]
+        );
+        if (registrationOwner.rows.length) {
+            await client.query("ROLLBACK");
+            return res.status(409).json({ message: "That medical registration number is already in use." });
+        }
+
+        await client.query(
+            "UPDATE users SET first_name = $1, last_name = $2, email = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND role = 'doctor'",
+            [firstName.trim(), lastName?.trim() || null, normalizedEmail, doctorId]
+        );
+        await client.query(
+            "UPDATE doctor_profiles SET registration_number = $1, specialization = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $3",
+            [registrationNumber.trim(), specialization.trim(), doctorId]
+        );
+        await client.query("COMMIT");
+        return res.status(200).json({ success: true, message: "Doctor profile updated successfully." });
+    } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        next(error);
+    } finally {
+        client.release();
+    }
+}
 
 /**
  * 1. Get Doctor's Appointment & Triage Queue
@@ -94,9 +143,7 @@ async function getPatientUnifiedHistory(req, res, next) {
 
         if (req.user.role === "doctor") {
             const accessCheck = await pool.query(
-                `SELECT 1 FROM patient_doctor_relationships WHERE doctor_id = $1 AND patient_id = $2 AND status = 'active'
-                 UNION
-                 SELECT 1 FROM appointments WHERE doctor_id = $1 AND patient_id = $2;`,
+                `SELECT 1 FROM patient_doctor_relationships WHERE doctor_id = $1 AND patient_id = $2 AND status = 'active';`,
                 [req.user.id, patientId]
             );
 
@@ -128,9 +175,9 @@ async function getPatientUnifiedHistory(req, res, next) {
              FROM documents d
              LEFT JOIN document_ocr o ON d.id = o.document_id
              LEFT JOIN ai_summaries s ON d.id = s.document_id
-             WHERE d.patient_id = $1
+             WHERE d.patient_id = $1 AND ${documentConsentSql('d', '$2')}
              ORDER BY d.created_at DESC;`,
-            [patientId]
+            [patientId, req.user.id]
         );
 
         // 5. Fetch Past Consultations
@@ -342,7 +389,8 @@ async function getPublicDoctors(req, res, next) {
              WHERE u.role = 'doctor'
                AND u.is_active = true
                AND d.verification_status = 'verified'
-             ORDER BY u.first_name ASC;`
+               AND ($2::text NOT IN ('receptionist', 'nurse', 'admin') OR u.id = (SELECT created_by_doctor_id FROM users WHERE id = $1))
+             ORDER BY u.first_name ASC;`, [req.user.id, req.user.role]
         );
 
         const doctors = result.rows.map(r => ({
@@ -533,23 +581,23 @@ async function confirmPatientPairing(req, res, next) {
 
         const patientId = pairingTokenRow.patient_id;
 
-        // Mark token as used
-        await pool.query(
-            `UPDATE patient_qr_pairing_tokens
-             SET used_at = CURRENT_TIMESTAMP, used_by_doctor_id = $1
-             WHERE id = $2;`,
+        // Consume once and establish the relationship in the same database statement.
+        const relRes = await pool.query(
+            `WITH consumed AS (
+                UPDATE patient_qr_pairing_tokens
+                SET used_at = CURRENT_TIMESTAMP, used_by_doctor_id = $1
+                WHERE id = $2 AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+                RETURNING patient_id
+             )
+             INSERT INTO patient_doctor_relationships (patient_id, doctor_id, status, consent_method)
+             SELECT patient_id, $1, 'active', 'qr_scan' FROM consumed
+             ON CONFLICT (patient_id, doctor_id) DO UPDATE
+             SET status = 'active', updated_at = CURRENT_TIMESTAMP RETURNING *;`,
             [doctorId, pairingTokenRow.id]
         );
-
-        // Upsert relationship
-        const relRes = await pool.query(
-            `INSERT INTO patient_doctor_relationships (patient_id, doctor_id, status, consent_method)
-             VALUES ($1, $2, 'active', 'qr_scan')
-             ON CONFLICT (patient_id, doctor_id) DO UPDATE
-             SET status = 'active', updated_at = CURRENT_TIMESTAMP
-             RETURNING *;`,
-            [patientId, doctorId]
-        );
+        if (!relRes.rows.length) {
+            return res.status(409).json({ message: "Pairing code has already been used or expired." });
+        }
 
         return res.status(200).json({
             success: true,
@@ -606,7 +654,7 @@ async function getDoctorPatients(req, res, next) {
                 email: row.email,
                 phone: row.phone,
                 gender: row.gender || "Not recorded",
-                age: age || 30,
+                age: age,
                 state: row.state || "Not recorded",
                 lastVisit: row.last_visit ? new Date(row.last_visit).toLocaleDateString("en-IN") : "No visits recorded",
                 status: "Granted",
@@ -635,10 +683,14 @@ async function revokePatientConnection(req, res, next) {
         const { patientId } = req.params;
 
         const result = await pool.query(
-            `UPDATE patient_doctor_relationships
-             SET status = 'revoked', updated_at = CURRENT_TIMESTAMP
-             WHERE doctor_id = $1 AND patient_id = $2
-             RETURNING *;`,
+            `WITH revoked AS (
+                UPDATE patient_doctor_relationships SET status = 'revoked', updated_at = CURRENT_TIMESTAMP
+                WHERE doctor_id = $1 AND patient_id = $2 RETURNING *
+             ), revoked_documents AS (
+                UPDATE document_access da SET revoked_at = CURRENT_TIMESTAMP
+                FROM documents d, revoked r
+                WHERE da.document_id = d.id AND d.patient_id = r.patient_id AND da.user_id = r.doctor_id
+             ) SELECT * FROM revoked;`,
             [doctorId, patientId]
         );
 
@@ -652,6 +704,7 @@ async function revokePatientConnection(req, res, next) {
 }
 
 module.exports = {
+    updateOwnProfile,
     getDoctorQueue,
     getPatientUnifiedHistory,
     confirmConsultation,

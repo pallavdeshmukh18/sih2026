@@ -84,6 +84,9 @@ async function processVoiceTurn(req, res, next) {
         }
 
         const session = sessionRes.rows[0];
+        if (session.patient_id !== req.user.id) {
+            return res.status(403).json({ message: "Access denied to this clinical session." });
+        }
         if (session.status !== "active") {
             return res.status(400).json({
                 success: false,
@@ -225,7 +228,7 @@ async function getSessionById(req, res, next) {
             `SELECT cs.*, a.doctor_id, a.scheduled_at,
                     u.first_name AS patient_first_name, u.last_name AS patient_last_name
              FROM clinical_sessions cs
-             JOIN appointments a ON cs.appointment_id = a.id
+             LEFT JOIN appointments a ON cs.appointment_id = a.id
              JOIN users u ON cs.patient_id = u.id
              WHERE cs.id = $1;`,
             [sessionId]
@@ -238,6 +241,9 @@ async function getSessionById(req, res, next) {
             });
         }
 
+        if (result.rows[0].patient_id !== req.user.id) {
+            return res.status(403).json({ message: "Access denied to this clinical session." });
+        }
         return res.status(200).json({
             success: true,
             session: result.rows[0],

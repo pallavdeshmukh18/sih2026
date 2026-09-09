@@ -21,6 +21,13 @@ async function createAppointment(req, res, next) {
             });
         }
 
+        const scheduledDate = new Date(scheduledAt);
+        if (!Number.isFinite(scheduledDate.getTime()) || scheduledDate <= new Date()
+            || !Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 240
+            || !["in_person", "video", "follow_up"].includes(appointmentType)) {
+            return res.status(400).json({ message: "Choose a future appointment, a valid type, and duration between 1 and 240 minutes." });
+        }
+
         // REQUIREMENT 5 & 12: Enforce completed AI clinical assessment before booking
         if (!activeSessionId) {
             return res.status(400).json({
@@ -87,7 +94,6 @@ async function createAppointment(req, res, next) {
         }
 
         // REQUIREMENT 13: Prevent double booking for same doctor and scheduled_at
-        const scheduledDate = new Date(scheduledAt);
         const conflictCheck = await pool.query(
             `SELECT id FROM appointments
              WHERE doctor_id = $1
@@ -126,11 +132,15 @@ async function createAppointment(req, res, next) {
             const newAppointment = result.rows[0];
 
             // Link clinical session to new appointment
-            await client.query(
-                `UPDATE clinical_sessions SET appointment_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2;`,
+            const linkedSession = await client.query(
+                `UPDATE clinical_sessions SET appointment_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND appointment_id IS NULL RETURNING id;`,
                 [newAppointment.id, activeSessionId]
             );
 
+            if (!linkedSession.rows.length) {
+                await client.query("ROLLBACK;");
+                return res.status(409).json({ message: "This assessment is already linked to an appointment." });
+            }
             await client.query("COMMIT;");
 
             return res.status(201).json({
@@ -140,7 +150,7 @@ async function createAppointment(req, res, next) {
             });
         } catch (dbErr) {
             await client.query("ROLLBACK;");
-            if (dbErr.code === "23505") { // unique constraint violation
+            if (["23505", "23P01"].includes(dbErr.code)) { // unique constraint violation
                 return res.status(409).json({
                     success: false,
                     message: "That appointment slot is no longer available.",
@@ -170,6 +180,9 @@ async function getAvailableSlots(req, res, next) {
             });
         }
 
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(new Date(`${date}T00:00:00Z`).getTime())) {
+            return res.status(400).json({ message: "Invalid date. Use YYYY-MM-DD." });
+        }
         // Verify doctor
         const docCheck = await pool.query(
             `SELECT u.id
@@ -197,34 +210,26 @@ async function getAvailableSlots(req, res, next) {
 
         // Query existing booked appointments for doctor on target date
         const bookedRes = await pool.query(
-            `SELECT scheduled_at
+            `SELECT scheduled_at, duration_minutes
              FROM appointments
              WHERE doctor_id = $1
-               AND DATE(scheduled_at) = $2
+               AND DATE(scheduled_at AT TIME ZONE 'Asia/Kolkata') = $2
                AND status IN ('scheduled', 'confirmed');`,
             [doctorId, date]
         );
 
-        const bookedSet = new Set(
-            bookedRes.rows.map(r => {
-                const d = new Date(r.scheduled_at);
-                const hours = String(d.getHours()).padStart(2, "0");
-                const mins = String(d.getMinutes()).padStart(2, "0");
-                return `${hours}:${mins}`;
-            })
-        );
-
         const now = new Date();
-        const targetDate = new Date(date);
-        const isToday = targetDate.toDateString() === now.toDateString();
 
         const slots = standardSlotTimes.map(timeStr => {
             const [h, m] = timeStr.split(":").map(Number);
-            const slotDateTime = new Date(targetDate);
-            slotDateTime.setHours(h, m, 0, 0);
+            const slotDateTime = new Date(`${date}T${timeStr}:00+05:30`);
 
-            const isPast = isToday && slotDateTime <= now;
-            const isBooked = bookedSet.has(timeStr);
+            const isPast = slotDateTime <= now;
+            const isBooked = bookedRes.rows.some(row => {
+                const start = new Date(row.scheduled_at).getTime();
+                const end = start + row.duration_minutes * 60000;
+                return slotDateTime.getTime() < end && slotDateTime.getTime() + 30 * 60000 > start;
+            });
             const available = !isPast && !isBooked;
 
             const period = h >= 12 ? "PM" : "AM";
@@ -378,20 +383,22 @@ async function updateAppointmentStatus(req, res, next) {
             });
         }
 
-        const result = await pool.query(
-            `UPDATE appointments
-             SET status = $1, updated_at = CURRENT_TIMESTAMP
-             WHERE id = $2
-             RETURNING *;`,
-            [status, appointmentId]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Appointment not found",
-            });
+        const existing = await pool.query("SELECT * FROM appointments WHERE id = $1", [appointmentId]);
+        const appointment = existing.rows[0];
+        if (!appointment) return res.status(404).json({ message: "Appointment not found" });
+        const isPatient = req.user.role === "patient" && appointment.patient_id === req.user.id;
+        const isDoctor = req.user.role === "doctor" && appointment.doctor_id === req.user.id;
+        if (!isPatient && !isDoctor) return res.status(403).json({ message: "Access denied to this appointment." });
+        if (isPatient && status !== "cancelled") return res.status(403).json({ message: "Patients may only cancel appointments." });
+        if (!["scheduled", "confirmed"].includes(appointment.status)) {
+            return res.status(409).json({ message: "This appointment is already closed." });
         }
+        const result = await pool.query(
+            `UPDATE appointments SET status = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2 AND status = $3 RETURNING *;`,
+            [status, appointmentId, appointment.status]
+        );
+        if (!result.rows.length) return res.status(409).json({ message: "Appointment changed. Please refresh." });
 
         return res.status(200).json({
             success: true,
