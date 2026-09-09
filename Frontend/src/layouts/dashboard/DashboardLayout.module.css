@@ -124,6 +124,8 @@
 @media(max-width:1100px){.patientLayout .mainWrapper{margin-left:76px}.patientLayout .patientSidebarOpen{margin-left:210px}}
 @media(max-width:760px){.patientLayout .mainWrapper,.patientLayout .patientSidebarOpen{margin-left:0}}
 .doctorLayout .mainWrapper{margin-left:238px;background:#f7f9f8}
+.doctorLayout .mainWrapper{transition:margin-left .24s ease}
+.doctorLayout .doctorSidebarCollapsed{margin-left:76px}
 .doctorLayout .mainContent{padding:18px 20px 24px;background:#f7f9f8}
-@media(max-width:1100px){.doctorLayout .mainWrapper{margin-left:210px}}
-@media(max-width:760px){.doctorLayout .mainWrapper{margin-left:0}}
+@media(max-width:1100px){.doctorLayout .mainWrapper{margin-left:210px}.doctorLayout .doctorSidebarCollapsed{margin-left:76px}}
+@media(max-width:760px){.doctorLayout .mainWrapper,.doctorLayout .doctorSidebarCollapsed{margin-left:0}}

@@ -127,7 +127,6 @@ export default function Appointments() {
         <h1>{t("appointments.title", "Your Appointments")}</h1>
         <p>{t("appointments.subtitle", "View and manage your upcoming and past consultations.")}</p>
       </div>
-      <blockquote>{t("schedule.quote", "“Small Details. Bigger Care.”")}</blockquote>
       <button onClick={() => navigate("/patient/doctor")}><Plus /> {t("appointments.bookNew", "Book Appointment")}</button>
     </header>
     <div className={styles.layout}>

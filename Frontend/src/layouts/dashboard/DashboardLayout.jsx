@@ -14,8 +14,8 @@ const DashboardLayout = () => {
     return (
         <div className={`${styles.layout} ${isPatient ? styles.patientLayout : styles.doctorLayout}`}>
             <TopBar />
-            <Sidebar onHoverChange={isPatient ? setSidebarHovered : undefined} />
-            <div className={`${styles.mainWrapper} ${isPatient && sidebarHovered ? styles.patientSidebarOpen : ''}`}>
+            <Sidebar onHoverChange={setSidebarHovered} collapsed={!isPatient && !sidebarHovered} />
+            <div className={`${styles.mainWrapper} ${isPatient && sidebarHovered ? styles.patientSidebarOpen : ''} ${!isPatient && !sidebarHovered ? styles.doctorSidebarCollapsed : ''}`}>
                 <main className={styles.mainContent}>
                     <Outlet />
                 </main>

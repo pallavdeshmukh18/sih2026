@@ -1,13 +1,10 @@
-try:
-    import chromadb
-    from sentence_transformers import SentenceTransformer
-    _model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
-    _client = chromadb.PersistentClient(path="./chroma_store")
-    _collection = _client.get_or_create_collection(name="patient_documents")
-except Exception as e:
-    _model = None
-    _client = None
-    _collection = None
+import logging
+from typing import List, Dict, Any
+
+logger = logging.getLogger("medikiosk.embeddings.store")
+
+# In-memory document chunks store
+_stored_docs: List[Dict[str, Any]] = []
 
 
 def chunk_text(
@@ -15,21 +12,15 @@ def chunk_text(
     chunk_size: int = 300,
     overlap: int = 50
 ) -> list[str]:
-
     words = text.split()
-
     if not words:
         return []
 
     chunks = []
-
-    step = chunk_size - overlap
+    step = max(1, chunk_size - overlap)
 
     for i in range(0, len(words), step):
-        chunk = " ".join(
-            words[i:i + chunk_size]
-        )
-
+        chunk = " ".join(words[i:i + chunk_size])
         if chunk.strip():
             chunks.append(chunk)
 
@@ -41,15 +32,7 @@ def store_document(
     document_id: str,
     extracted_doc,
     raw_text: str
-):
-    if _model is None or _collection is None:
-        return {
-            "document_id": document_id,
-            "chunks_stored": 0,
-            "status": "skipped",
-            "message": "ChromaDB vector store skipped"
-        }
-
+) -> dict:
     chunks = chunk_text(raw_text)
 
     if not chunks:
@@ -59,41 +42,22 @@ def store_document(
             "status": "empty"
         }
 
-    embeddings = _model.encode(
-        chunks
-    ).tolist()
+    for i, chunk in enumerate(chunks):
+        _stored_docs.append({
+            "id": f"{document_id}_{i}",
+            "text": chunk,
+            "metadata": {
+                "patient_id": patient_id,
+                "document_id": document_id,
+                "document_type": getattr(extracted_doc, "document_type", "prescription"),
+                "document_date": getattr(extracted_doc, "document_date", None) or "unknown"
+            }
+        })
 
-    ids = [
-        f"{document_id}_{i}"
-        for i in range(len(chunks))
-    ]
-
-    metadatas = [
-        {
-            "patient_id": patient_id,
-            "document_id": document_id,
-            "document_type": getattr(extracted_doc, "document_type", "prescription"),
-            "document_date": (
-                getattr(extracted_doc, "document_date", None)
-                or "unknown"
-            )
-        }
-        for _ in chunks
-    ]
-
-    _collection.add(
-        ids=ids,
-        embeddings=embeddings,
-        documents=chunks,
-        metadatas=metadatas
-    )
-
-    print(
-        f"Stored document {document_id}: "
-        f"{len(chunks)} chunk(s)"
-    )
+    logger.info(f"Stored document {document_id}: {len(chunks)} chunk(s)")
 
     return {
         "document_id": document_id,
-        "chunks_stored": len(chunks)
+        "chunks_stored": len(chunks),
+        "status": "stored"
     }

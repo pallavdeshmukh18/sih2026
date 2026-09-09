@@ -8,7 +8,7 @@ import styles from './Sidebar.module.css';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n';
 
-const Sidebar = ({ onHoverChange }) => {
+const Sidebar = ({ onHoverChange, collapsed = false }) => {
     const { user, logout } = useAuth();
     const { t } = useLanguage();
     const role = user?.role || 'patient';
@@ -16,7 +16,7 @@ const Sidebar = ({ onHoverChange }) => {
 
     return (
         <aside
-            className={`${styles.sidebar} ${role === 'patient' ? styles.patientSidebar : role === 'doctor' ? styles.doctorSidebar : ''}`}
+            className={`${styles.sidebar} ${role === 'patient' ? styles.patientSidebar : role === 'doctor' ? styles.doctorSidebar : ''} ${collapsed ? styles.collapsed : ''}`}
             onMouseEnter={() => onHoverChange?.(true)}
             onMouseLeave={() => onHoverChange?.(false)}
         >
@@ -91,7 +91,7 @@ const Sidebar = ({ onHoverChange }) => {
                         </NavLink>
                     )}
                     
-                    {role !== 'receptionist' && (
+                    {role === 'patient' && (
                         <NavLink to={`${basePath}/schedule`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                             <Calendar size={20} />
                             <span>{t('navigation.schedule')}</span>
