@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
 import {
   startClinicalSession,
@@ -7,21 +8,59 @@ import {
   sendClinicalVoiceTurn,
   finalizeClinicalSession,
   getPatientAppointments,
+  getMedicalId,
 } from "../../services/api";
-import { ArrowLeft, Send, CheckCircle2, AlertCircle, Sparkles, Stethoscope, Mic, Square, Loader2 } from "lucide-react";
+import {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  BrainCircuit,
+  Calendar,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Droplet,
+  FileText,
+  FlaskConical,
+  HeartPulse,
+  Loader2,
+  Mic,
+  Pill,
+  Plus,
+  Send,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  Square,
+  Stethoscope,
+  User,
+  X,
+  Zap,
+} from "lucide-react";
 import { useLanguage } from "../../i18n";
+import heroImage from "../../assets/teleconsult-hero.png";
 import styles from "./ClinicalAssessment.module.css";
 
-const COMMON_CHIEF_COMPLAINTS = [
-  "Fever & Chills",
-  "Severe Headache",
-  "Cough & Cold",
-  "Chest Pain",
-  "Abdominal Pain",
-  "Joint / Muscle Pain",
-  "Shortness of Breath",
-  "Skin Rash",
+const formatRecordDate = (value) => {
+  if (!value) return "Not recorded";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Not recorded" : date.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+};
+
+const SYMPTOM_CARDS = [
+  { id: "Fever & Chills", label: "Fever & Chills", icon: Droplet, color: "#e11d48", bg: "#ffe4e6" },
+  { id: "Severe Headache", label: "Severe Headache", icon: BrainCircuit, color: "#7c3aed", bg: "#ede9fe" },
+  { id: "Cough & Cold", label: "Cough & Cold", icon: Activity, color: "#0284c7", bg: "#e0f2fe" },
+  { id: "Chest Pain", label: "Chest Pain", icon: HeartPulse, color: "#dc2626", bg: "#fee2e2" },
+  { id: "Abdominal Pain", label: "Abdominal Pain", icon: ShieldAlert, color: "#d97706", bg: "#fef3c7" },
+  { id: "Joint / Muscle Pain", label: "Joint / Muscle Pain", icon: Zap, color: "#ea580c", bg: "#ffedd5" },
+  { id: "Shortness of Breath", label: "Shortness of Breath", icon: Stethoscope, color: "#059669", bg: "#d1fae5" },
+  { id: "Skin Rash", label: "Skin Rash", icon: Sparkles, color: "#9333ea", bg: "#f3e8ff" },
 ];
+
+const COMMON_CHIEF_COMPLAINTS = SYMPTOM_CARDS.map(s => s.id);
 
 const getDynamicOptions = (question, language = "en") => {
   const lang = (language || "en").toLowerCase();
@@ -81,6 +120,7 @@ export default function ClinicalAssessment() {
   const [isCompleted, setIsCompleted] = useState(false);
   const [summary, setSummary] = useState("");
   const [error, setError] = useState(null);
+  const [healthSummary, setHealthSummary] = useState(null);
 
   // Voice Input States
   const [sessionLanguage, setSessionLanguage] = useState(currentLanguage || "en");
@@ -90,6 +130,13 @@ export default function ClinicalAssessment() {
   const [lastTranscript, setLastTranscript] = useState("");
   const [micError, setMicError] = useState(null);
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    getMedicalId(token).then((response) => {
+      if (response.success && response.medicalId) setHealthSummary(response.medicalId);
+    }).catch(() => {});
+  }, [token]);
 
   useEffect(() => {
     let interval = null;
@@ -112,6 +159,8 @@ export default function ClinicalAssessment() {
   };
 
   const complaintFromUrl = searchParams.get("complaint");
+
+
 
   useEffect(() => {
     async function loadAppointments() {
@@ -399,282 +448,388 @@ export default function ClinicalAssessment() {
   };
 
   return (
-    <div className={styles.container}>
-      <header className={styles.header}>
+    <motion.main
+      className={`${styles.page} workspacePage`}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+    >
+      <header className={styles.hero}>
+        <img src={heroImage} alt="Clinical assessment hero" />
+        <div className={styles.heroCopy}>
+          <span>{t("assessment.badge", "CLINICAL TRIAGE")}</span>
+          <h1>{t("assessment.title", "Clinical Assessment")}</h1>
+          <p>{t("assessment.subtitle", "Evaluate your symptoms with AI-assisted clinical triage before consulting with your doctor.")}</p>
+        </div>
         <button
           onClick={() => navigate("/patient/dashboard")}
-          className={styles.backBtn}
+          className={styles.heroBackBtn}
           aria-label="Back to Dashboard"
         >
-          <ArrowLeft size={18} /> {t("common.back")}
+          <ArrowLeft size={15} /> {t("common.back", "Back")}
         </button>
-        <div style={{ flex: 1 }}>
-          <h1 className={styles.title}>{t("assessment.title")}</h1>
-          <p className={styles.subtitle}>
-            {t("assessment.subtitle")}
-          </p>
-        </div>
       </header>
 
-      {error && (
-        <div
-          style={{
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
-            color: "#991b1b",
-            padding: "12px 16px",
-            borderRadius: "10px",
-            fontSize: "13px",
-            marginBottom: "20px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <AlertCircle size={16} /> {error}
-        </div>
-      )}
+      <div className={styles.layout}>
+        <div className={styles.mainColumn}>
+          {/* Feature Hero Card */}
+          <section className={styles.requestCard}>
+            <div className={styles.requestCardLeft}>
+              <span className={styles.requestCardIcon}><Stethoscope size={22} color="#087b6d" /></span>
+              <div>
+                <h2>{t("assessment.intakeHeroTitle", "Intelligent Pre-Consultation Triage")}</h2>
+                <p>{t("assessment.intakeHeroSubtitle", "Answer guided diagnostic questions to generate a clinical briefing for your doctor.")}</p>
+              </div>
+            </div>
+            <div className={styles.badgePill}>
+              <Sparkles size={13} /> {t("assessment.aiAssist", "AI Clinical Assist")}
+            </div>
+          </section>
 
-      {!sessionId && (
-        <form onSubmit={handleStartSession} className={styles.startCard}>
-          {appointments.length > 0 && (
-            <div style={{ marginBottom: "20px" }}>
-              <label className={styles.label}>{t("assessment.selectApptOptional")}:</label>
-              <select
-                value={selectedAppointmentId}
-                onChange={(e) => setSelectedAppointmentId(e.target.value)}
-                className={styles.inputField}
-              >
-                {appointments.map((appt) => (
-                  <option key={appt.id} value={appt.id}>
-                    Dr. {appt.doctor_first_name} {appt.doctor_last_name} ({appt.specialization || "General"}) - {new Date(appt.scheduled_at).toLocaleDateString()}
-                  </option>
-                ))}
-              </select>
+          {error && (
+            <div className={styles.errorAlert}>
+              <AlertCircle size={16} />
+              <span>{error}</span>
             </div>
           )}
 
-          <label className={styles.label}>{t("assessment.chiefComplaintPrompt")}</label>
-          <div className={styles.complaintChips}>
-            {COMMON_CHIEF_COMPLAINTS.map((item) => (
-              <button
-                type="button"
-                key={item}
-                className={`${styles.chip} ${chiefComplaint === item ? styles.chipActive : ""}`}
-                onClick={() => {
-                  setChiefComplaint(item);
-                  setCustomComplaint("");
-                }}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
+          {!sessionId && (
+            <form onSubmit={handleStartSession} className={styles.triageCard}>
+              <header className={styles.cardHeader}>
+                <h3>{t("assessment.chiefComplaintPrompt", "What is your main symptom or health concern today?")}</h3>
+                <p>{t("assessment.selectPrimaryDesc", "Select your primary symptom to begin adaptive clinical questioning:")}</p>
+              </header>
 
-          <label className={styles.label}>{t("assessment.customComplaintPrompt", "Or describe in your own words:")}</label>
-          <input
-            type="text"
-            className={styles.inputField}
-            placeholder={t("assessment.customComplaintPlaceholder", "e.g. Sharp pain in lower back since yesterday")}
-            value={customComplaint}
-            onChange={(e) => {
-              setCustomComplaint(e.target.value);
-              setChiefComplaint("");
-            }}
-          />
+              <div className={styles.symptomGrid}>
+                {SYMPTOM_CARDS.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = chiefComplaint === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`${styles.symptomCard} ${isActive ? styles.symptomCardActive : ""}`}
+                      onClick={() => {
+                        setChiefComplaint(item.id);
+                        setCustomComplaint("");
+                      }}
+                    >
+                      <div className={styles.symptomIcon} style={{ background: item.bg, color: item.color }}>
+                        <Icon size={17} />
+                      </div>
+                      <span className={styles.symptomLabel}>{item.label}</span>
+                      <div className={styles.symptomRadio}>
+                        {isActive && <Check size={11} />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
 
-          <button type="submit" className={styles.primaryBtn} disabled={loading}>
-            {loading ? t("assessment.starting", "Starting Assessment...") : t("assessment.beginAssessment", "Begin Assessment")} <Sparkles size={16} />
-          </button>
-        </form>
-      )}
+              <div className={styles.customSection}>
+                <label className={styles.sectionLabel}>
+                  <span>{t("assessment.customComplaintPrompt", "Or describe your symptoms in your own words")}</span>
+                  <small>{t("common.optional", "Optional")}</small>
+                </label>
+                <div className={styles.customInputBox}>
+                  <FileText size={16} className={styles.customIcon} />
+                  <input
+                    type="text"
+                    className={styles.customInput}
+                    placeholder={t("assessment.customComplaintPlaceholder", "e.g., Throbbing temple headache since this morning, mild nausea...")}
+                    value={customComplaint}
+                    onChange={(e) => {
+                      setCustomComplaint(e.target.value);
+                      setChiefComplaint("");
+                    }}
+                  />
+                  {customComplaint && (
+                    <button type="button" onClick={() => setCustomComplaint("")} className={styles.clearBtn} aria-label="Clear input">
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
 
-      {sessionId && !isCompleted && (
-        <div className={styles.chatWindow}>
-          <div className={styles.questionCard}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#0d9488", fontSize: "12px", fontWeight: "700", marginBottom: "8px" }}>
-              <Stethoscope size={16} /> {t("assessment.intakeAssistant", "CLINICAL AI QUESTION")}
-            </div>
-            <div className={styles.questionText}>{currentQuestion}</div>
-
-            {/* Option-based choices */}
-            <div className={styles.optionsGrid}>
-              {(options && options.length > 0
-                ? options
-                : getDynamicOptions(currentQuestion, currentLanguage)
-              ).map((opt, idx) => {
-                const label = typeof opt === "string" ? opt : opt.label || opt.id;
-                const key = typeof opt === "string" ? `${opt}-${idx}` : opt.id || idx;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={styles.optionBtn}
-                    onClick={() => handleSendResponse(label)}
-                    disabled={loading || isRecording || isProcessingVoice}
+              {appointments.length > 0 && (
+                <div className={styles.apptLinkRow}>
+                  <label><Calendar size={14} /> {t("assessment.selectApptOptional", "Link with Upcoming Appointment")}:</label>
+                  <select
+                    value={selectedAppointmentId}
+                    onChange={(e) => setSelectedAppointmentId(e.target.value)}
                   >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+                    {appointments.map((appt) => (
+                      <option key={appt.id} value={appt.id}>
+                        Dr. {appt.doctor_first_name} {appt.doctor_last_name} ({appt.specialization || "General"}) - {new Date(appt.scheduled_at).toLocaleDateString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-            {/* Custom typed / spoken response option */}
-            <div className={styles.customAnswerSection}>
-              <span className={styles.customAnswerLabel}>{t("assessment.typeAnswer", "Or type a specific response:")}</span>
-              <div className={styles.inputGroup}>
-                <input
-                  type="text"
-                  className={styles.inputField}
-                  style={{ marginBottom: 0 }}
-                  placeholder={t("assessment.typeAnswerPlaceholder") || "Type your answer here..."}
-                  value={customAnswerText}
-                  onChange={(e) => setCustomAnswerText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleSendResponse();
-                    }
-                  }}
-                  disabled={loading || isRecording || isProcessingVoice}
-                />
+              <footer className={styles.cardFooter}>
+                <div className={styles.securityHint}>
+                  <ShieldCheck size={16} color="#087b6d" />
+                  <span>{t("assessment.clinicalGrade", "Clinical-grade triage · Encrypted & Private")}</span>
+                </div>
+                <button type="submit" className={styles.startBtn} disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 size={15} className={styles.spin} />
+                      <span>{t("assessment.starting", "Initializing Session...")}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{t("assessment.beginAssessment", "Begin Assessment")}</span>
+                      <ArrowRight size={15} />
+                    </>
+                  )}
+                </button>
+              </footer>
+            </form>
+          )}
+
+          {sessionId && !isCompleted && (
+            <div className={styles.chatWindow}>
+              <div className={styles.questionCard}>
+                <div className={styles.questionBadge}>
+                  <Stethoscope size={13} /> {t("assessment.intakeAssistant", "CLINICAL AI QUESTION")}
+                </div>
+                <div className={styles.questionText}>{currentQuestion}</div>
+
+                {/* Option-based choices */}
+                <div className={styles.optionsGrid}>
+                  {(options && options.length > 0
+                    ? options
+                    : getDynamicOptions(currentQuestion, currentLanguage)
+                  ).map((opt, idx) => {
+                    const label = typeof opt === "string" ? opt : opt.label || opt.id;
+                    const key = typeof opt === "string" ? `${opt}-${idx}` : opt.id || idx;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        className={styles.optionBtn}
+                        onClick={() => handleSendResponse(label)}
+                        disabled={loading || isRecording || isProcessingVoice}
+                      >
+                        <span>{label}</span>
+                        <ArrowRight size={14} className={styles.optionArrow} />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Custom typed / spoken response option */}
+                <div className={styles.customAnswerSection}>
+                  <span className={styles.customAnswerLabel}>{t("assessment.typeAnswer", "Or type a specific response:")}</span>
+                  <div className={styles.inputGroup}>
+                    <input
+                      type="text"
+                      className={styles.customInput}
+                      placeholder={t("assessment.typeAnswerPlaceholder") || "Type your answer here..."}
+                      value={customAnswerText}
+                      onChange={(e) => setCustomAnswerText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleSendResponse();
+                        }
+                      }}
+                      disabled={loading || isRecording || isProcessingVoice}
+                    />
+                    <button
+                      type="button"
+                      className={styles.sendBtn}
+                      onClick={() => handleSendResponse()}
+                      disabled={loading || isRecording || isProcessingVoice || !customAnswerText.trim()}
+                    >
+                      <Send size={15} />
+                    </button>
+                  </div>
+
+                  {/* Voice Recording Control */}
+                  <div className={styles.voiceSection}>
+                    {!isRecording ? (
+                      <button
+                        type="button"
+                        className={styles.voiceBtn}
+                        onClick={handleStartRecording}
+                        disabled={loading || isProcessingVoice}
+                        aria-label="Speak your answer using microphone"
+                      >
+                        <Mic size={15} />
+                        <span>🎙️ {t("assessment.speakAnswer") || "Speak your answer"}</span>
+                      </button>
+                    ) : (
+                      <div className={styles.recordingActiveContainer}>
+                        <div className={styles.recordingPulseDot}></div>
+                        <span>{t("assessment.recording") || "Recording..."} ({formatDuration(recordingDuration)})</span>
+                        <button
+                          type="button"
+                          className={styles.stopRecordingBtn}
+                          onClick={handleStopRecording}
+                          aria-label="Stop recording"
+                        >
+                          <Square size={11} fill="currentColor" /> {t("assessment.stopRecording") || "Stop"}
+                        </button>
+                      </div>
+                    )}
+
+                    {isProcessingVoice && (
+                      <span className={styles.voiceProcessing}>
+                        <Loader2 size={13} className={styles.spin} /> {t("assessment.processingVoice") || "Transcribing speech..."}
+                      </span>
+                    )}
+                  </div>
+
+                  {micError && (
+                    <div className={styles.micAlert}>
+                      <AlertCircle size={13} /> {micError}
+                    </div>
+                  )}
+
+                  {lastTranscript && !isRecording && (
+                    <div className={styles.transcriptionCard}>
+                      <span className={styles.transcriptionHeader}>{t("assessment.youSaid") || "You said:"}</span>
+                      <p className={styles.transcriptionBody}>"{lastTranscript}"</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className={styles.finalizeBar}>
                 <button
-                  type="button"
-                  className={styles.primaryBtn}
-                  style={{ width: "auto", padding: "0 20px" }}
-                  onClick={() => handleSendResponse()}
-                  disabled={loading || isRecording || isProcessingVoice || !customAnswerText.trim()}
+                  onClick={() => handleFinalize()}
+                  disabled={isFinalizing}
+                  className={styles.finalizeBtn}
                 >
-                  <Send size={16} />
+                  {isFinalizing ? (
+                    <><Loader2 size={14} className={styles.spin} /> {t("account.saving", "Finalizing...")}</>
+                  ) : (
+                    <><CheckCircle2 size={14} /> {t("assessment.completeAssessmentNow", "Complete Assessment Now")}</>
+                  )}
                 </button>
               </div>
 
-              {/* Voice Recording Control */}
-              <div className={styles.voiceSection}>
-                {!isRecording ? (
-                  <button
-                    type="button"
-                    className={styles.voiceBtn}
-                    onClick={handleStartRecording}
-                    disabled={loading || isProcessingVoice}
-                    aria-label="Speak your answer using microphone"
-                  >
-                    <Mic size={16} />
-                    <span>🎙️ {t("assessment.speakAnswer") || "Speak your answer"}</span>
-                  </button>
-                ) : (
-                  <div className={styles.recordingActiveContainer}>
-                    <div className={styles.recordingPulseDot}></div>
-                    <span>{t("assessment.recording") || "Recording..."} ({formatDuration(recordingDuration)})</span>
-                    <button
-                      type="button"
-                      className={styles.stopRecordingBtn}
-                      onClick={handleStopRecording}
-                      aria-label="Stop recording"
-                    >
-                      <Square size={12} fill="currentColor" /> {t("assessment.stopRecording") || "Stop"}
-                    </button>
-                  </div>
-                )}
+              {conversationHistory.length > 0 && (
+                <div className={styles.historySection}>
+                  <div className={styles.historyTitle}>{t("assessment.intakeTranscript", "Intake Transcript")}</div>
+                  {conversationHistory.map((msg, idx) => (
+                    <div key={idx} className={styles.chatTurn}>
+                      {msg.role === "system" ? (
+                        <div className={styles.systemTurn}>
+                          <span className={styles.turnSpeaker}>{t("assessment.doctorAi", "Doctor AI:")}</span>
+                          <p>{msg.content}</p>
+                        </div>
+                      ) : (
+                        <div className={styles.patientTurn}>
+                          <span className={styles.turnSpeaker}>{t("assessment.you", "You:")}</span>
+                          <p>{msg.content}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-                {isProcessingVoice && (
-                  <span style={{ fontSize: "13px", color: "#0d9488", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> {t("assessment.processingVoice") || "Transcribing speech..."}
-                  </span>
-                )}
+          {isCompleted && (
+            <div className={styles.completionCard}>
+              <div className={styles.completionIcon}>
+                <CheckCircle2 size={32} />
               </div>
+              <h2>{t("assessment.assessmentComplete", "Assessment Complete!")}</h2>
+              <p className={styles.completionSub}>
+                {t("assessment.assessmentSuccess", "Your structured clinical history has been successfully created and attached to your record.")}
+              </p>
 
-              {micError && (
-                <div style={{ color: "#b91c1c", fontSize: "12px", marginTop: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
-                  <AlertCircle size={14} /> {micError}
+              {summary && (
+                <div className={styles.summaryBox}>
+                  <strong>{t("assessment.viewSummary", "Clinical Intake Summary for Doctor:")}</strong>
+                  <p>{summary}</p>
                 </div>
               )}
 
-              {lastTranscript && !isRecording && (
-                <div className={styles.transcriptionCard}>
-                  <span className={styles.transcriptionHeader}>{t("assessment.youSaid") || "You said:"}</span>
-                  <p className={styles.transcriptionBody}>"{lastTranscript}"</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button
-              onClick={() => handleFinalize()}
-              disabled={isFinalizing}
-              style={{
-                background: "#f1f5f9",
-                border: "1px solid #cbd5e1",
-                color: "#475569",
-                padding: "8px 16px",
-                borderRadius: "10px",
-                fontSize: "13px",
-                cursor: "pointer",
-              }}
-            >
-              {isFinalizing ? t("account.saving", "Finalizing...") : t("assessment.completeAssessmentNow", "Complete Assessment Now")}
-            </button>
-          </div>
-
-          {conversationHistory.length > 0 && (
-            <div className={styles.historySection}>
-              <div className={styles.historyTitle}>{t("assessment.intakeTranscript", "Intake Transcript")}</div>
-              {conversationHistory.map((msg, idx) => (
-                <div key={idx} className={styles.chatTurn}>
-                  {msg.role === "system" ? (
-                    <span className={styles.systemMsg}>{t("assessment.doctorAi", "Doctor AI:")} {msg.content}</span>
-                  ) : (
-                    <div className={styles.patientMsg}>{t("assessment.you", "You:")} {msg.content}</div>
-                  )}
-                </div>
-              ))}
+              <div className={styles.completionActions}>
+                <button
+                  onClick={() => navigate("/patient/dashboard")}
+                  className={styles.startBtn}
+                  style={{ width: "auto", padding: "0 24px" }}
+                >
+                  {t("assessment.returnDashboard", "Return to Dashboard")}
+                </button>
+                <button
+                  onClick={() => navigate("/patient/history")}
+                  className={styles.secondaryBtn}
+                >
+                  {t("navigation.history", "View History")}
+                </button>
+              </div>
             </div>
           )}
         </div>
-      )}
 
-      {isCompleted && (
-        <div className={styles.completionCard}>
-          <CheckCircle2 size={48} color="#166534" style={{ margin: "0 auto 16px" }} />
-          <h2>{t("assessment.assessmentComplete", "Assessment Complete!")}</h2>
-          <p style={{ color: "#475569", fontSize: "14px" }}>
-            {t("assessment.assessmentSuccess", "Your structured clinical history has been successfully created and attached to your record.")}
-          </p>
-
-          {summary && (
-            <div className={styles.summaryBox}>
-              <strong>{t("assessment.viewSummary", "Clinical Intake Summary for Doctor:")}</strong>
-              <p style={{ marginTop: "8px" }}>{summary}</p>
+        {/* Side Column */}
+        <aside className={styles.sideColumn}>
+          <div className={styles.sideCard}>
+            <h3>{t("assessment.howItWorks", "How Triage Works")}</h3>
+            <div className={styles.stepsList}>
+              <div className={styles.stepItem}>
+                <span className={styles.stepNum}>1</span>
+                <div>
+                  <strong>{t("assessment.step1Title", "Select Chief Complaint")}</strong>
+                  <p>{t("assessment.step1Desc", "Pick your primary symptom or enter a description.")}</p>
+                </div>
+              </div>
+              <div className={styles.stepItem}>
+                <span className={styles.stepNum}>2</span>
+                <div>
+                  <strong>{t("assessment.step2Title", "Interactive Clinical Turn")}</strong>
+                  <p>{t("assessment.step2Desc", "Answer adaptive questions via voice or quick choices.")}</p>
+                </div>
+              </div>
+              <div className={styles.stepItem}>
+                <span className={styles.stepNum}>3</span>
+                <div>
+                  <strong>{t("assessment.step3Title", "Doctor Ready Briefing")}</strong>
+                  <p>{t("assessment.step3Desc", "A structured note is attached to your clinical record.")}</p>
+                </div>
+              </div>
             </div>
-          )}
-
-          <div style={{ display: "flex", gap: "12px", justifyContent: "center", marginTop: "24px" }}>
-            <button
-              onClick={() => navigate("/patient/dashboard")}
-              className={styles.primaryBtn}
-              style={{ width: "auto", padding: "12px 24px" }}
-            >
-              {t("assessment.returnDashboard", "Return to Dashboard")}
-            </button>
-            <button
-              onClick={() => navigate("/patient/history")}
-              style={{
-                background: "#ffffff",
-                border: "1px solid #cbd5e1",
-                color: "#334155",
-                padding: "12px 24px",
-                borderRadius: "12px",
-                fontSize: "14px",
-                cursor: "pointer",
-                fontWeight: "600",
-              }}
-            >
-              {t("navigation.history", "View History")}
-            </button>
           </div>
-        </div>
-      )}
-    </div>
+
+          <div className={styles.sideCard}>
+            <div className={styles.sideCardHeader}>
+              <h3>{t("assessment.profileSnapshot", "Your Medical Profile")}</h3>
+              <button type="button" onClick={() => navigate("/patient/medical-id")}>{t("common.view", "View")}</button>
+            </div>
+            <div className={styles.profileMini}>
+              <div className={styles.miniItem}>
+                <User size={13} color="#087b6d" />
+                <span>{user?.firstName ? `${user.firstName} ${user.lastName || ""}` : "Verified Patient"}</span>
+              </div>
+              <div className={styles.miniItem}>
+                <AlertCircle size={13} color="#e11d48" />
+                <span>{healthSummary?.allergies?.length || 0} {t("medicalId.allergies", "Allergies Recorded")}</span>
+              </div>
+              <div className={styles.miniItem}>
+                <Pill size={13} color="#0d9488" />
+                <span>{healthSummary?.medications?.length || 0} {t("medicalId.currentMedications", "Active Medications")}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.emergencyCard}>
+            <AlertTriangle size={18} />
+            <div>
+              <strong>{t("assessment.emergencyTitle", "Emergency Advisory")}</strong>
+              <p>{t("assessment.emergencyNotice", "If you are experiencing severe chest pain, sudden numbness, or difficulty breathing, call 112 immediately.")}</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </motion.main>
   );
 }

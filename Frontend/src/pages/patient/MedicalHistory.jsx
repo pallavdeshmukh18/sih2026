@@ -115,7 +115,7 @@ export default function MedicalHistory() {
   if (error && !history) return <div className={styles.state}><div className={styles.errorBox}><AlertCircle /><h3>{t("history.error") || "Unable to load medical history."}</h3><p>{error}</p><button onClick={fetchHistory}><RefreshCw /> {t("history.retry") || "Retry"}</button></div></div>;
 
   const statCards = [
-    { label: t("history.totalEvents", "Total Records"), detail: t("history.subtitle", "All your medical events"), count: counts.all, icon: FileText, tone: "green" },
+    { label: t("history.totalEvents", "Total Records"), detail: t("history.completeTimeline", "Your complete timeline"), count: counts.all, icon: FileText, tone: "green" },
     { label: t("history.filterConsultation", "Consultations"), detail: t("history.consultations", "Doctor visits"), count: counts.consultation, icon: Stethoscope, tone: "blue" },
     { label: t("history.prescriptionsCount", "Prescriptions"), detail: t("history.prescriptions", "Medicines prescribed"), count: counts.prescription, icon: Pill, tone: "purple" },
     { label: t("history.labReportsCount", "Lab Tests"), detail: t("history.investigations", "Reports & results"), count: counts.lab_test, icon: FlaskConical, tone: "gold" },
@@ -136,7 +136,7 @@ export default function MedicalHistory() {
   return <motion.main className={`${styles.page} workspacePage`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35 }}>
     <header className={styles.hero}>
       <img src={heroImage} alt="Patient viewing a connected medical history" />
-      <div className={styles.heroCopy}><span>MEDICAL HISTORY</span><h1>Longitudinal Medical History</h1><p>Your complete chronological health timeline aggregating consultations, lab tests, prescriptions, clinical assessments, and uploaded records.</p></div>
+      <div className={styles.heroCopy}><span>MEDICAL HISTORY</span><h1>Longitudinal Medical History</h1><p>Your complete Timeline</p></div>
     </header>
 
     <div className={styles.layout}>

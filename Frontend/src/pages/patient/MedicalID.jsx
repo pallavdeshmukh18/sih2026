@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, AlertCircle, AlertTriangle, ArrowRight, Calendar, CheckCircle2, Clock, Droplet, FileText, FlaskConical, Languages, Loader2, MapPin, Pencil, Pill, Plus, QrCode, RefreshCw, ShieldCheck, Sparkles, Stethoscope, User } from "lucide-react";
+import { Activity, AlertCircle, AlertTriangle, Calendar, Clock, Droplet, Languages, Loader2, MapPin, Pencil, QrCode, RefreshCw, ShieldCheck, Stethoscope, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "../../context/AuthContext";
@@ -136,13 +136,6 @@ export default function MedicalID() {
   if (error) return <div className={styles.state}><div className={styles.errorBox}><AlertCircle /><h3>{t("medicalId.error") || "Unable to load your Medical ID."}</h3><p>{error}</p><button onClick={fetchMedicalId}><RefreshCw /> Retry</button></div></div>;
 
   const patient = data?.patient || {};
-  const allergies = data?.allergies || [];
-  const conditions = data?.conditions || [];
-  const medications = data?.medications || [];
-  const procedures = data?.procedures || [];
-  const investigations = data?.investigations || [];
-  const assessment = data?.recentAssessment;
-  const recordStats = data?.recordStats || { documents: 0 };
   const notRecorded = t("medicalId.notRecorded", "Not recorded");
   const updatedAt = data?.lastUpdated ? new Date(data.lastUpdated).toLocaleDateString("en-IN") : "Not available";
   const bloodGroupValue = (!patient.bloodGroup || patient.bloodGroup === "Not recorded") ? notRecorded : patient.bloodGroup;
@@ -157,7 +150,6 @@ export default function MedicalID() {
     { label: t("medicalId.state", "State / Region"), value: patient.state ? translateClinicalTerm(patient.state, "states", language) : notRecorded, icon: MapPin },
     { label: t("medicalId.preferredLanguage", "Preferred Language"), value: preferredLangDisplay, icon: Languages, capitalize: true },
   ];
-  const badge = (status) => <span className={`${styles.badge} ${styles[status] || styles.reported}`}>{status === "ai_extracted" ? t("medicalId.aiExtracted", "AI Extracted") : status === "verified" ? t("medicalId.verified", "Verified") : t("medicalId.patientReported", "Patient Reported")}</span>;
 
   return <motion.main className={`${styles.page} workspacePage`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35 }}>
     <header className={styles.hero}>
@@ -309,49 +301,5 @@ export default function MedicalID() {
       </div>
     </section>
 
-    {/* Medical History Sections */}
-    <section className={`${styles.healthBand} ${styles.allergyBand}`}>
-      <span className={styles.bandIcon}><AlertTriangle /></span>
-      <div className={styles.bandIntro}>
-        <h2>{t("medicalId.allergies", "Allergies")}</h2>
-        <p>{t("medicalId.allergiesSub", "Known allergies to drugs, foods, or substances.")}</p>
-      </div>
-      <div className={styles.bandContent}>
-        {allergies.length ? allergies.map((item) => <div className={styles.record} key={item.id}><b>{item.allergy}</b>{item.description && <span>{item.description}</span>}{badge(item.verificationStatus)}</div>) : <em>{t("medicalId.noAllergiesRecorded", "No allergies recorded")}</em>}
-      </div>
-      <button className={styles.bandAction} onClick={() => navigate("/patient/assessment")}><Plus /> {t("medicalId.addAllergies", "Add Allergies")}</button>
-    </section>
-
-    <section className={`${styles.healthBand} ${styles.conditionBand}`}>
-      <span className={styles.bandIcon}><Activity /></span>
-      <div className={styles.bandIntro}>
-        <h2>{t("medicalId.conditions", "Conditions & Diagnoses")}</h2>
-        <p>{t("medicalId.conditionsSub", "Current or past medical conditions.")}</p>
-      </div>
-      <div className={styles.bandContent}>
-        {conditions.length ? conditions.map((item) => <div className={styles.record} key={item.id}><b>{item.condition}</b>{item.diagnosedDate && <span>{formatDate(item.diagnosedDate)}</span>}{badge(item.verificationStatus)}</div>) : <em>{t("medicalId.noConditionsRecorded", "No medical conditions recorded")}</em>}
-      </div>
-      <button className={styles.bandAction} onClick={() => navigate("/patient/assessment")}><Plus /> {t("medicalId.addCondition", "Add Condition")}</button>
-    </section>
-
-    <section className={`${styles.healthBand} ${styles.medicationBand}`}>
-      <span className={styles.bandIcon}><Pill /></span>
-      <div className={styles.bandIntro}>
-        <h2>{t("medicalId.currentMedications", "Current Medications")}</h2>
-        <p>{t("medicalId.medicationsSub", "List of medications you are currently taking.")}</p>
-      </div>
-      <div className={styles.bandContent}>
-        {medications.length ? medications.map((item) => <div className={styles.record} key={item.id}><b>{item.medicine}</b><span>{[item.dosage, item.frequency].filter(Boolean).join(" · ")}</span>{badge(item.verificationStatus)}</div>) : <em>{t("medicalId.noMedicationsRecorded", "No current medications recorded")}</em>}
-      </div>
-      <button className={styles.bandAction} onClick={() => navigate("/patient/assessment")}><Plus /> {t("medicalId.addMedication", "Add Medication")}</button>
-    </section>
-
-    <section className={styles.moreDetails}>
-      <article onClick={() => navigate("/patient/history")}><span><Activity /></span><div><h3>{t("medicalId.pastProcedures", "Past Procedures")}</h3><p>{procedures.length ? `${procedures.length} ${t("medicalId.procedures", "Procedures")}` : t("medicalId.noProceduresRecorded", "No procedures recorded")}</p></div><ArrowRight /></article>
-      <article onClick={() => navigate("/patient/documents")}><span><FlaskConical /></span><div><h3>{t("medicalId.investigations", "Tests & Investigations")}</h3><p>{investigations.length ? `${investigations.length} ${t("medicalId.investigations", "Investigations")}` : t("medicalId.noInvestigationsRecorded", "No investigations recorded")}</p></div><ArrowRight /></article>
-      <article onClick={() => navigate("/patient/assessment")}><span><Sparkles /></span><div><h3>{t("medicalId.latestAssessment", "Latest Assessment")}</h3><p>{assessment?.chiefComplaint || t("medicalId.completeAssessmentPrompt", "Complete your clinical assessment")}</p></div><ArrowRight /></article>
-      <article onClick={() => navigate("/patient/documents")}><span><FileText /></span><div><h3>{t("medicalId.medicalRecords", "Medical Records")}</h3><p>{recordStats.documents} {t("documents.filterAll", "Documents")}</p></div><ArrowRight /></article>
-    </section>
-    <footer className={styles.secureNote}><ShieldCheck /><span><b>{t("medicalId.secureInfo", "Your health information is protected.")}</b> {t("medicalId.secureSub", "Only authorized care providers can access this Medical ID.")}</span><CheckCircle2 /></footer>
   </motion.main>;
 }
