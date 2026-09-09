@@ -66,7 +66,16 @@ def get_ontology(complaint_name: str, consultation_type: str = "allopathic") -> 
     normalized = complaint_name.lower().replace(" ", "_")
     base_ontology = ONTOLOGY_REGISTRY.get(normalized, ChiefComplaintOntology(
         complaint_name="generic",
-        required_fields=["onset", "duration", "severity", "associated_symptoms"],
+        required_fields=[
+            "onset",
+            "duration",
+            "location",
+            "character",
+            "severity",
+            "aggravating_factors",
+            "relieving_factors",
+            "associated_symptoms"
+        ],
         optional_fields=["past_history", "medications"]
     ))
 
