@@ -556,33 +556,6 @@
   align-items: flex-start;
 }
 
-.bookingOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(15, 23, 42, .58);
-}
-
-.bookingModal {
-  width: min(100%, 460px);
-  display: grid;
-  gap: 16px;
-  padding: 24px;
-  border: 1px solid #d8e6e1;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 20px 50px rgba(15, 45, 40, .2);
-}
-
-.bookingModal h2 { color: #112139; font-size: 20px; }
-.bookingModal p { color: #64748b; font-size: 13px; }
-.bookingModal label { display: grid; gap: 6px; color: #334155; font-size: 12px; font-weight: 700; }
-.bookingModal input, .bookingModal select { width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; color: #334155; background: #fff; font: inherit; box-sizing: border-box; }
-.bookingActions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
-
 .emergencyCard svg {
   flex-shrink: 0;
   margin-top: 2px;
@@ -934,61 +907,634 @@
   color: #173832;
 }
 
-/* Completion Card */
+/* Completion Section & Cards */
+.completionSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .completionCard {
   background: #ffffff;
   border: 1px solid #cce5dc;
   border-radius: 14px;
-  padding: 34px 28px;
-  text-align: center;
-  box-shadow: 0 10px 30px rgba(10, 170, 144, 0.08);
+  padding: 26px 28px;
+  box-shadow: 0 8px 24px rgba(10, 170, 144, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.completionHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
 }
 
 .completionIcon {
-  width: 60px;
-  height: 60px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: #daf4e8;
   color: #087567;
   display: grid;
   place-items: center;
-  margin: 0 auto 16px;
+  flex-shrink: 0;
 }
 
-.completionCard h2 {
+.completionHeader h2 {
   font-family: 'Playfair Display', serif;
   color: #103830;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
-  margin-bottom: 6px;
+  margin: 0 0 4px 0;
 }
 
 .completionSub {
   color: #597771;
-  font-size: 13px;
-  max-width: 480px;
-  margin: 0 auto;
-  line-height: 1.5;
+  font-size: 12.5px;
+  margin: 0;
+  line-height: 1.45;
 }
 
 .summaryBox {
-  background: #f7fbf9;
+  background: #f8fcfa;
   border-radius: 11px;
-  padding: 18px;
+  padding: 16px 18px;
   text-align: left;
-  margin: 20px 0;
-  font-size: 13.5px;
+  font-size: 13px;
   line-height: 1.6;
   white-space: pre-wrap;
   border: 1px solid #dbe7e2;
   color: #1e3a34;
 }
 
+.summaryHeader {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 750;
+  font-size: 12.5px;
+  color: #0d695b;
+  margin-bottom: 8px;
+}
+
+/* Specialist Recommendation Banner */
+.specialtyBanner {
+  border-radius: 13px;
+  border: 1.5px solid #d3e5df;
+  padding: 18px 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+  position: relative;
+  overflow: hidden;
+}
+
+.specialtyBannerLeft {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.specialtyIconWrap {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.specialtyBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.specialtyTitle {
+  font-size: 15px;
+  font-weight: 750;
+  color: #132d27;
+  margin: 0 0 4px 0;
+}
+
+.specialtyTitle span {
+  color: #077261;
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-color: rgba(7, 114, 97, 0.3);
+}
+
+.specialtyDesc {
+  font-size: 11.5px;
+  color: #55726c;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Booking Prompt & Doctor Cards Grid */
+.bookingPromptSection {
+  background: #fbfdfc;
+  border: 1.5px solid #d8ebe3;
+  border-radius: 13px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bookingPromptHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.bookingPromptHeader h4 {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0c3b31;
+  margin: 0 0 3px 0;
+}
+
+.bookingPromptHeader p {
+  font-size: 11.5px;
+  color: #55726c;
+  margin: 0;
+}
+
+.toggleDoctorsBtn {
+  background: #ffffff;
+  border: 1px solid #c8ded6;
+  color: #087567;
+  padding: 6px 13px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggleDoctorsBtn:hover {
+  background: #eef8f4;
+  border-color: #0aaa90;
+}
+
+.specialistsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.specialistCard {
+  background: #ffffff;
+  border: 1.5px solid #dcece5;
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 2px 8px rgba(10, 170, 144, 0.03);
+}
+
+.specialistCard:hover {
+  border-color: #0aaa90;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(10, 170, 144, 0.1);
+}
+
+.specialistCardActive {
+  border-color: #0aaa90 !important;
+  background: #f7fdfb !important;
+  box-shadow: 0 0 0 2px rgba(10, 170, 144, 0.2), 0 6px 18px rgba(10, 170, 144, 0.1) !important;
+}
+
+.specialistTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.doctorAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e8f6f1;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1.5px solid #c2e5da;
+}
+
+.doctorInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.doctorNameRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.doctorNameRow h5 {
+  font-size: 13px;
+  font-weight: 750;
+  color: #12332c;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.verifiedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #e0f4ec;
+  color: #067a68;
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.docSpecialtyTag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #087b6d;
+}
+
+.docDeptTag {
+  font-size: 10.5px;
+  color: #64817a;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.doctorCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #edf5f1;
+}
+
+.availabilityPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #067a68;
+}
+
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+}
+
+.cardActionBtns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quickBookBtn {
+  padding: 5px 10px;
+  background: #087b6d;
+  color: #ffffff;
+  border: none;
+  border-radius: 7px;
+  font-size: 10.5px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quickBookBtn:hover {
+  background: #056358;
+  transform: translateY(-1px);
+}
+
+.quickTeleconsultBtn {
+  padding: 5px 10px;
+  background: #eef8f4;
+  color: #087567;
+  border: 1px solid #bde2d5;
+  border-radius: 7px;
+  font-size: 10.5px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quickTeleconsultBtn:hover {
+  background: #e0f4ec;
+  border-color: #0aaa90;
+  transform: translateY(-1px);
+}
+
+.customDoctorBookingBanner {
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+/* Booking Success Card */
+.bookingSuccessCard {
+  background: #ffffff;
+  border: 1.5px solid #a7f3d0;
+  border-radius: 14px;
+  padding: 32px 28px;
+  text-align: center;
+  box-shadow: 0 8px 30px rgba(5, 150, 105, 0.08);
+}
+
+.bookingSuccessIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #d1fae5;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 16px;
+}
+
+.bookingSuccessCard h2 {
+  font-family: 'Playfair Display', serif;
+  color: #064e3b;
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+}
+
+.bookingSuccessSub {
+  color: #047857;
+  font-size: 13px;
+  max-width: 500px;
+  margin: 0 auto 20px;
+  line-height: 1.5;
+}
+
+.bookedDetailsBox {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  max-width: 480px;
+  margin: 0 auto 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.bookedDetailRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+}
+
+.bookedLabel {
+  color: #065f46;
+  font-weight: 600;
+}
+
+.bookedValue {
+  color: #064e3b;
+  font-weight: 750;
+  text-align: right;
+}
+
+/* Modal Overlay & Modal Window */
+.bookingOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.bookingModal {
+  width: min(100%, 500px);
+  background: #ffffff;
+  border: 1px solid #cce5dc;
+  border-radius: 16px;
+  padding: 24px 26px;
+  box-shadow: 0 20px 50px rgba(10, 50, 45, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e3ede8;
+}
+
+.modalHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modalIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #e8f6f1;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.modalHeader h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: #103830;
+  margin: 0 0 2px 0;
+}
+
+.modalHeader p {
+  font-size: 11.5px;
+  color: #597771;
+  margin: 0;
+}
+
+.modalCloseBtn {
+  background: #f1f5f9;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.modalCloseBtn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+.formLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 750;
+  color: #1b3d36;
+}
+
+.formSelect, .formInput {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 9px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1e293b;
+  background: #ffffff;
+  outline: none;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.formSelect:focus, .formInput:focus {
+  border-color: #0aaa90;
+  box-shadow: 0 0 0 3px rgba(10, 170, 144, 0.15);
+}
+
+.consultModeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.consultModeBtn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.consultModeBtn:hover {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.consultModeActive {
+  background: #f0faf6 !important;
+  border-color: #0aaa90 !important;
+  box-shadow: 0 0 0 2px rgba(10, 170, 144, 0.2) !important;
+}
+
+.modeIcon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.consultModeBtn strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 750;
+  color: #133830;
+  margin-bottom: 2px;
+}
+
+.consultModeBtn small {
+  display: block;
+  font-size: 10px;
+  color: #64748b;
+  line-height: 1.25;
+}
+
+.triageAttachedBox {
+  background: #f0faf6;
+  border: 1px dashed #a7d9cb;
+  border-radius: 9px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.triageAttachedBox strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: #087567;
+  margin-bottom: 1px;
+}
+
+.triageAttachedBox p {
+  font-size: 10.5px;
+  color: #375751;
+  margin: 0;
+}
+
+.bookingActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
 .completionActions {
   display: flex;
   gap: 12px;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 14px;
 }
 
 .secondaryBtn {

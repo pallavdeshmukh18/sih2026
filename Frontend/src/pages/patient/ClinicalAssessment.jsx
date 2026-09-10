@@ -19,11 +19,14 @@ import {
   ArrowLeft,
   ArrowRight,
   BrainCircuit,
+  Building,
   Calendar,
   Check,
   CheckCircle2,
   ChevronDown,
+  Clock,
   Droplet,
+  ExternalLink,
   FileText,
   FlaskConical,
   HeartPulse,
@@ -38,6 +41,8 @@ import {
   Square,
   Stethoscope,
   User,
+  UserCheck,
+  Video,
   X,
   Zap,
 } from "lucide-react";
@@ -52,15 +57,92 @@ const formatRecordDate = (value) => {
 };
 
 const SYMPTOM_CARDS = [
-  { id: "Fever & Chills", label: "Fever & Chills", icon: Droplet, color: "#e11d48", bg: "#ffe4e6" },
-  { id: "Severe Headache", label: "Severe Headache", icon: BrainCircuit, color: "#7c3aed", bg: "#ede9fe" },
-  { id: "Cough & Cold", label: "Cough & Cold", icon: Activity, color: "#0284c7", bg: "#e0f2fe" },
-  { id: "Chest Pain", label: "Chest Pain", icon: HeartPulse, color: "#dc2626", bg: "#fee2e2" },
-  { id: "Abdominal Pain", label: "Abdominal Pain", icon: ShieldAlert, color: "#d97706", bg: "#fef3c7" },
-  { id: "Joint / Muscle Pain", label: "Joint / Muscle Pain", icon: Zap, color: "#ea580c", bg: "#ffedd5" },
-  { id: "Shortness of Breath", label: "Shortness of Breath", icon: Stethoscope, color: "#059669", bg: "#d1fae5" },
-  { id: "Skin Rash", label: "Skin Rash", icon: Sparkles, color: "#9333ea", bg: "#f3e8ff" },
+  { id: "Fever & Chills", label: "Fever & Chills", icon: Droplet, color: "#e11d48", bg: "#ffe4e6", specialty: "General Medicine" },
+  { id: "Severe Headache", label: "Severe Headache", icon: BrainCircuit, color: "#7c3aed", bg: "#ede9fe", specialty: "Neurology" },
+  { id: "Cough & Cold", label: "Cough & Cold", icon: Activity, color: "#0284c7", bg: "#e0f2fe", specialty: "General Medicine" },
+  { id: "Chest Pain", label: "Chest Pain", icon: HeartPulse, color: "#dc2626", bg: "#fee2e2", specialty: "Cardiology" },
+  { id: "Abdominal Pain", label: "Abdominal Pain", icon: ShieldAlert, color: "#d97706", bg: "#fef3c7", specialty: "General Medicine" },
+  { id: "Joint / Muscle Pain", label: "Joint / Muscle Pain", icon: Zap, color: "#ea580c", bg: "#ffedd5", specialty: "Orthopedics" },
+  { id: "Shortness of Breath", label: "Shortness of Breath", icon: Stethoscope, color: "#059669", bg: "#d1fae5", specialty: "Cardiology" },
+  { id: "Skin Rash", label: "Skin Rash", icon: Sparkles, color: "#9333ea", bg: "#f3e8ff", specialty: "Dermatology" },
 ];
+
+export const SPECIALTY_META = {
+  Cardiology: {
+    name: "Cardiology",
+    department: "Cardiovascular Care",
+    icon: HeartPulse,
+    color: "#dc2626",
+    bg: "#fee2e2",
+    badge: "Cardiovascular Specialist",
+    desc: "Specialized in cardiovascular health, heart diagnostics, chest symptom evaluation, and blood pressure management.",
+  },
+  Neurology: {
+    name: "Neurology",
+    department: "Neurosciences & Stroke Unit",
+    icon: BrainCircuit,
+    color: "#7c3aed",
+    bg: "#ede9fe",
+    badge: "Neurology Specialist",
+    desc: "Specialized in neurological diagnostics, severe headaches, migraines, vertigo, neuropathies, and nerve care.",
+  },
+  Orthopedics: {
+    name: "Orthopedics",
+    department: "Orthopedics & Joint Care",
+    icon: Zap,
+    color: "#ea580c",
+    bg: "#ffedd5",
+    badge: "Orthopedics & Bone Specialist",
+    desc: "Specialized in musculoskeletal care, joint and muscle pain, bone health, spine integrity, and sports injuries.",
+  },
+  Dermatology: {
+    name: "Dermatology",
+    department: "Dermatology & Skin Care",
+    icon: Sparkles,
+    color: "#9333ea",
+    bg: "#f3e8ff",
+    badge: "Dermatology Specialist",
+    desc: "Specialized in cutaneous disorders, allergies, skin rashes, eczema, lesions, and skin wellness.",
+  },
+  Pediatrics: {
+    name: "Pediatrics",
+    department: "Child Health & Pediatrics",
+    icon: Droplet,
+    color: "#0284c7",
+    bg: "#e0f2fe",
+    badge: "Pediatrics Specialist",
+    desc: "Specialized in infant, child, and adolescent healthcare, developmental tracking, and pediatric triage.",
+  },
+  "General Medicine": {
+    name: "General Medicine",
+    department: "Internal Medicine & OPD",
+    icon: Stethoscope,
+    color: "#087b6d",
+    bg: "#e6f6f0",
+    badge: "Internal Medicine & OPD Specialist",
+    desc: "Comprehensive diagnostic evaluation for fevers, infections, cough, abdominal symptoms, and primary care.",
+  },
+};
+
+export const mapComplaintToSpecialty = (complaint = "") => {
+  const c = String(complaint || "").toLowerCase();
+  if (c.includes("chest") || c.includes("heart") || c.includes("palpitation") || c.includes("hypertension") || c.includes("breath")) {
+    return "Cardiology";
+  }
+  if (c.includes("headache") || c.includes("migraine") || c.includes("dizziness") || c.includes("vertigo") || c.includes("numbness") || c.includes("seizure") || c.includes("brain")) {
+    return "Neurology";
+  }
+  if (c.includes("joint") || c.includes("muscle") || c.includes("bone") || c.includes("fracture") || c.includes("back pain") || c.includes("knee") || c.includes("sprain") || c.includes("stiffness")) {
+    return "Orthopedics";
+  }
+  if (c.includes("skin") || c.includes("rash") || c.includes("itching") || c.includes("allergy") || c.includes("acne") || c.includes("eczema") || c.includes("boil") || c.includes("lesion")) {
+    return "Dermatology";
+  }
+  if (c.includes("child") || c.includes("baby") || c.includes("infant") || c.includes("pediatric") || c.includes("toddler")) {
+    return "Pediatrics";
+  }
+  return "General Medicine";
+};
 
 const COMMON_CHIEF_COMPLAINTS = SYMPTOM_CARDS.map(s => s.id);
 
@@ -127,7 +209,12 @@ export default function ClinicalAssessment() {
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState(doctorIdFromUrl || "");
   const [targetDoctor, setTargetDoctor] = useState(null);
+  const [recommendedSpecialization, setRecommendedSpecialization] = useState("");
+  const [matchingSpecialists, setMatchingSpecialists] = useState([]);
+  const [showAllDoctors, setShowAllDoctors] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookedAppointment, setBookedAppointment] = useState(null);
   const [bookingDate, setBookingDate] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -169,6 +256,31 @@ export default function ClinicalAssessment() {
     setTargetDoctor(doctors.find((doctor) => String(doctor.id) === String(selectedDoctorId)) || null);
   }, [doctors, selectedDoctorId]);
 
+  // Synchronize specialty recommendations and matching doctors upon completion
+  useEffect(() => {
+    if (!isCompleted) return;
+    const activeComplaint = chiefComplaint || customComplaint || complaintFromUrl || "";
+    const specialty = recommendedSpecialization || mapComplaintToSpecialty(activeComplaint);
+    if (!recommendedSpecialization && specialty) {
+      setRecommendedSpecialization(specialty);
+    }
+    if (doctors.length > 0) {
+      const matched = doctors.filter((d) => {
+        const docSpec = (d.specialization || "").toLowerCase();
+        const docDept = (d.department || "").toLowerCase();
+        const target = specialty.toLowerCase();
+        return docSpec.includes(target) || docDept.includes(target);
+      });
+      const finalMatched = matched.length > 0 ? matched : doctors.slice(0, 3);
+      setMatchingSpecialists(finalMatched);
+
+      if (!selectedDoctorId && finalMatched.length > 0) {
+        setSelectedDoctorId(String(finalMatched[0].id));
+        setTargetDoctor(finalMatched[0]);
+      }
+    }
+  }, [isCompleted, recommendedSpecialization, chiefComplaint, customComplaint, complaintFromUrl, doctors, selectedDoctorId]);
+
   useEffect(() => {
     let interval = null;
     if (isRecording) {
@@ -190,8 +302,6 @@ export default function ClinicalAssessment() {
   };
 
   const complaintFromUrl = searchParams.get("complaint");
-
-
 
   useEffect(() => {
     async function loadAppointments() {
@@ -394,6 +504,14 @@ export default function ClinicalAssessment() {
           setIsCompleted(true);
           setSummary(finalSummary || "");
           setConversationHistory(newHistory);
+          if (res.recommendedSpecialization) {
+            setRecommendedSpecialization(res.recommendedSpecialization);
+          }
+          if (Array.isArray(res.matchingSpecialists) && res.matchingSpecialists.length > 0) {
+            setMatchingSpecialists(res.matchingSpecialists);
+            setSelectedDoctorId(String(res.matchingSpecialists[0].id));
+            setTargetDoctor(res.matchingSpecialists[0]);
+          }
         } else if (res.nextQuestion) {
           setCurrentQuestion(res.nextQuestion);
           setOptions(res.options || []);
@@ -437,6 +555,14 @@ export default function ClinicalAssessment() {
         if (sessionDone) {
           setIsCompleted(true);
           setSummary(finalSummary || "");
+          if (res.recommendedSpecialization) {
+            setRecommendedSpecialization(res.recommendedSpecialization);
+          }
+          if (Array.isArray(res.matchingSpecialists) && res.matchingSpecialists.length > 0) {
+            setMatchingSpecialists(res.matchingSpecialists);
+            setSelectedDoctorId(String(res.matchingSpecialists[0].id));
+            setTargetDoctor(res.matchingSpecialists[0]);
+          }
         } else if (res.nextQuestion) {
           setCurrentQuestion(res.nextQuestion);
           setOptions(res.options || []);
@@ -467,6 +593,14 @@ export default function ClinicalAssessment() {
         setIsCompleted(true);
         const finalSummary = res.summary || (res.session && res.session.summary) || "Assessment completed successfully.";
         setSummary(finalSummary);
+        if (res.recommendedSpecialization) {
+          setRecommendedSpecialization(res.recommendedSpecialization);
+        }
+        if (Array.isArray(res.matchingSpecialists) && res.matchingSpecialists.length > 0) {
+          setMatchingSpecialists(res.matchingSpecialists);
+          setSelectedDoctorId(String(res.matchingSpecialists[0].id));
+          setTargetDoctor(res.matchingSpecialists[0]);
+        }
       } else {
         throw new Error(res.message || "Failed to finalize session.");
       }
@@ -478,26 +612,53 @@ export default function ClinicalAssessment() {
     }
   };
 
-  const handleCreateBooking = async (event) => {
-    event.preventDefault();
-    if (!selectedDoctorId || !sessionId) {
-      setError("Please select a doctor before confirming the appointment.");
+  const handleOpenBooking = (doctor = null, type = "in_person") => {
+    if (doctor) {
+      setSelectedDoctorId(String(doctor.id));
+      setTargetDoctor(doctor);
+    }
+    setBookingType(type);
+    setShowBookingModal(true);
+  };
+
+  const handleCreateBooking = async (event, customDoctor = null) => {
+    if (event && event.preventDefault) event.preventDefault();
+    const docId = customDoctor ? String(customDoctor.id) : selectedDoctorId;
+    if (!docId) {
+      setError("Please select a doctor before confirming your appointment.");
       return;
     }
     setBookingSubmitting(true);
+    setError(null);
     try {
-      await createAppointment({
-        doctorId: selectedDoctorId,
+      const activeComplaint = chiefComplaint || customComplaint || "Clinical Consultation";
+      const chosenDoc = customDoctor || targetDoctor || doctors.find((d) => String(d.id) === String(docId));
+      const res = await createAppointment({
+        doctorId: docId,
         scheduledAt: new Date(bookingDate).toISOString(),
         durationMinutes: 30,
         appointmentType: bookingType,
-        reason: chiefComplaint || "Clinical Consultation",
-        notes: summary,
-        sessionId,
+        reason: activeComplaint,
+        notes: summary ? `[Pre-Consultation Clinical Intake Briefing]:\n${summary}` : `Assessment session #${sessionId}`,
+        sessionId: sessionId || undefined,
       }, token);
-      setShowBookingModal(false);
-      navigate("/patient/dashboard?bookingSuccess=1");
+
+      if (res.success || res.appointment) {
+        setBookedAppointment({
+          ...(res.appointment || {}),
+          doctorId: docId,
+          doctorName: chosenDoc?.name || `Dr. ${chosenDoc?.first_name || chosenDoc?.firstName || ""} ${chosenDoc?.last_name || chosenDoc?.lastName || ""}`.trim() || "Specialist Doctor",
+          specialization: chosenDoc?.specialization || recommendedSpecialization || "General Medicine",
+          scheduledAt: bookingDate,
+          appointmentType: bookingType,
+        });
+        setBookingSuccess(true);
+        setShowBookingModal(false);
+      } else {
+        throw new Error(res.message || "Appointment booking failed.");
+      }
     } catch (bookingError) {
+      console.error("Booking error:", bookingError);
       setError(bookingError.message || "Failed to book appointment. Please try again.");
     } finally {
       setBookingSubmitting(false);
@@ -793,44 +954,234 @@ export default function ClinicalAssessment() {
           )}
 
           {isCompleted && (
-            <div className={styles.completionCard}>
-              <div className={styles.completionIcon}>
-                <CheckCircle2 size={32} />
-              </div>
-              <h2>{t("assessment.assessmentComplete", "Assessment Complete!")}</h2>
-              <p className={styles.completionSub}>
-                {t("assessment.assessmentSuccess", "Your structured clinical history has been successfully created and attached to your record.")}
-              </p>
+            <div className={styles.completionSection}>
+              {bookingSuccess && bookedAppointment ? (
+                <div className={styles.bookingSuccessCard}>
+                  <div className={styles.bookingSuccessIcon}>
+                    <CheckCircle2 size={36} color="#059669" />
+                  </div>
+                  <h2>{t("assessment.bookingSuccessTitle", "Appointment Confirmed!")}</h2>
+                  <p className={styles.bookingSuccessSub}>
+                    {t("assessment.bookingSuccessMsg", "Your consultation has been successfully scheduled. Your clinical intake briefing has been forwarded to the doctor.")}
+                  </p>
 
-              {summary && (
-                <div className={styles.summaryBox}>
-                  <strong>{t("assessment.viewSummary", "Clinical Intake Summary for Doctor:")}</strong>
-                  <p>{summary}</p>
+                  <div className={styles.bookedDetailsBox}>
+                    <div className={styles.bookedDetailRow}>
+                      <span className={styles.bookedLabel}>Doctor:</span>
+                      <span className={styles.bookedValue}>{bookedAppointment.doctorName || "Specialist Doctor"}</span>
+                    </div>
+                    <div className={styles.bookedDetailRow}>
+                      <span className={styles.bookedLabel}>Department:</span>
+                      <span className={styles.bookedValue}>{bookedAppointment.specialization || recommendedSpecialization || "General Medicine"}</span>
+                    </div>
+                    <div className={styles.bookedDetailRow}>
+                      <span className={styles.bookedLabel}>Date & Time:</span>
+                      <span className={styles.bookedValue}>
+                        {new Date(bookedAppointment.scheduledAt).toLocaleString("en-IN", { dateStyle: "full", timeStyle: "short" })}
+                      </span>
+                    </div>
+                    <div className={styles.bookedDetailRow}>
+                      <span className={styles.bookedLabel}>Consultation Type:</span>
+                      <span className={styles.bookedValue}>
+                        {bookedAppointment.appointmentType === "video" ? "📹 Teleconsultation (Video Call)" : "🏥 In-Person Hospital Consultation"}
+                      </span>
+                    </div>
+                    <div className={styles.bookedDetailRow}>
+                      <span className={styles.bookedLabel}>Triage Status:</span>
+                      <span className={styles.bookedValue} style={{ color: "#087b6d", fontWeight: 750 }}>
+                        ✓ Pre-Consultation Briefing Attached (Session #{sessionId})
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className={styles.completionActions}>
+                    <button
+                      onClick={() => navigate("/patient/appointments")}
+                      className={styles.startBtn}
+                      style={{ width: "auto", padding: "0 24px" }}
+                    >
+                      <Calendar size={15} /> {t("navigation.appointments", "View in Appointments")}
+                    </button>
+                    <button
+                      onClick={() => navigate("/patient/dashboard")}
+                      className={styles.secondaryBtn}
+                    >
+                      {t("assessment.returnDashboard", "Return to Dashboard")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.completionCard}>
+                  <div className={styles.completionHeader}>
+                    <div className={styles.completionIcon}>
+                      <CheckCircle2 size={30} />
+                    </div>
+                    <div>
+                      <h2>{t("assessment.assessmentComplete", "Assessment Complete!")}</h2>
+                      <p className={styles.completionSub}>
+                        {t("assessment.assessmentSuccess", "Your structured clinical history has been successfully created and attached to your record.")}
+                      </p>
+                    </div>
+                  </div>
+
+                  {summary && (
+                    <div className={styles.summaryBox}>
+                      <div className={styles.summaryHeader}>
+                        <FileText size={15} color="#087b6d" />
+                        <strong>{t("assessment.viewSummary", "Clinical Intake Summary for Doctor:")}</strong>
+                      </div>
+                      <p>{summary}</p>
+                    </div>
+                  )}
+
+                  {/* Specialist Recommendation Banner */}
+                  {(() => {
+                    const activeComplaint = chiefComplaint || customComplaint || complaintFromUrl || "";
+                    const spec = recommendedSpecialization || mapComplaintToSpecialty(activeComplaint);
+                    const meta = SPECIALTY_META[spec] || SPECIALTY_META["General Medicine"];
+                    const MetaIcon = meta.icon;
+
+                    return (
+                      <div
+                        className={styles.specialtyBanner}
+                        style={{
+                          borderColor: `${meta.color}35`,
+                          background: `linear-gradient(135deg, ${meta.bg} 0%, #ffffff 100%)`,
+                        }}
+                      >
+                        <div className={styles.specialtyBannerLeft}>
+                          <div className={styles.specialtyIconWrap} style={{ background: meta.color, color: "#ffffff" }}>
+                            <MetaIcon size={24} />
+                          </div>
+                          <div>
+                            <div className={styles.specialtyBadge} style={{ color: meta.color, background: `${meta.color}18` }}>
+                              <Sparkles size={11} /> {meta.badge}
+                            </div>
+                            <h3 className={styles.specialtyTitle}>
+                              {t("assessment.recommendedSpecialty", "Recommended Care Specialty")}: <span>{spec}</span>
+                            </h3>
+                            <p className={styles.specialtyDesc}>
+                              {meta.desc}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Specialist Doctor Cards Direct Booking */}
+                  <div className={styles.bookingPromptSection}>
+                    <div className={styles.bookingPromptHeader}>
+                      <div>
+                        <h4>{t("assessment.bookConsultTitle", "Direct Specialist Booking")}</h4>
+                        <p>{t("assessment.bookConsultSubtitle", "Choose a verified specialist doctor to book an appointment with your clinical intake notes pre-linked:")}</p>
+                      </div>
+                      {doctors.length > matchingSpecialists.length && (
+                        <button
+                          type="button"
+                          className={styles.toggleDoctorsBtn}
+                          onClick={() => setShowAllDoctors(!showAllDoctors)}
+                        >
+                          {showAllDoctors ? "Show Recommended Only" : `Browse All Doctors (${doctors.length})`}
+                        </button>
+                      )}
+                    </div>
+
+                    <div className={styles.specialistsGrid}>
+                      {(showAllDoctors ? doctors : (matchingSpecialists.length > 0 ? matchingSpecialists : doctors.slice(0, 3))).map((doc) => {
+                        const docName = doc.name || `Dr. ${doc.first_name || doc.firstName || ""} ${doc.last_name || doc.lastName || ""}`.trim();
+                        const docSpecialty = doc.specialization || "General Medicine";
+                        const docDept = doc.department || "Outpatient Care";
+                        const isSelected = String(doc.id) === String(selectedDoctorId);
+
+                        return (
+                          <div
+                            key={doc.id}
+                            className={`${styles.specialistCard} ${isSelected ? styles.specialistCardActive : ""}`}
+                            onClick={() => {
+                              setSelectedDoctorId(String(doc.id));
+                              setTargetDoctor(doc);
+                            }}
+                          >
+                            <div className={styles.specialistTop}>
+                              <div className={styles.doctorAvatar}>
+                                <User size={20} color="#087b6d" />
+                              </div>
+                              <div className={styles.doctorInfo}>
+                                <div className={styles.doctorNameRow}>
+                                  <h5>{docName}</h5>
+                                  <span className={styles.verifiedBadge} title="Verified Doctor">
+                                    <Check size={10} /> Verified
+                                  </span>
+                                </div>
+                                <span className={styles.docSpecialtyTag}>{docSpecialty}</span>
+                                <span className={styles.docDeptTag}><Building size={11} /> {docDept}</span>
+                              </div>
+                            </div>
+
+                            <div className={styles.doctorCardFooter}>
+                              <div className={styles.availabilityPill}>
+                                <span className={styles.liveDot}></span> Available
+                              </div>
+                              <div className={styles.cardActionBtns}>
+                                <button
+                                  type="button"
+                                  className={styles.quickBookBtn}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenBooking(doc, "in_person");
+                                  }}
+                                >
+                                  🏥 In-Person
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.quickTeleconsultBtn}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenBooking(doc, "video");
+                                  }}
+                                >
+                                  📹 Video Call
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className={styles.customDoctorBookingBanner}>
+                      <button
+                        type="button"
+                        className={styles.startBtn}
+                        onClick={() => handleOpenBooking(targetDoctor || matchingSpecialists[0] || doctors[0], "in_person")}
+                        style={{ width: "auto", padding: "0 28px" }}
+                      >
+                        <Calendar size={15} />
+                        {targetDoctor
+                          ? `Book with ${targetDoctor.name || `Dr. ${targetDoctor.firstName || targetDoctor.first_name || ""} ${targetDoctor.lastName || targetDoctor.last_name || ""}`.trim()}`
+                          : "Book with Recommended Doctor"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={styles.completionActions}>
+                    <button
+                      onClick={() => navigate("/patient/dashboard")}
+                      className={styles.secondaryBtn}
+                    >
+                      {t("assessment.returnDashboard", "Return to Dashboard")}
+                    </button>
+                    <button
+                      onClick={() => navigate("/patient/history")}
+                      className={styles.secondaryBtn}
+                    >
+                      {t("navigation.history", "View History")}
+                    </button>
+                  </div>
                 </div>
               )}
-
-              <div className={styles.completionActions}>
-                <button
-                  onClick={() => setShowBookingModal(true)}
-                  className={styles.startBtn}
-                  style={{ width: "auto", padding: "0 24px" }}
-                >
-                  {targetDoctor ? `Book with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Book an Appointment"}
-                </button>
-                <button
-                  onClick={() => navigate("/patient/dashboard")}
-                  className={styles.startBtn}
-                  style={{ width: "auto", padding: "0 24px" }}
-                >
-                  {t("assessment.returnDashboard", "Return to Dashboard")}
-                </button>
-                <button
-                  onClick={() => navigate("/patient/history")}
-                  className={styles.secondaryBtn}
-                >
-                  {t("navigation.history", "View History")}
-                </button>
-              </div>
             </div>
           )}
         </div>
@@ -857,8 +1208,8 @@ export default function ClinicalAssessment() {
               <div className={styles.stepItem}>
                 <span className={styles.stepNum}>3</span>
                 <div>
-                  <strong>{t("assessment.step3Title", "Doctor Ready Briefing")}</strong>
-                  <p>{t("assessment.step3Desc", "A structured note is attached to your clinical record.")}</p>
+                  <strong>{t("assessment.step3Title", "Specialist Doctor Referral")}</strong>
+                  <p>{t("assessment.step3Desc", "Instantly book an appointment with a matching specialist.")}</p>
                 </div>
               </div>
             </div>
@@ -897,36 +1248,143 @@ export default function ClinicalAssessment() {
 
       {showBookingModal && (
         <div className={styles.bookingOverlay} role="dialog" aria-modal="true" aria-label="Book an appointment">
-          <form className={styles.bookingModal} onSubmit={handleCreateBooking}>
-            <h2>Book an Appointment</h2>
-            <p>{targetDoctor ? `Booking with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Choose a convenient time for your consultation."}</p>
-            <label>
-              Select doctor
-              <select value={selectedDoctorId} onChange={(event) => setSelectedDoctorId(event.target.value)} required>
-                <option value="">Choose a doctor</option>
-                {doctors.map((doctor) => (
-                  <option key={doctor.id} value={doctor.id}>
-                    {doctor.name || `Dr. ${doctor.firstName || ""} ${doctor.lastName || ""}`.trim()} {doctor.specialization ? `- ${doctor.specialization}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Date and time
-              <input type="datetime-local" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} required />
-            </label>
-            <label>
-              Consultation type
-              <select value={bookingType} onChange={(event) => setBookingType(event.target.value)}>
-                <option value="in_person">In-person consultation</option>
-                <option value="video">Teleconsultation</option>
-              </select>
-            </label>
-            <div className={styles.bookingActions}>
-              <button type="button" className={styles.secondaryBtn} onClick={() => setShowBookingModal(false)}>Cancel</button>
-              <button type="submit" className={styles.startBtn} disabled={bookingSubmitting}>{bookingSubmitting ? "Booking..." : "Confirm Booking"}</button>
+          <motion.div
+            className={styles.bookingModal}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+          >
+            <div className={styles.modalHeader}>
+              <div className={styles.modalHeaderLeft}>
+                <div className={styles.modalIcon}>
+                  <Calendar size={20} color="#087b6d" />
+                </div>
+                <div>
+                  <h3>Book Doctor Appointment</h3>
+                  <p>Your clinical intake triage data will be attached automatically.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.modalCloseBtn}
+                onClick={() => setShowBookingModal(false)}
+                aria-label="Close dialog"
+              >
+                <X size={16} />
+              </button>
             </div>
-          </form>
+
+            <form onSubmit={(e) => handleCreateBooking(e)}>
+              {/* Doctor Selector */}
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>
+                  <User size={13} /> Select Specialist Doctor:
+                </label>
+                <select
+                  className={styles.formSelect}
+                  value={selectedDoctorId}
+                  onChange={(event) => {
+                    setSelectedDoctorId(event.target.value);
+                    setTargetDoctor(doctors.find((d) => String(d.id) === String(event.target.value)) || null);
+                  }}
+                  required
+                >
+                  {doctors.map((doctor) => {
+                    const name = doctor.name || `Dr. ${doctor.firstName || doctor.first_name || ""} ${doctor.lastName || doctor.last_name || ""}`.trim();
+                    return (
+                      <option key={doctor.id} value={doctor.id}>
+                        {name} {doctor.specialization ? `(${doctor.specialization})` : ""} - {doctor.department || "OPD"}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Consultation Mode */}
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>
+                  <Stethoscope size={13} /> Mode of Consultation:
+                </label>
+                <div className={styles.consultModeGrid}>
+                  <button
+                    type="button"
+                    className={`${styles.consultModeBtn} ${bookingType === "in_person" ? styles.consultModeActive : ""}`}
+                    onClick={() => setBookingType("in_person")}
+                  >
+                    <div className={styles.modeIcon}>🏥</div>
+                    <div>
+                      <strong>In-Person Hospital Visit</strong>
+                      <small>Physical examination at OPD Clinic</small>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.consultModeBtn} ${bookingType === "video" ? styles.consultModeActive : ""}`}
+                    onClick={() => setBookingType("video")}
+                  >
+                    <div className={styles.modeIcon}>📹</div>
+                    <div>
+                      <strong>Teleconsultation (Video)</strong>
+                      <small>Secure HD WebRTC consultation</small>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Date & Time */}
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>
+                  <Clock size={13} /> Preferred Date & Time:
+                </label>
+                <input
+                  type="datetime-local"
+                  className={styles.formInput}
+                  value={bookingDate}
+                  min={new Date().toISOString().slice(0, 16)}
+                  onChange={(event) => setBookingDate(event.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Clinical Note Attachment Notice */}
+              <div className={styles.triageAttachedBox}>
+                <ShieldCheck size={16} color="#087b6d" />
+                <div>
+                  <strong>Attached Clinical Assessment:</strong>
+                  <p>Chief Complaint: <em>{chiefComplaint || customComplaint || "Clinical Triage"}</em> (Session #{sessionId})</p>
+                </div>
+              </div>
+
+              <div className={styles.bookingActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  onClick={() => setShowBookingModal(false)}
+                  disabled={bookingSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={styles.startBtn}
+                  style={{ width: "auto", padding: "0 24px" }}
+                  disabled={bookingSubmitting}
+                >
+                  {bookingSubmitting ? (
+                    <>
+                      <Loader2 size={15} className={styles.spin} />
+                      <span>Confirming Appointment...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={15} />
+                      <span>Confirm & Book Appointment</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </motion.div>
         </div>
       )}
     </motion.main>

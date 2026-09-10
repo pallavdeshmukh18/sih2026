@@ -395,8 +395,15 @@ export async function getClinicalSession(sessionId, token) {
 }
 
 /** Finalize Clinical Intake Session */
-export async function finalizeClinicalSession(sessionId, documentData = null, token) {
-    return apiRequest(`/api/sessions/${sessionId}/finalize`, "POST", { documentData }, token);
+export async function finalizeClinicalSession(sessionId, documentData = null, token = null) {
+    let docData = documentData;
+    let authToken = token;
+    // Support calling as finalizeClinicalSession(sessionId, token)
+    if (typeof documentData === "string" && !token) {
+        authToken = documentData;
+        docData = null;
+    }
+    return apiRequest(`/api/sessions/${sessionId}/finalize`, "POST", { documentData: docData }, authToken);
 }
 
 /** Delete Clinical Intake Session */

@@ -133,13 +133,13 @@ async function createAppointment(req, res, next) {
 
             // Link clinical session to new appointment
             const linkedSession = await client.query(
-                `UPDATE clinical_sessions SET appointment_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND appointment_id IS NULL RETURNING id;`,
+                `UPDATE clinical_sessions SET appointment_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id;`,
                 [newAppointment.id, activeSessionId]
             );
 
             if (!linkedSession.rows.length) {
                 await client.query("ROLLBACK;");
-                return res.status(409).json({ message: "This assessment is already linked to an appointment." });
+                return res.status(404).json({ message: "Could not link clinical session to appointment." });
             }
             await client.query("COMMIT;");
 
