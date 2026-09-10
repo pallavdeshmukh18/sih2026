@@ -311,45 +311,11 @@ async function processTextTurnCore({ sessionId, patientId = null, patientText })
 
     const newStatus = clinicalAiResult.is_complete ? "completed" : "active";
 
-    let summaryText = null;
-    let recommendedSpecialization = null;
-    let matchingSpecialists = [];
-    let allDoctors = [];
-
-    if (clinicalAiResult.is_complete) {
-        try {
-            const summaryRes = await mlService.summarizeClinicalSession(sessionId);
-            summaryText = summaryRes.summary || "";
-        } catch (sumErr) {
-            console.warn("[ML FALLBACK] Turn summarization fallback:", sumErr.message);
-            summaryText = `# Clinical Intake Summary\n\n**Chief Complaint**: ${session.chief_complaint}\n**Language**: ${session.language}\n**Status**: Intake completed.`;
-        }
-
-        recommendedSpecialization = determineRequiredSpecialization(session.chief_complaint, currentState, summaryText);
-        try {
-            const doctorsRes = await pool.query(`
-                SELECT u.id, u.first_name, u.last_name, u.email, dp.specialization, dp.department, dp.verification_status
-                FROM users u
-                JOIN doctor_profiles dp ON u.id = dp.user_id
-                WHERE u.role = 'doctor' AND u.is_active = true AND dp.verification_status = 'verified'
-                ORDER BY CASE WHEN dp.specialization ILIKE $1 THEN 0 ELSE 1 END, u.first_name;
-            `, [`%${recommendedSpecialization}%`]);
-
-            allDoctors = doctorsRes.rows;
-            const matching = allDoctors.filter(d => 
-                d.specialization && d.specialization.toLowerCase().includes(recommendedSpecialization.toLowerCase())
-            );
-            matchingSpecialists = matching.length > 0 ? matching : allDoctors.slice(0, 3);
-        } catch (docErr) {
-            console.warn("Could not query doctors for turn completion:", docErr.message);
-        }
-    }
-
     await pool.query(
         `UPDATE clinical_sessions
-         SET current_state = $1, status = $2, summary = COALESCE($3, summary), updated_at = CURRENT_TIMESTAMP
-         WHERE id = $4;`,
-        [JSON.stringify(currentState), newStatus, summaryText, sessionId]
+         SET current_state = $1, status = $2, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3;`,
+        [JSON.stringify(currentState), newStatus, sessionId]
     );
 
     return {
@@ -359,10 +325,6 @@ async function processTextTurnCore({ sessionId, patientId = null, patientText })
         extractedEntities: clinicalAiResult.extracted_entities,
         redFlags: currentState.red_flags || [],
         isComplete: clinicalAiResult.is_complete,
-        summary: summaryText,
-        recommendedSpecialization,
-        matchingSpecialists,
-        allDoctors,
         state: currentState,
     };
 }
@@ -405,29 +367,10 @@ async function finalizeSessionCore({ sessionId, patientId = null, documentData =
         [summaryText, sessionId]
     );
 
-    // 3. Determine recommended medical specialization & fetch matching doctors
-    const recommendedSpecialization = determineRequiredSpecialization(session.chief_complaint, session.current_state, summaryText);
-
-    const doctorsRes = await pool.query(`
-        SELECT u.id, u.first_name, u.last_name, u.email, dp.specialization, dp.department, dp.verification_status
-        FROM users u
-        JOIN doctor_profiles dp ON u.id = dp.user_id
-        WHERE u.role = 'doctor' AND u.is_active = true AND dp.verification_status = 'verified'
-        ORDER BY CASE WHEN dp.specialization ILIKE $1 THEN 0 ELSE 1 END, u.first_name;
-    `, [`%${recommendedSpecialization}%`]);
-
-    const matchingSpecialists = doctorsRes.rows.filter(d => 
-        d.specialization && d.specialization.toLowerCase().includes(recommendedSpecialization.toLowerCase())
-    );
-    const allDoctors = doctorsRes.rows;
-
     return {
         sessionId,
         summary: summaryText,
         session: updated.rows[0],
-        recommendedSpecialization,
-        matchingSpecialists: matchingSpecialists.length > 0 ? matchingSpecialists : allDoctors.slice(0, 3),
-        allDoctors,
     };
 }
 
@@ -469,42 +412,24 @@ function determineRequiredSpecialization(chiefComplaint = "", currentState = {},
         ...(currentState?.conversation_history || []).map(m => m.content || ""),
     ].join(" ").toLowerCase();
 
-    // 1. Cardiology
-    const cardiacTerms = ["chest pain", "angina", "cardiac", "heart", "palpitation", "myocardial", "arrhythmia", "coronary", "hypertension"];
+    // 1. Cardiology keywords
+    const cardiacTerms = ["chest pain", "angina", "cardiac", "heart", "palpitation", "myocardial", "arrhythmia"];
     if (cardiacTerms.some(term => textCorpus.includes(term))) {
         return "Cardiology";
     }
 
-    // 2. Neurology
-    const neuroTerms = ["headache", "severe headache", "migraine", "dizziness", "vertigo", "seizure", "numbness", "tingling", "stroke", "paralysis", "concussion", "neuralgia", "brain"];
-    if (neuroTerms.some(term => textCorpus.includes(term))) {
-        return "Neurology";
-    }
-
-    // 3. Orthopedics
-    const orthoTerms = ["joint", "muscle pain", "joint / muscle pain", "bone", "fracture", "arthritis", "back pain", "knee pain", "sprain", "swelling", "stiffness", "ligament", "shoulder pain"];
-    if (orthoTerms.some(term => textCorpus.includes(term))) {
-        return "Orthopedics";
-    }
-
-    // 4. Dermatology
-    const dermaTerms = ["skin", "rash", "skin rash", "itching", "acne", "eczema", "dermatitis", "lesion", "psoriasis", "hives", "urticaria", "fungal", "boil", "blister", "skin allergy"];
+    // 2. Dermatology keywords
+    const dermaTerms = ["skin", "rash", "itching", "acne", "eczema", "dermatitis", "lesion", "psoriasis", "hives", "urticaria", "fungal", "boil"];
     if (dermaTerms.some(term => textCorpus.includes(term))) {
         return "Dermatology";
     }
 
-    // 5. Pediatrics
-    const pedTerms = ["child", "infant", "baby", "pediatric", "toddler", "vaccination", "pediatrician"];
-    if (pedTerms.some(term => textCorpus.includes(term))) {
-        return "Pediatrics";
-    }
-
-    // 6. AYUSH if consultation_type is ayush
+    // 3. AYUSH if consultation_type is ayush
     if (currentState?.consultation_type === "ayush") {
         return "AYUSH";
     }
 
-    // 7. Default primary care / internal medicine
+    // 4. Default primary care / internal medicine
     return "General Medicine";
 }
 
