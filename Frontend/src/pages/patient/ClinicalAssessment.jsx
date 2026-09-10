@@ -844,41 +844,6 @@ export default function ClinicalAssessment() {
                 <span className={styles.stepNum}>1</span>
                 <div>
                   <strong>{t("assessment.step1Title", "Select Chief Complaint")}</strong>
-
-              {showBookingModal && (
-                <div className={styles.bookingOverlay} role="dialog" aria-modal="true" aria-label="Book an appointment">
-                  <form className={styles.bookingModal} onSubmit={handleCreateBooking}>
-                    <h2>Book an Appointment</h2>
-                    <p>{targetDoctor ? `Booking with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Choose a convenient time for your consultation."}</p>
-                    <label>
-                      Select doctor
-                      <select value={selectedDoctorId} onChange={(event) => setSelectedDoctorId(event.target.value)} required>
-                        <option value="">Choose a doctor</option>
-                        {doctors.map((doctor) => (
-                          <option key={doctor.id} value={doctor.id}>
-                            {doctor.name || `Dr. ${doctor.firstName || ""} ${doctor.lastName || ""}`.trim()} {doctor.specialization ? `- ${doctor.specialization}` : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Date and time
-                      <input type="datetime-local" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} required />
-                    </label>
-                    <label>
-                      Consultation type
-                      <select value={bookingType} onChange={(event) => setBookingType(event.target.value)}>
-                        <option value="in_person">In-person consultation</option>
-                        <option value="video">Teleconsultation</option>
-                      </select>
-                    </label>
-                    <div className={styles.bookingActions}>
-                      <button type="button" className={styles.secondaryBtn} onClick={() => setShowBookingModal(false)}>Cancel</button>
-                      <button type="submit" className={styles.startBtn} disabled={bookingSubmitting}>{bookingSubmitting ? "Booking..." : "Confirm Booking"}</button>
-                    </div>
-                  </form>
-                </div>
-              )}
                   <p>{t("assessment.step1Desc", "Pick your primary symptom or enter a description.")}</p>
                 </div>
               </div>
@@ -929,6 +894,41 @@ export default function ClinicalAssessment() {
           </div>
         </aside>
       </div>
+
+      {showBookingModal && (
+        <div className={styles.bookingOverlay} role="dialog" aria-modal="true" aria-label="Book an appointment">
+          <form className={styles.bookingModal} onSubmit={handleCreateBooking}>
+            <h2>Book an Appointment</h2>
+            <p>{targetDoctor ? `Booking with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Choose a convenient time for your consultation."}</p>
+            <label>
+              Select doctor
+              <select value={selectedDoctorId} onChange={(event) => setSelectedDoctorId(event.target.value)} required>
+                <option value="">Choose a doctor</option>
+                {doctors.map((doctor) => (
+                  <option key={doctor.id} value={doctor.id}>
+                    {doctor.name || `Dr. ${doctor.firstName || ""} ${doctor.lastName || ""}`.trim()} {doctor.specialization ? `- ${doctor.specialization}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Date and time
+              <input type="datetime-local" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} required />
+            </label>
+            <label>
+              Consultation type
+              <select value={bookingType} onChange={(event) => setBookingType(event.target.value)}>
+                <option value="in_person">In-person consultation</option>
+                <option value="video">Teleconsultation</option>
+              </select>
+            </label>
+            <div className={styles.bookingActions}>
+              <button type="button" className={styles.secondaryBtn} onClick={() => setShowBookingModal(false)}>Cancel</button>
+              <button type="submit" className={styles.startBtn} disabled={bookingSubmitting}>{bookingSubmitting ? "Booking..." : "Confirm Booking"}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </motion.main>
   );
 }

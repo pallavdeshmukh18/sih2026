@@ -1,15 +1,40 @@
 const nodemailer = require("nodemailer");
+const dns = require("dns");
+
+dns.setDefaultResultOrder?.("ipv4first");
 
 /**
  * Creates and returns the Nodemailer transporter instance using environment variables.
+ * Enforces IPv4 connection family to prevent ENETUNREACH IPv6 errors on cloud container hosts like Render.
  */
 function createTransporter() {
+    const service = process.env.EMAIL_SERVICE;
+    if (!service || service.toLowerCase() === "gmail") {
+        return nodemailer.createTransport({
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true,
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_APP_PASSWORD,
+            },
+            family: 4,
+            connectionTimeout: 10000,
+            greetingTimeout: 10000,
+            socketTimeout: 15000,
+        });
+    }
+
     return nodemailer.createTransport({
-        service: process.env.EMAIL_SERVICE || "gmail",
+        service,
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_APP_PASSWORD,
         },
+        family: 4,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
     });
 }
 
