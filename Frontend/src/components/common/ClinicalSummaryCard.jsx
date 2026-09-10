@@ -30,10 +30,83 @@ export default function ClinicalSummaryCard({
     }
   };
 
-  // Clean raw markdown syntax for visual display
+  // Synthesize personalized, detailed content if raw text contains structured JSON or plain text
   const renderFormattedText = (raw) => {
     if (!raw) return null;
-    const lines = raw.split("\n");
+
+    // Check if raw is a JSON string or contains json structured data
+    let parsedObj = null;
+    if (typeof raw === "object" && raw !== null) {
+      parsedObj = raw;
+    } else if (typeof raw === "string" && (raw.trim().startsWith("{") || raw.trim().startsWith("["))) {
+      try {
+        parsedObj = JSON.parse(raw);
+      } catch (e) {}
+    }
+
+    if (parsedObj && typeof parsedObj === "object") {
+      const meds = parsedObj.medications || [];
+      const labs = parsedObj.lab_results || [];
+      const diags = parsedObj.diagnoses || [];
+      const procs = parsedObj.procedures || [];
+      const sum = parsedObj.summary || "";
+
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {sum && (
+            <p style={{ fontSize: "13.5px", color: "#1e293b", fontWeight: "500", lineHeight: "1.6", margin: 0 }}>
+              {sum}
+            </p>
+          )}
+
+          {meds.length > 0 && (
+            <div style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "10px", padding: "12px" }}>
+              <strong style={{ fontSize: "13px", color: "#0f766e", display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+                💊 Prescribed Medications ({meds.length})
+              </strong>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {meds.map((m, idx) => (
+                  <div key={idx} style={{ fontSize: "12.5px", color: "#334155", background: "#f8fafc", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                    <b>{m.medicine || m.name || `Medication #${idx + 1}`}:</b> {m.dose || ""} {m.frequency ? `(${m.frequency})` : ""} {m.duration ? `- ${m.duration}` : ""}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {labs.length > 0 && (
+            <div style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "10px", padding: "12px" }}>
+              <strong style={{ fontSize: "13px", color: "#0f766e", display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+                🧪 Laboratory & Diagnostic Results ({labs.length})
+              </strong>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                {labs.map((l, idx) => (
+                  <div key={idx} style={{ fontSize: "12.5px", color: "#334155", background: "#f8fafc", padding: "6px 10px", borderRadius: "6px", border: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between" }}>
+                    <span><b>{l.test}:</b> {l.value} {l.unit || ""}</span>
+                    {l.reference_range && <small style={{ color: "#64748b" }}>Ref: {l.reference_range}</small>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {procs.length > 0 && (
+            <div style={{ background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "10px", padding: "12px" }}>
+              <strong style={{ fontSize: "13px", color: "#0f766e", display: "block", marginBottom: "6px" }}>
+                📋 Physician Instructions & Care Plan
+              </strong>
+              <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "12.5px", color: "#334155" }}>
+                {procs.map((p, idx) => (
+                  <li key={idx}>{p}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const lines = String(raw).split("\n");
     return lines.map((line, idx) => {
       let trimmed = line.trim();
       if (!trimmed) return <div key={idx} style={{ height: "6px" }} />;

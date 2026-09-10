@@ -135,12 +135,63 @@ export async function downloadSummaryPDF({
     doc.text("Physician Summary Notes", 14, y);
     y += 6;
 
-    const cleanText = summaryText
+    let textToRender = summaryText;
+    let extractedMeds = [];
+    let extractedLabs = [];
+
+    if (typeof summaryText === "object" && summaryText !== null) {
+      textToRender = summaryText.summary || "";
+      extractedMeds = summaryText.medications || [];
+      extractedLabs = summaryText.lab_results || [];
+    }
+
+    const cleanText = String(textToRender || "")
       .replace(/###/g, "")
       .replace(/\*\*/g, "")
       .replace(/\*/g, "")
       .replace(/🩺|📋|🚨/g, "")
       .trim();
+
+    if (extractedMeds.length > 0) {
+      doc.setTextColor(...primaryColor);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.text("Prescribed Medications", 14, y);
+      y += 5.5;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(...darkTextColor);
+
+      extractedMeds.forEach((m) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        const line = `* ${m.medicine || m.name}: ${m.dose || ""} (${m.frequency || ""}) ${m.duration || ""}`.trim();
+        doc.text(line, 18, y);
+        y += 5;
+      });
+      y += 4;
+    }
+
+    if (extractedLabs.length > 0) {
+      if (y > 250) { doc.addPage(); y = 20; }
+      doc.setTextColor(...primaryColor);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.text("Extracted Laboratory Results", 14, y);
+      y += 5.5;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(...darkTextColor);
+
+      extractedLabs.forEach((l) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        const line = `* ${l.test}: ${l.value} ${l.unit || ""} (Ref: ${l.reference_range || "N/A"})`;
+        doc.text(line, 18, y);
+        y += 5;
+      });
+      y += 4;
+    }
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);

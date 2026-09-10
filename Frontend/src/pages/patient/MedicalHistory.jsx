@@ -190,7 +190,17 @@ export default function MedicalHistory() {
                         exit={{ height: 0, opacity: 0 }}
                       >
                         <ClinicalSummaryCard
-                          summary={event.clinicalNotes || event.treatmentNotes || event.details || ""}
+                          summary={
+                            event.extractedEntities || event.medications || event.labResults
+                              ? {
+                                  summary: event.clinicalNotes || event.treatmentNotes || event.details || "",
+                                  medications: event.medications || event.extractedEntities?.medications || [],
+                                  lab_results: event.labResults || event.extractedEntities?.lab_results || [],
+                                  procedures: event.procedures || event.extractedEntities?.procedures || [],
+                                  diagnoses: event.diagnoses || event.extractedEntities?.diagnoses || []
+                                }
+                              : event.clinicalNotes || event.treatmentNotes || event.details || ""
+                          }
                           chiefComplaint={event.title}
                           answeredFields={event.answeredFields}
                           redFlags={event.redFlags}

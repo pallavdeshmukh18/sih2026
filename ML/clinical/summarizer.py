@@ -29,21 +29,28 @@ def generate_summary(session: ClinicalSession, document_data: dict = None) -> st
 
     if groq_client:
         prompt = f"""
-        You are a clinical AI medical intake documentation specialist.
-        Generate a comprehensive, physician-ready intake summary in Markdown format.
+        You are a senior clinical AI documentation specialist at MediKiosk.
+        Generate a highly detailed, personalized, physician-grade clinical intake report in Markdown format.
 
         Patient ID: {session.patient_id}
         Consultation Type: {session.consultation_type}
         Chief Complaint: {session.chief_complaint}
         Session Language: {lang_name} ({session.language})
-        Answered Clinical Fields: {session.answered_fields}
+        Answered Clinical Parameters: {session.answered_fields}
         Red Flags Identified: {session.red_flags}
-        Document/OCR Data: {document_data if document_data else 'None'}
+        Attached Document / OCR Data: {document_data if document_data else 'None'}
 
-        Formatting Guidelines:
-        - Include sections: Chief Complaint, History of Presenting Illness, Key Symptoms, Red Flags (if any), and Document Findings (if any).
-        - Format neatly with markdown headers and bullet points.
-        - Primary summary should be in English for medical staff, followed by a 2-3 sentence patient-friendly summary in {lang_name}.
+        CRITICAL INSTRUCTIONS:
+        1. DO NOT use vague or generic boilerplate sentences (e.g. "Comprehensive analysis has been compiled").
+        2. Provide a detailed, personalized narrative synthesis of the patient's specific presentation, including exact onset, duration, character, radiation, severity, aggravating/relieving factors, and associated symptoms reported.
+        3. Include clear, structured sections:
+           - ### 🩺 Chief Complaint & History of Presenting Illness (HPI)
+           - ### 📋 Captured Parameters & Clinical History
+           - ### 🚨 Red Flag & Triage Assessment
+           - ### 📄 Document / OCR Extraction Findings (if document data exists, list exact medications, dosages, frequencies, or lab values)
+           - ### 💡 Physician Action Plan & Clinical Recommendations
+        4. Synthesize the findings into an insightful paragraph for the attending doctor.
+        5. At the bottom, add a 2-3 sentence patient-friendly summary in {lang_name}.
         """
         try:
             res = groq_client.chat.completions.create(
