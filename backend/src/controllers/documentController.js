@@ -212,7 +212,15 @@ async function getDocumentDownloadUrl(req, res, next) {
         }
 
         const local = await supabaseStorageService.getLocalDocumentPath(document.storage_path);
-        if (local) return res.status(200).json({ success: true, localDownload: true, fileName: document.file_name });
+        if (local || (document.storage_path && document.storage_path.startsWith('local:'))) {
+            return res.status(200).json({
+                success: true,
+                localDownload: true,
+                downloadUrl: `/api/documents/${document.id}/file`,
+                fileName: document.file_name,
+                fileType: document.file_type,
+            });
+        }
         const downloadUrl = await supabaseStorageService.getDocumentDownloadUrl(document.storage_path);
 
         return res.status(200).json({

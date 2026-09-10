@@ -33,8 +33,8 @@ const encodePath = value => value.split('/').map(encodeURIComponent).join('/');
 async function uploadMedicalDocument(patientId, documentId, filename, fileBuffer, mimeType) {
     const safeName = path.basename(filename.replaceAll('\\', '/')).replace(/[\x00-\x1f]/g, '_');
     const storagePath = `${patientId}/${documentId}/${safeName}`;
-    // Local storage is deliberate development configuration, never a cloud-failure fallback.
-    if (process.env.DOCUMENT_STORAGE_PROVIDER === 'local' && process.env.NODE_ENV !== 'production') {
+    const useLocal = process.env.DOCUMENT_STORAGE_PROVIDER === 'local' || (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY);
+    if (useLocal && process.env.NODE_ENV !== 'production') {
         const target = localPath(storagePath);
         await fs.mkdir(path.dirname(target), { recursive: true });
         await fs.writeFile(target, fileBuffer, { mode: 0o600 });
@@ -53,6 +53,10 @@ async function getLocalDocumentPath(storagePath) {
 }
 
 async function getDocumentDownloadUrl(storagePath, expiresInSeconds = 60) {
+    const local = await getLocalDocumentPath(storagePath);
+    if (local || storagePath.startsWith('local:')) {
+        return null;
+    }
     const response = await storageRequest(`object/sign/${BUCKET_NAME}/${encodePath(storagePath)}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ expiresIn: expiresInSeconds }),
@@ -64,8 +68,12 @@ async function getDocumentDownloadUrl(storagePath, expiresInSeconds = 60) {
 
 async function deleteMedicalDocument(storagePath) {
     const local = await getLocalDocumentPath(storagePath);
-    if (local) { await fs.unlink(local); return; }
+    if (local) {
+        try { await fs.unlink(local); } catch (e) {}
+        return;
+    }
     if (storagePath.startsWith('local:')) return;
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
     await storageRequest(`object/${BUCKET_NAME}`, {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prefixes: [storagePath] }),

@@ -15,7 +15,7 @@ from config import (
 )
 
 def ocr_with_groq_rest(image_bytes: bytes, api_key: str) -> str:
-    """Primary Vision OCR using direct Groq REST API."""
+    """Primary Vision OCR using direct Groq REST API with model fallback."""
     b64 = base64.b64encode(image_bytes).decode("utf-8")
     
     headers = {
@@ -23,49 +23,63 @@ def ocr_with_groq_rest(image_bytes: bytes, api_key: str) -> str:
         "Content-Type": "application/json",
     }
     
-    payload = {
-        "model": GROQ_VISION_MODEL,
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": (
-                            "Transcribe ALL visible text in this medical document image "
-                            "exactly as written, including handwritten text. "
-                            "Preserve line breaks and numerical values. "
-                            "The document may contain English, Hindi, or mixed "
-                            "English-Hindi text. "
-                            "Output ONLY the raw transcribed text."
-                        )
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{b64}"}
-                    },
-                ],
-            }
-        ],
-        "temperature": 0.1,
-        "max_tokens": 2048,
-    }
+    candidates = [
+        GROQ_VISION_MODEL,
+        "qwen/qwen3.6-27b",
+        "qwen/qwen3.8-27b"
+    ]
+    seen = set()
+    models = [m for m in candidates if m and not (m in seen or seen.add(m))]
     
-    resp = requests.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers=headers,
-        json=payload,
-        timeout=45
-    )
-    
-    if resp.status_code != 200:
-        raise RuntimeError(f"Groq Vision API returned status {resp.status_code}: {resp.text}")
+    last_err = None
+    for model_name in models:
+        payload = {
+            "model": model_name,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "Transcribe ALL visible text in this medical document image "
+                                "exactly as written, including handwritten text. "
+                                "Preserve line breaks and numerical values. "
+                                "The document may contain English, Hindi, or mixed "
+                                "English-Hindi text. "
+                                "Output ONLY the raw transcribed text."
+                            )
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/png;base64,{b64}"}
+                        },
+                    ],
+                }
+            ],
+            "temperature": 0.1,
+            "max_tokens": 2048,
+        }
         
-    data = resp.json()
-    raw_text = data["choices"][0]["message"]["content"] or ""
-    # Strip <think>...</think> reasoning tags if present
-    clean_text = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL).strip()
-    return clean_text
+        try:
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=45
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                raw_text = data["choices"][0]["message"]["content"] or ""
+                clean_text = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL).strip()
+                if clean_text:
+                    return clean_text
+            else:
+                last_err = f"Groq Vision API ({model_name}) returned status {resp.status_code}: {resp.text}"
+        except Exception as e:
+            last_err = f"Groq Vision error ({model_name}): {e}"
+            
+    raise RuntimeError(last_err or "Groq Vision API failed for all candidate models.")
 
 
 def extract_pdf_text_or_render(pdf_bytes: bytes) -> tuple[str, bytes | None]:

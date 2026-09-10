@@ -54,7 +54,7 @@ def extract_entities_fallback(ocr_text: str) -> ExtractedDocument:
     raw = ocr_text or ""
     txt = raw.lower()
     doc_type = "prescription" if ("rx" in txt or "prescr" in txt or "medication" in txt) else "other"
-    summary_text = (raw[:200] + "...") if len(raw) > 200 else (raw if raw.strip() else "Original medical document saved. Structured text could not be extracted.")
+    summary_text = (raw[:200] + "...") if len(raw) > 200 else (raw if raw.strip() else None)
     data = {
         "document_type": doc_type,
         "document_date": None,
@@ -117,11 +117,12 @@ def extract_entities(ocr_text: str, api_key: str | None = None) -> ExtractedDocu
             clean_text = re.sub(r"\n?```$", "", clean_text)
 
         data = json.loads(clean_text)
-        data["raw_text"] = ocr_text
+        data["raw_text"] = ocr_text or ""
 
-        # Ensure summary is populated
+        # Ensure summary is populated safely without throwing NoneType AttributeError
+        doc_type_name = str(data.get("document_type") or "medical").replace("_", " ")
         if not data.get("summary"):
-            data["summary"] = f"Structured {data.get('document_type', 'medical').replace('_', ' ')} record extracted from uploaded document."
+            data["summary"] = f"Structured {doc_type_name} record extracted from uploaded document."
 
         # Ensure alerts are auto-detected from lab results if not provided
         if "alerts" not in data or not isinstance(data["alerts"], list):

@@ -14,7 +14,7 @@ GROQ_TEXT_MODEL = os.environ.get("GROQ_TEXT_MODEL", "openai/gpt-oss-20b")
 
 GROQ_VISION_MODEL = os.environ.get(
     "GROQ_VISION_MODEL",
-    "llama-3.2-11b-vision-preview"
+    "qwen/qwen3.6-27b"
 )
 
 GROQ_TIMEOUT_SECONDS = int(
