@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
-    LayoutDashboard, User, Stethoscope, Users, Building, Calendar, 
+    LayoutDashboard, User, Stethoscope, Users, Calendar, 
     FileText, ClipboardList, Video, LogOut, UserCog, ShieldCheck, Settings as SettingsIcon
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
@@ -84,13 +84,6 @@ const Sidebar = ({ onHoverChange, collapsed = false }) => {
                         </NavLink>
                     )}
 
-                    {role === 'doctor' && (
-                        <NavLink to={`${basePath}/departments`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                            <Building size={20} />
-                            <span>Departments</span>
-                        </NavLink>
-                    )}
-                    
                     {role === 'patient' && (
                         <NavLink to={`${basePath}/schedule`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                             <Calendar size={20} />

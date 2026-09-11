@@ -172,9 +172,6 @@ class SarvamSTTService:
                 lang_prob = res_data.get("language_probability")
 
             duration = time.perf_counter() - start_time
-            detected_lang = getattr(response, "language_code", None) or target_lang
-            request_id = getattr(response, "request_id", None)
-            lang_prob = getattr(response, "language_probability", None)
 
             logger.info(
                 "Sarvam STT request completed successfully in %.2fs: request_id=%s, language=%s",
@@ -185,7 +182,7 @@ class SarvamSTTService:
 
             return STTSuccessResponse(
                 success=True,
-                transcript=response.transcript or "",
+                transcript=transcript or "",
                 language_code=detected_lang if detected_lang != "unknown" else None,
                 request_id=request_id,
                 language_probability=lang_prob,

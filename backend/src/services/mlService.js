@@ -7,14 +7,30 @@ const FormData = require("form-data");
 
 const ML_BASE_URL = process.env.ML_SERVICE_URL || "http://localhost:8000";
 
+const SARVAM_STT_LANG_MAP = {
+    en: "en-IN",
+    hi: "hi-IN",
+    mr: "mr-IN",
+    gu: "gu-IN",
+    bn: "bn-IN",
+    ta: "ta-IN",
+    te: "te-IN",
+    kn: "kn-IN",
+    ml: "ml-IN",
+    pa: "pa-IN",
+    or: "od-IN",
+    as: "unknown",
+};
+
 /**
  * 1. Transcribe Patient Audio via Sarvam Saaras STT
  */
-async function transcribeAudio(fileBuffer, filename = "audio.wav", languageCode = null) {
+async function transcribeAudio(fileBuffer, filename = "audio.wav", languageCode = null, contentType = null) {
     const formData = new FormData();
-    formData.append("file", fileBuffer, { filename });
-    if (languageCode) {
-        formData.append("language_code", languageCode);
+    formData.append("file", fileBuffer, { filename, ...(contentType && { contentType }) });
+    const normalizedLanguage = SARVAM_STT_LANG_MAP[languageCode] || languageCode;
+    if (normalizedLanguage && normalizedLanguage !== "unknown") {
+        formData.append("language_code", normalizedLanguage);
     }
 
     try {
@@ -27,7 +43,9 @@ async function transcribeAudio(fileBuffer, filename = "audio.wav", languageCode 
         return response.data;
     } catch (error) {
         console.error("Error calling ML STT service:", error.response?.data || error.message);
-        throw new Error(error.response?.data?.error || "STT transcription service failed");
+        const serviceError = new Error(error.response?.data?.error || "STT transcription service failed");
+        serviceError.statusCode = error.response?.status || 502;
+        throw serviceError;
     }
 }
 

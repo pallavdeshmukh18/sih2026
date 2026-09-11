@@ -54,7 +54,11 @@ export default function TopBar() {
       </span>
       <Link aria-label={t("common.settings", "Settings")} className={styles.iconButton} to={`/${role}/settings`}><Settings size={19}/></Link>
       <Link className={styles.profile} to={`/${role}/account`}>
-        <span className={styles.avatar}>{user?.firstName?.[0] || 'U'}{user?.lastName?.[0]}</span>
+        <span className={styles.avatar}>
+          {user?.profilePhotoUrl
+            ? <img src={user.profilePhotoUrl} alt="" />
+            : <>{user?.firstName?.[0] || 'U'}{user?.lastName?.[0]}</>}
+        </span>
         <span className={styles.userName}>
           {transliterateName(user?.firstName, language) || t("navigation.account", "Your account")}
           <small>{role === 'patient' ? t("account.patient", "Patient") : role === 'receptionist' ? t("common.frontDesk", "Front Desk") : role}</small>
@@ -63,4 +67,3 @@ export default function TopBar() {
     </div>
   </header>;
 }
-

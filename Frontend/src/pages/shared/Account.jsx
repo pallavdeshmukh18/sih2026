@@ -27,7 +27,8 @@ export default function Account() {
 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [photo, setPhoto] = useState("");
+  const [photo, setPhoto] = useState(user?.profilePhotoUrl || "");
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [form, setForm] = useState(() => ({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
@@ -207,6 +208,10 @@ export default function Account() {
     }
   }, [user, language, editing]);
 
+  useEffect(() => {
+    setPhoto(user?.profilePhotoUrl || "");
+  }, [user?.profilePhotoUrl]);
+
   const update = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
   const initials = `${user?.firstName?.[0] || "P"}${user?.lastName?.[0] || ""}`.toUpperCase();
   const rawFullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ");
@@ -282,17 +287,37 @@ export default function Account() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setPhoto(URL.createObjectURL(file));
-    
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please choose a JPEG, PNG, or WebP image.");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Profile photos must be 5 MB or smaller.");
+      event.target.value = "";
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    const previousPhoto = photo;
+    setPhoto(previewUrl);
+    setPhotoUploading(true);
     const formData = new FormData();
     formData.append("photo", file);
-    
+
     try {
-      await uploadProfilePhoto(formData, token);
+      const response = await uploadProfilePhoto(formData, token);
+      if (response?.profilePhotoUrl) setPhoto(response.profilePhotoUrl);
       await refreshUser();
       toast.success("Profile photo updated successfully.");
     } catch (error) {
+      setPhoto(previousPhoto);
       toast.error(error.message || "Failed to upload photo.");
+    } finally {
+      URL.revokeObjectURL(previewUrl);
+      setPhotoUploading(false);
+      event.target.value = "";
     }
   };
 
@@ -781,9 +806,9 @@ export default function Account() {
             <div className={styles.photo}>{photo ? <img src={photo} alt={fullName} /> : initials}</div>
             <h3>{t("account.addProfilePhoto", "Add a profile photo")}</h3>
             <p>{t("account.photoDesc", "A recognizable photo helps healthcare providers.")}</p>
-            <label>
-              <Camera /> {t("account.uploadPhoto", "Upload Photo")}
-              <input type="file" accept="image/*" onChange={handlePhotoUpload} />
+            <label aria-disabled={photoUploading}>
+              {photoUploading ? <RefreshCw className={styles.spin} /> : <Camera />} {photoUploading ? "Uploading…" : t("account.uploadPhoto", "Upload Photo")}
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} disabled={photoUploading} />
             </label>
           </section>
           <section className={styles.security}>

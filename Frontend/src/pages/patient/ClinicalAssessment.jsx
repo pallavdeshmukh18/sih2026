@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
@@ -43,7 +43,15 @@ import {
 } from "lucide-react";
 import { useLanguage } from "../../i18n";
 import heroImage from "../../assets/teleconsult-hero.png";
+import VoiceOrb from "../../components/voice/VoiceOrb";
 import styles from "./ClinicalAssessment.module.css";
+
+const base64ToAudioBlob = (base64) => {
+  const bytes = atob(base64);
+  const values = new Uint8Array(bytes.length);
+  for (let index = 0; index < bytes.length; index += 1) values[index] = bytes.charCodeAt(index);
+  return new Blob([values], { type: "audio/wav" });
+};
 
 const formatRecordDate = (value) => {
   if (!value) return "Not recorded";
@@ -145,6 +153,28 @@ export default function ClinicalAssessment() {
   const [lastTranscript, setLastTranscript] = useState("");
   const [micError, setMicError] = useState(null);
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
+  const [recordingStream, setRecordingStream] = useState(null);
+  const [ttsAudio, setTtsAudio] = useState(null);
+  const [isPlayingTts, setIsPlayingTts] = useState(false);
+  const ttsAudioRef = useRef(null);
+  const ttsObjectUrlRef = useRef(null);
+
+  const stopTtsPlayback = () => {
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current.onended = null;
+      ttsAudioRef.current.onerror = null;
+      ttsAudioRef.current = null;
+    }
+    if (ttsObjectUrlRef.current) {
+      URL.revokeObjectURL(ttsObjectUrlRef.current);
+      ttsObjectUrlRef.current = null;
+    }
+    setTtsAudio(null);
+    setIsPlayingTts(false);
+  };
+
+  useEffect(() => () => stopTtsPlayback(), []);
 
   useEffect(() => {
     if (!token) return;
@@ -290,6 +320,7 @@ export default function ClinicalAssessment() {
   };
 
   const handleStartRecording = async () => {
+    stopTtsPlayback();
     setMicError(null);
     setError(null);
 
@@ -347,6 +378,7 @@ export default function ClinicalAssessment() {
 
       recorder.start(100);
       setMediaRecorder(recorder);
+      setRecordingStream(stream);
       setIsRecording(true);
     } catch (err) {
       console.error("Microphone access error:", err);
@@ -362,6 +394,7 @@ export default function ClinicalAssessment() {
     if (mediaRecorder && mediaRecorder.state !== "inactive") {
       mediaRecorder.stop();
       setIsRecording(false);
+      setRecordingStream(null);
     }
   };
 
@@ -389,6 +422,18 @@ export default function ClinicalAssessment() {
 
         const sessionDone = res.isComplete || res.isCompleted || (res.session && res.session.is_completed);
         const finalSummary = res.summary || (res.session && res.session.summary);
+
+        if (res.audioBase64 && !sessionDone) {
+          const objectUrl = URL.createObjectURL(base64ToAudioBlob(res.audioBase64));
+          const audio = new Audio(objectUrl);
+          ttsObjectUrlRef.current = objectUrl;
+          ttsAudioRef.current = audio;
+          setTtsAudio(audio);
+          setIsPlayingTts(true);
+          audio.onended = stopTtsPlayback;
+          audio.onerror = stopTtsPlayback;
+          await audio.play();
+        }
 
         if (sessionDone) {
           setIsCompleted(true);
@@ -707,12 +752,20 @@ export default function ClinicalAssessment() {
 
                   {/* Voice Recording Control */}
                   <div className={styles.voiceSection}>
+                    {(isRecording || isProcessingVoice || isPlayingTts) && (
+                      <VoiceOrb
+                        className={styles.voiceOrb}
+                        state={isRecording ? "listening" : isPlayingTts ? "speaking" : "thinking"}
+                        mediaStream={isRecording ? recordingStream : null}
+                        audioSource={isPlayingTts ? ttsAudio : null}
+                      />
+                    )}
                     {!isRecording ? (
                       <button
                         type="button"
                         className={styles.voiceBtn}
                         onClick={handleStartRecording}
-                        disabled={loading || isProcessingVoice}
+                        disabled={loading || isProcessingVoice || isPlayingTts}
                         aria-label="Speak your answer using microphone"
                       >
                         <Mic size={15} />
