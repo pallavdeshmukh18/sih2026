@@ -304,6 +304,7 @@ export default function ClinicalAssessment() {
       const payload = {
         chiefComplaint: activeComplaint,
         appointmentId: selectedAppointmentId || undefined,
+        doctorId: selectedDoctorId || undefined,
         language: activeLang,
       };
 
@@ -667,18 +668,92 @@ export default function ClinicalAssessment() {
                 </div>
               </div>
 
+              {/* Doctor Selection — Full Directory */}
+              {doctors.length > 0 && (
+                <div className={styles.apptLinkRow}>
+                  <label><User size={14} /> {t("assessment.selectDoctor", "Select Doctor")}:</label>
+                  <select
+                    value={selectedDoctorId}
+                    onChange={(e) => {
+                      const docId = e.target.value;
+                      setSelectedDoctorId(docId);
+                      // Clear linked appointment if new doctor doesn't match
+                      if (selectedAppointmentId) {
+                        const linkedAppt = appointments.find((a) => String(a.id) === String(selectedAppointmentId));
+                        const linkedDocId = linkedAppt?.doctor?.id || linkedAppt?.doctorId;
+                        if (String(linkedDocId) !== String(docId)) {
+                          setSelectedAppointmentId("");
+                        }
+                      }
+                    }}
+                  >
+                    <option value="">{t("assessment.anyDoctor", "-- Any Available Doctor --")}</option>
+                    {doctors.map((doc) => {
+                      const docName = doc.name || `Dr. ${doc.firstName || ""} ${doc.lastName || ""}`.trim();
+                      const spec = doc.specialization || "General Medicine";
+                      return (
+                        <option key={doc.id} value={doc.id}>
+                          {docName} — {spec}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
+
+              {/* Appointment Link — filtered to selected doctor if any */}
               {appointments.length > 0 && (
                 <div className={styles.apptLinkRow}>
                   <label><Calendar size={14} /> {t("assessment.selectApptOptional", "Link with Upcoming Appointment")}:</label>
                   <select
                     value={selectedAppointmentId}
-                    onChange={(e) => setSelectedAppointmentId(e.target.value)}
+                    onChange={(e) => {
+                      const apptId = e.target.value;
+                      setSelectedAppointmentId(apptId);
+                      // Auto-select the doctor from this appointment
+                      if (apptId) {
+                        const appt = appointments.find((a) => String(a.id) === String(apptId));
+                        const docId = appt?.doctor?.id || appt?.doctorId;
+                        if (docId) setSelectedDoctorId(String(docId));
+                      }
+                    }}
                   >
-                    {appointments.map((appt) => (
-                      <option key={appt.id} value={appt.id}>
-                        Dr. {appt.doctor_first_name} {appt.doctor_last_name} ({appt.specialization || "General"}) - {new Date(appt.scheduled_at).toLocaleDateString()}
-                      </option>
-                    ))}
+                    <option value="">{t("assessment.noLinkedAppt", "-- None (General Intake / Unlinked) --")}</option>
+                    {appointments
+                      .filter((appt) => {
+                        if (!selectedDoctorId) return true;
+                        const docId = appt.doctor?.id || appt.doctorId;
+                        return String(docId) === String(selectedDoctorId);
+                      })
+                      .map((appt) => {
+                        const docName =
+                          appt.doctor?.name ||
+                          (appt.doctor?.firstName ? `Dr. ${appt.doctor.firstName} ${appt.doctor.lastName || ""}`.trim() : "") ||
+                          (appt.doctor_first_name ? `Dr. ${appt.doctor_first_name} ${appt.doctor_last_name || ""}`.trim() : "") ||
+                          "Attending Doctor";
+
+                        const spec = appt.doctor?.specialization || appt.specialization || "General Medicine";
+                        const rawDate = appt.scheduledAt || appt.scheduled_at;
+                        const dateObj = rawDate ? new Date(rawDate) : null;
+                        const isValidDate = dateObj && !isNaN(dateObj.getTime());
+                        const formattedDate = isValidDate
+                          ? dateObj.toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "Scheduled";
+
+                        const reasonText = appt.reason ? ` • ${appt.reason}` : "";
+
+                        return (
+                          <option key={appt.id} value={appt.id}>
+                            {docName} ({spec}) — {formattedDate}{reasonText}
+                          </option>
+                        );
+                      })}
                   </select>
                 </div>
               )}
