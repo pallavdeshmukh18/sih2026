@@ -98,7 +98,8 @@ async function processVoiceTurn(req, res, next) {
         const sttResult = await mlService.transcribeAudio(
             req.file.buffer,
             req.file.originalname,
-            session.language
+            session.language,
+            req.file.mimetype
         );
 
         const patientText = sttResult.transcript || "";
@@ -188,6 +189,12 @@ async function processVoiceTurn(req, res, next) {
             summary: finalSummary,
         });
     } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({
+                success: false,
+                message: error.message,
+            });
+        }
         next(error);
     }
 }

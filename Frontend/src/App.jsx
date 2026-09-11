@@ -96,7 +96,7 @@ function App() {
             <Route path="account/whatsapp" element={<Account />} />
             <Route path="doctor" element={<DoctorDirectory />} />
             <Route path="teleconsult" element={<DoctorTeleconsult />} />
-            <Route path="departments" element={<Departments />} />
+            <Route path="departments" element={<Navigate to="/doctor/dashboard" replace />} />
             <Route path="schedule" element={<Navigate to="/doctor/appointments" replace />} />
             <Route path="bed" element={<Navigate to="/doctor/teleconsult" replace />} />
 

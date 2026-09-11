@@ -14,9 +14,49 @@ const {
 const { sendEmailOTP } = require("../services/emailService");
 const googleAuthService = require("../services/googleAuthService");
 const oauthExchangeService = require("../services/oauthExchangeService");
+const profilePhotoStorage = require("../services/profilePhotoStorageService");
 
 const { JWT_SECRET } = require("../config/auth");
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+
+async function importGoogleProfilePhoto(userId, pictureUrl, existingStoragePath = null) {
+    if (!pictureUrl || existingStoragePath) return existingStoragePath;
+
+    try {
+        const url = new URL(pictureUrl);
+        if (url.protocol !== "https:" || !url.hostname.endsWith("googleusercontent.com")) {
+            throw new Error("Google returned an unsupported profile photo URL.");
+        }
+
+        const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+        if (!response.ok) throw new Error(`Google profile photo download returned ${response.status}.`);
+
+        const mimeType = (response.headers.get("content-type") || "").split(";", 1)[0].toLowerCase();
+        if (!["image/jpeg", "image/png", "image/webp"].includes(mimeType)) {
+            throw new Error("Google profile photo has an unsupported image type.");
+        }
+
+        const declaredSize = Number(response.headers.get("content-length") || 0);
+        if (declaredSize > 5 * 1024 * 1024) throw new Error("Google profile photo exceeds 5 MB.");
+
+        const buffer = Buffer.from(await response.arrayBuffer());
+        if (!buffer.length || buffer.length > 5 * 1024 * 1024) {
+            throw new Error("Google profile photo is empty or exceeds 5 MB.");
+        }
+
+        const storagePath = await profilePhotoStorage.uploadProfilePhoto(userId, "google-avatar", buffer, mimeType);
+        await pool.query(
+            `UPDATE users SET profile_photo_path = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2 AND profile_photo_path IS NULL`,
+            [storagePath, userId]
+        );
+        return storagePath;
+    } catch (error) {
+        // A photo import should never prevent the user from signing in.
+        console.warn("Could not import Google profile photo:", error.message);
+        return null;
+    }
+}
 
 // ==================================================
 // PHONE AUTHENTICATION CONTROLLERS
@@ -1283,11 +1323,11 @@ async function handleGoogleCallback(req, res) {
 
         // Exchange code & verify Google ID Token
         const googleUser = await googleAuthService.verifyGoogleCode(code);
-        const { sub, email, givenName, familyName } = googleUser;
+        const { sub, email, givenName, familyName, picture } = googleUser;
 
         // Step A: Check if Google patient already exists by provider_id = sub
         const existingGoogleUser = await client.query(
-            "SELECT id, first_name, last_name, role, login_method, is_active FROM users WHERE login_method = 'google' AND provider_id = $1;",
+            "SELECT id, first_name, last_name, role, login_method, is_active, profile_photo_path FROM users WHERE login_method = 'google' AND provider_id = $1;",
             [sub]
         );
 
@@ -1301,6 +1341,8 @@ async function handleGoogleCallback(req, res) {
                     message: "Account inactive or unauthorized role.",
                 });
             }
+
+            await importGoogleProfilePhoto(user.id, picture, user.profile_photo_path);
 
             const token = jwt.sign(
                 { sub: user.id, role: user.role },
@@ -1353,6 +1395,8 @@ async function handleGoogleCallback(req, res) {
         );
 
         await client.query("COMMIT;");
+
+        await importGoogleProfilePhoto(newUser.id, picture);
 
         // Issue JWT Token
         const token = jwt.sign(
@@ -1441,6 +1485,7 @@ async function getMe(req, res) {
 
         const result = await pool.query(
             `SELECT u.id, u.first_name, u.last_name, u.role, u.login_method, u.email, u.phone, u.created_by_doctor_id,
+                    u.profile_photo_path,
                     p.date_of_birth, p.gender, p.abha_id,
                     p.state, p.preferred_language, p.interaction_mode, p.accessibility_preference,
                     d.registration_number, d.specialization, d.department AS doctor_department, d.verification_status
@@ -1459,6 +1504,13 @@ async function getMe(req, res) {
 
         const row = result.rows[0];
         const isCompleted = !!(row.state && row.preferred_language && row.interaction_mode && row.accessibility_preference);
+        let profilePhotoUrl = null;
+        if (row.profile_photo_path) {
+            profilePhotoUrl = await profilePhotoStorage.getProfilePhotoUrl(row.profile_photo_path).catch((error) => {
+                console.warn("Could not sign profile photo URL:", error.message);
+                return null;
+            });
+        }
 
         return res.status(200).json({
             user: {
@@ -1471,6 +1523,7 @@ async function getMe(req, res) {
                 role: row.role,
                 loginMethod: row.login_method,
                 doctorId: row.created_by_doctor_id,
+                profilePhotoUrl,
             },
             profile: {
                 dateOfBirth: row.date_of_birth,

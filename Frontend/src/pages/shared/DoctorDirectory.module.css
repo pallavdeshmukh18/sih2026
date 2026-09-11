@@ -58,6 +58,12 @@
   opacity: 1;
 }
 
+.searchSection {
+  position: relative;
+  z-index: 3;
+  height: 0;
+}
+
 .searchBar {
   height: 54px;
   display: grid;

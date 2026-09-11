@@ -25,6 +25,12 @@ const documentFileFilter = (req, file, cb) => {
     }
 };
 
+const profilePhotoFileFilter = (req, file, cb) => {
+    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (allowedMimeTypes.includes(file.mimetype)) return cb(null, true);
+    return cb(Object.assign(new Error("Profile photos must be JPEG, PNG, or WebP."), { statusCode: 400 }), false);
+};
+
 const uploadAudio = multer({
     storage,
     limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB
@@ -37,7 +43,14 @@ const uploadDocument = multer({
     fileFilter: documentFileFilter,
 });
 
+const uploadProfilePhoto = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: profilePhotoFileFilter,
+});
+
 module.exports = {
     uploadAudio,
     uploadDocument,
+    uploadProfilePhoto,
 };
