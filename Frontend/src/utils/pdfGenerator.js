@@ -1,6 +1,83 @@
 import jsPDF from "jspdf";
 
 /**
+ * Clean and normalize any markdown or LLM artifacts from a text string
+ */
+function cleanMarkdownText(str) {
+  if (!str) return "";
+  return String(str)
+    .normalize("NFKC")
+    .replace(/[\u2018\u2019\u0060\u00B4]/g, "'") // Normalize smart single quotes & backticks
+    .replace(/[\u201C\u201D\u00AB\u00BB]/g, '"') // Normalize smart double quotes & guillemets
+    .replace(/[\u2013\u2014\u2015\u2212]/g, "-") // Normalize all dashes
+    .replace(/[\u00A0\u1680\u180E\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, " ") // Replace non-breaking and zero-width spaces
+    .replace(/```[\s\S]*?```/g, "") // Remove code blocks
+    .replace(/`([^`]+)`/g, "$1") // Remove inline code backticks keeping content
+    .replace(/`/g, "") // Remove lingering backticks
+    .replace(/\*\*([^*]+)\*\*/g, "$1") // Remove bold markdown keeping content
+    .replace(/\*([^*]+)\*/g, "$1") // Remove italic markdown keeping content
+    .replace(/__([^_]+)__/g, "$1") // Remove bold underscore keeping content
+    .replace(/_([^_]+)_/g, "$1") // Remove italic underscore keeping content
+    .replace(/~~([^~]+)~~/g, "$1") // Remove strikethrough keeping content
+    .replace(/^[#]+\s*/, "") // Remove leading hashes
+    .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, "") // Remove emojis
+    .replace(/🩺|📋|🚨|💬|💊|🧪|⚠️|🔍/g, "")
+    .replace(/[^\x20-\x7E\xA0-\xFF]/g, " ") // Strip any non-standard unicode that breaks Helvetica kerning
+    .replace(/\s+/g, " ") // Normalize multiple spaces and tabs to a single space
+    .trim();
+}
+
+/**
+ * Parses markdown into structured blocks (headers, list items, full paragraphs)
+ * preventing mid-sentence line breaks or fragmented markdown lines.
+ */
+function parseMarkdownBlocks(rawText) {
+  if (!rawText) return [];
+  const lines = String(rawText).split(/\r?\n/);
+  const blocks = [];
+  let currentParagraph = [];
+
+  const flushParagraph = () => {
+    if (currentParagraph.length > 0) {
+      const text = currentParagraph.join(" ").trim();
+      if (text) {
+        blocks.push({ type: "paragraph", content: text });
+      }
+      currentParagraph = [];
+    }
+  };
+
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushParagraph();
+      continue;
+    }
+
+    const headerMatch = trimmed.match(/^(#{1,4})\s*(.*)/);
+    if (headerMatch) {
+      flushParagraph();
+      blocks.push({ type: "header", level: headerMatch[1].length, content: headerMatch[2].trim() });
+      continue;
+    }
+
+    const isBullet = trimmed.match(/^[-*•]\s+(.*)/);
+    const isNumbered = trimmed.match(/^(\d+[\.\)])\s+(.*)/);
+    if (isBullet || isNumbered) {
+      flushParagraph();
+      const prefix = isNumbered ? isNumbered[1] : "*";
+      const body = isNumbered ? isNumbered[2] : isBullet[1];
+      blocks.push({ type: "list_item", prefix, content: body.trim() });
+      continue;
+    }
+
+    currentParagraph.push(trimmed);
+  }
+  flushParagraph();
+  return blocks;
+}
+
+/**
  * Generates and downloads a beautifully formatted, official MediKiosk Clinical AI Assessment PDF Report
  */
 export async function downloadSummaryPDF({
@@ -13,216 +90,351 @@ export async function downloadSummaryPDF({
   summaryText = "",
 }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
+  if (typeof doc.setCharSpace === "function") {
+    doc.setCharSpace(0);
+  }
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 14;
+  const contentWidth = pageWidth - margin * 2;
+  const bottomMargin = 20;
 
-  const primaryColor = [13, 148, 136]; // #0d9488 Teal
-  const darkTextColor = [30, 41, 59]; // #1e293b
-  const grayColor = [100, 116, 139]; // #64748b
+  const tealDark = [13, 110, 100]; // Primary teal #0d6e64
+  const tealPrimary = [13, 148, 136]; // Teal #0d9488
+  const tealLight = [240, 253, 250]; // Light teal #f0fdfa
+  const tealBorder = [153, 246, 228]; // Border #99f6e4
+  const textDark = [30, 41, 59]; // Slate #1e293b
+  const textMuted = [100, 116, 139]; // Slate muted #64748b
+  const redAlert = [220, 38, 38]; // Red #dc2626
+  const redLight = [254, 242, 242]; // Red background #fef2f2
+  const redBorder = [254, 202, 202]; // Red border #fecaca
 
-  // Top Header Banner
-  doc.setFillColor(...primaryColor);
-  doc.rect(0, 0, pageWidth, 28, "F");
+  let y = 0;
+
+  const ensureSpace = (neededHeight) => {
+    if (y + neededHeight > pageHeight - bottomMargin) {
+      doc.addPage();
+      y = margin + 5;
+      return true;
+    }
+    return false;
+  };
+
+  // ==========================================
+  // 1. TOP HEADER BANNER
+  // ==========================================
+  doc.setFillColor(...tealDark);
+  doc.rect(0, 0, pageWidth, 26, "F");
+
+  // Top accent stripe
+  doc.setFillColor(45, 212, 191);
+  doc.rect(0, 0, pageWidth, 2.5, "F");
 
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text("MediKiosk Healthcare Platform", 14, 14);
+  doc.setFontSize(15);
+  doc.text("MediKiosk Clinical Intelligence", margin, 13);
 
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text("PHYSICIAN CLINICAL INTAKE REPORT", 14, 21);
-  doc.text(`Date: ${date}`, pageWidth - 14, 21, { align: "right" });
+  doc.text("AI PRE-CONSULTATION INTAKE & TRIAGE DOSSIER", margin, 19);
 
-  let y = 36;
+  const formattedDate = date ? String(date) : new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  doc.text(`Generated: ${formattedDate}`, pageWidth - margin, 13, { align: "right" });
+  doc.text("Confidential Medical Record", pageWidth - margin, 19, { align: "right" });
 
-  // Patient Info & Session Overview Box
+  y = 32;
+
+  // ==========================================
+  // 2. PATIENT DEMOGRAPHICS & INTAKE OVERVIEW
+  // ==========================================
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(14, y, pageWidth - 28, 24, 3, 3, "FD");
+  doc.roundedRect(margin, y, contentWidth, 22, 2.5, 2.5, "FD");
 
-  doc.setTextColor(...darkTextColor);
+  // Left accent bar
+  doc.setFillColor(...tealPrimary);
+  doc.roundedRect(margin, y, 3, 22, 1, 1, "F");
+
+  doc.setTextColor(...textDark);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text(`Patient: ${patientName}`, 18, y + 8);
-  doc.text(`Chief Complaint: ${chiefComplaint || "General Assessment"}`, 18, y + 16);
+  doc.text(`Patient: ${patientName || "Patient"}`, margin + 6, y + 7.5);
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...grayColor);
-  doc.text("Status: COMPLETED (AI Verified)", pageWidth - 18, y + 8, { align: "right" });
-  doc.text("Source: MediKiosk RAG Engine", pageWidth - 18, y + 16, { align: "right" });
-
-  y += 30;
-
-  // Physician Clinical Briefing Box
-  doc.setFillColor(241, 245, 249);
-  doc.setDrawColor(203, 213, 225);
-  doc.roundedRect(14, y, pageWidth - 28, 22, 3, 3, "FD");
-
-  doc.setTextColor(15, 23, 42);
-  doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
-  doc.text("ATTENDING PHYSICIAN CLINICAL BRIEFING & ACTION NOTES", 18, y + 6);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...textDark);
+  doc.text(`Chief Complaint:`, margin + 6, y + 15.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...tealDark);
+  doc.text(` ${chiefComplaint || "General Health Assessment"}`, margin + 35, y + 15.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
+  doc.setTextColor(...textMuted);
+  doc.text("Verification: AI Structured Intake", pageWidth - margin - 5, y + 7.5, { align: "right" });
+  doc.text("Target: Attending Physician Review", pageWidth - margin - 5, y + 15.5, { align: "right" });
+
+  y += 27;
+
+  // ==========================================
+  // 3. PHYSICIAN NOTICE BRIEFING BOX
+  // ==========================================
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(margin, y, contentWidth, 15, 2, 2, "FD");
+
   doc.setTextColor(51, 65, 85);
-  const briefingText = "This pre-consultation report is generated by the MediKiosk Clinical AI RAG Engine. It compiles self-reported progression and parameters. Please verify identified red flags during physical exam and validate diagnostic differentials prior to treatment planning.";
-  const splitBriefing = doc.splitTextToSize(briefingText, pageWidth - 36);
-  doc.text(splitBriefing, 18, y + 12);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.text("PHYSICIAN CLINICAL NOTICE:", margin + 4, y + 5);
 
-  y += 28;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  const noticeStr = "This provisional clinical summary is generated using patient-reported data and RAG medical knowledge. Verify all reported symptoms, red flags, and diagnostic differentials during clinical consultation.";
+  const splitNotice = doc.splitTextToSize(noticeStr, contentWidth - 8);
+  doc.text(splitNotice, margin + 4, y + 9.5);
 
-  // Red Flags Alert Section (if present)
-  if (redFlags && redFlags.length > 0) {
-    doc.setFillColor(254, 242, 242);
-    doc.setDrawColor(254, 202, 202);
-    doc.roundedRect(14, y, pageWidth - 28, 10 + redFlags.length * 6, 3, 3, "FD");
+  y += 19;
 
-    doc.setTextColor(220, 38, 38);
+  // ==========================================
+  // 4. RED FLAGS & TRIAGE SECTION (IF ANY)
+  // ==========================================
+  if (redFlags && Array.isArray(redFlags) && redFlags.length > 0) {
+    ensureSpace(16 + redFlags.length * 5.5);
+    doc.setFillColor(...redLight);
+    doc.setDrawColor(...redBorder);
+    const boxHeight = 10 + redFlags.length * 5.5;
+    doc.roundedRect(margin, y, contentWidth, boxHeight, 2, 2, "FD");
+
+    // Red left bar
+    doc.setFillColor(...redAlert);
+    doc.roundedRect(margin, y, 3, boxHeight, 1, 1, "F");
+
+    doc.setTextColor(...redAlert);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10.5);
-    doc.text("RED FLAGS IDENTIFIED", 18, y + 7);
+    doc.setFontSize(9.5);
+    doc.text("PRIORITY TRIAGE / IDENTIFIED RED FLAGS", margin + 6, y + 6.5);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(153, 27, 27);
     redFlags.forEach((flag, idx) => {
-      doc.text(`* ${flag}`, 22, y + 13 + idx * 6);
+      const cleanFlag = cleanMarkdownText(flag);
+      doc.text(`* ${cleanFlag}`, margin + 8, y + 12 + idx * 5.5);
     });
 
-    y += 16 + redFlags.length * 6;
+    y += boxHeight + 5;
   }
 
-  // Answered Parameters Table
-  if (answeredFields && Object.keys(answeredFields).length > 0) {
-    doc.setTextColor(...primaryColor);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("Structured Clinical History & Parameters", 14, y);
-    y += 6;
+  // ==========================================
+  // 5. STRUCTURED PARAMETERS (ANSWERED FIELDS)
+  // ==========================================
+  if (answeredFields && typeof answeredFields === "object" && Object.keys(answeredFields).length > 0) {
+    const entries = Object.entries(answeredFields).filter(([_, v]) => v !== undefined && v !== null && String(v).trim() !== "");
+    if (entries.length > 0) {
+      ensureSpace(16 + entries.length * 6);
 
-    doc.setFontSize(9);
-    const entries = Object.entries(answeredFields);
-    entries.forEach(([key, val]) => {
-      if (y > 270) {
-        doc.addPage();
-        y = 20;
-      }
-      const label = key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+      doc.setFillColor(...tealLight);
+      doc.setDrawColor(...tealBorder);
+      doc.roundedRect(margin, y, contentWidth, 8, 1.5, 1.5, "FD");
+
+      doc.setTextColor(...tealDark);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(...darkTextColor);
-      doc.text(`${label}:`, 18, y);
+      doc.setFontSize(9.5);
+      doc.text("Structured Patient Parameters & Intake History", margin + 5, y + 5.5);
+      y += 11;
 
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(51, 65, 85);
-      doc.text(String(val), 70, y);
-      y += 5.5;
-    });
+      entries.forEach(([k, v]) => {
+        ensureSpace(6.5);
+        const label = k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(235, 240, 245);
+        doc.roundedRect(margin + 2, y - 4, contentWidth - 4, 6, 1, 1, "FD");
 
-    y += 6;
-  }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(...textDark);
+        doc.text(`${label}:`, margin + 6, y);
 
-  // Summary Text Section
-  if (summaryText) {
-    if (y > 240) {
-      doc.addPage();
-      y = 20;
-    }
-    doc.setTextColor(...primaryColor);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("Physician Summary Notes", 14, y);
-    y += 6;
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(30, 41, 59);
+        const valStr = cleanMarkdownText(v);
+        const splitVal = doc.splitTextToSize(valStr, contentWidth - 65);
+        doc.text(splitVal[0] || "", margin + 60, y);
 
-    let textToRender = summaryText;
-    let extractedMeds = [];
-    let extractedLabs = [];
-
-    if (typeof summaryText === "object" && summaryText !== null) {
-      textToRender = summaryText.summary || "";
-      extractedMeds = summaryText.medications || [];
-      extractedLabs = summaryText.lab_results || [];
-    }
-
-    const cleanText = String(textToRender || "")
-      .replace(/###/g, "")
-      .replace(/\*\*/g, "")
-      .replace(/\*/g, "")
-      .replace(/🩺|📋|🚨/g, "")
-      .trim();
-
-    if (extractedMeds.length > 0) {
-      doc.setTextColor(...primaryColor);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10.5);
-      doc.text("Prescribed Medications", 14, y);
-      y += 5.5;
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(...darkTextColor);
-
-      extractedMeds.forEach((m) => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        const line = `* ${m.medicine || m.name}: ${m.dose || ""} (${m.frequency || ""}) ${m.duration || ""}`.trim();
-        doc.text(line, 18, y);
-        y += 5;
+        y += 6.5;
       });
+
       y += 4;
     }
-
-    if (extractedLabs.length > 0) {
-      if (y > 250) { doc.addPage(); y = 20; }
-      doc.setTextColor(...primaryColor);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10.5);
-      doc.text("Extracted Laboratory Results", 14, y);
-      y += 5.5;
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(...darkTextColor);
-
-      extractedLabs.forEach((l) => {
-        if (y > 270) { doc.addPage(); y = 20; }
-        const line = `* ${l.test}: ${l.value} ${l.unit || ""} (Ref: ${l.reference_range || "N/A"})`;
-        doc.text(line, 18, y);
-        y += 5;
-      });
-      y += 4;
-    }
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...darkTextColor);
-
-    const splitText = doc.splitTextToSize(cleanText, pageWidth - 28);
-    splitText.forEach((line) => {
-      if (y > 275) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.text(line, 14, y);
-      y += 4.5;
-    });
   }
 
-  // Footer on all pages
+  // ==========================================
+  // 6. DETAILED CLINICAL SUMMARY & SECTIONS
+  // ==========================================
+  let rawText = "";
+  let extractedMeds = [];
+  let extractedLabs = [];
+
+  if (typeof summaryText === "object" && summaryText !== null) {
+    rawText = summaryText.summary || "";
+    extractedMeds = summaryText.medications || [];
+    extractedLabs = summaryText.lab_results || [];
+  } else {
+    rawText = String(summaryText || "");
+  }
+
+  // Render Prescriptions if provided
+  if (extractedMeds && extractedMeds.length > 0) {
+    ensureSpace(15 + extractedMeds.length * 6);
+    doc.setFillColor(...tealDark);
+    doc.rect(margin, y, contentWidth, 6.5, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("PRESCRIBED MEDICATIONS & REGIMEN", margin + 4, y + 4.5);
+    y += 9;
+
+    extractedMeds.forEach((m) => {
+      ensureSpace(6);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(...textDark);
+      doc.text(`- ${m.medicine || m.name}:`, margin + 6, y);
+
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...textMuted);
+      const details = `${m.dose || ""} ${m.frequency ? `(${m.frequency})` : ""} ${m.duration || ""}`.trim();
+      doc.text(details, margin + 45, y);
+      y += 5.5;
+    });
+    y += 4;
+  }
+
+  // Render Lab Results if provided
+  if (extractedLabs && extractedLabs.length > 0) {
+    ensureSpace(15 + extractedLabs.length * 6);
+    doc.setFillColor(...tealDark);
+    doc.rect(margin, y, contentWidth, 6.5, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("LABORATORY & INVESTIGATION FINDINGS", margin + 4, y + 4.5);
+    y += 9;
+
+    extractedLabs.forEach((l) => {
+      ensureSpace(6);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(...textDark);
+      doc.text(`- ${l.test}:`, margin + 6, y);
+
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...textDark);
+      doc.text(`${l.value} ${l.unit || ""} ${l.reference_range ? `(Ref: ${l.reference_range})` : ""}`, margin + 50, y);
+      y += 5.5;
+    });
+    y += 4;
+  }
+
+  // Parse Markdown Summary Text into Structured Blocks
+  if (rawText && rawText.trim()) {
+    const blocks = parseMarkdownBlocks(rawText);
+
+    for (const block of blocks) {
+      if (block.type === "header") {
+        const headingText = cleanMarkdownText(block.content);
+        ensureSpace(14);
+
+        if (headingText.toLowerCase().includes("patient summary")) {
+          doc.setFillColor(240, 253, 244); // light green
+          doc.setDrawColor(187, 247, 208);
+          doc.roundedRect(margin, y, contentWidth, 7, 1.5, 1.5, "FD");
+          doc.setTextColor(22, 101, 52);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9.5);
+          doc.text("Patient-Friendly Summary (Plain Language)", margin + 4, y + 4.8);
+        } else {
+          // Normal section header
+          doc.setFillColor(241, 245, 249);
+          doc.setDrawColor(203, 213, 225);
+          doc.roundedRect(margin, y, contentWidth, 7, 1.5, 1.5, "FD");
+
+          // Teal accent pill
+          doc.setFillColor(...tealPrimary);
+          doc.rect(margin, y, 2.5, 7, "F");
+
+          doc.setTextColor(...tealDark);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9.5);
+          doc.text(headingText, margin + 5, y + 4.8);
+        }
+
+        y += 10.5;
+      } else if (block.type === "list_item") {
+        const cleanBody = cleanMarkdownText(block.content);
+        const prefix = block.prefix || "*";
+        const fullLine = `${prefix}  ${cleanBody}`;
+        const splitBullet = doc.splitTextToSize(fullLine, contentWidth - 12);
+
+        splitBullet.forEach((bLine, bIdx) => {
+          ensureSpace(5);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8.5);
+          doc.setTextColor(...textDark);
+          doc.text(bLine, margin + (bIdx === 0 ? 4 : 8), y);
+          y += 4.5;
+        });
+        y += 1;
+      } else if (block.type === "paragraph") {
+        const cleanParagraph = cleanMarkdownText(block.content);
+        const isAutoGenerated = cleanParagraph.toLowerCase().startsWith("auto-generated");
+
+        const splitText = doc.splitTextToSize(cleanParagraph, contentWidth - 12);
+        splitText.forEach((pLine) => {
+          ensureSpace(5);
+          doc.setFont("helvetica", isAutoGenerated ? "italic" : "normal");
+          doc.setFontSize(isAutoGenerated ? 7.5 : 8.5);
+          doc.setTextColor(...(isAutoGenerated ? textMuted : textDark));
+          doc.text(pLine, margin + 4, y);
+          y += 4.5;
+        });
+        y += 2;
+      }
+    }
+  }
+
+  // ==========================================
+  // 7. RUNNING FOOTER ON ALL PAGES
+  // ==========================================
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
-    doc.setFontSize(8);
+    
+    // Bottom rule
+    doc.setDrawColor(226, 232, 240);
+    doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
     doc.setTextColor(148, 163, 184);
     doc.text(
-      `MediKiosk AI Intake Report - Page ${i} of ${pageCount} - Confidential Medical Document`,
-      pageWidth / 2,
-      287,
-      { align: "center" }
+      `MediKiosk AI Clinical Assessment • Confidential Medical Record • Page ${i} of ${pageCount}`,
+      margin,
+      pageHeight - 7
+    );
+    doc.text(
+      "Validated by RAG Clinical Knowledge Engine",
+      pageWidth - margin,
+      pageHeight - 7,
+      { align: "right" }
     );
   }
 
-  const sanitizedPatient = patientName.replace(/[^a-zA-Z0-9]/g, "_");
+  const sanitizedPatient = (patientName || "Patient").replace(/[^a-zA-Z0-9]/g, "_");
   const sanitizedComplaint = (chiefComplaint || "General").replace(/[^a-zA-Z0-9]/g, "_");
   const timestamp = new Date().toISOString().slice(0, 10);
   const randomCode = Math.floor(1000 + Math.random() * 9000);
@@ -230,3 +442,5 @@ export async function downloadSummaryPDF({
   const safeFilename = `MediKiosk_Assessment_${sanitizedPatient}_${sanitizedComplaint}_${timestamp}_Ref${randomCode}.pdf`;
   doc.save(safeFilename);
 }
+
+

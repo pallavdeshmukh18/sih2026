@@ -251,9 +251,17 @@ export default function ClinicalAssessment() {
 
   const handleStartSession = async (e) => {
     e.preventDefault();
-    const activeComplaint = chiefComplaint || customComplaint;
+    let activeComplaint = "";
+    if (chiefComplaint && customComplaint.trim()) {
+      activeComplaint = `${chiefComplaint} (${customComplaint.trim()})`;
+    } else if (chiefComplaint) {
+      activeComplaint = chiefComplaint;
+    } else if (customComplaint.trim()) {
+      activeComplaint = customComplaint.trim();
+    }
+
     if (!activeComplaint.trim()) {
-      setError("Please select or type your primary complaint to begin.");
+      setError("Please select a symptom or describe your health concern to begin.");
       return;
     }
     setError(null);
@@ -567,8 +575,7 @@ export default function ClinicalAssessment() {
                       type="button"
                       className={`${styles.symptomCard} ${isActive ? styles.symptomCardActive : ""}`}
                       onClick={() => {
-                        setChiefComplaint(item.id);
-                        setCustomComplaint("");
+                        setChiefComplaint(chiefComplaint === item.id ? "" : item.id);
                       }}
                     >
                       <div className={styles.symptomIcon} style={{ background: item.bg, color: item.color }}>
@@ -585,7 +592,11 @@ export default function ClinicalAssessment() {
 
               <div className={styles.customSection}>
                 <label className={styles.sectionLabel}>
-                  <span>{t("assessment.customComplaintPrompt", "Or describe your symptoms in your own words")}</span>
+                  <span>
+                    {chiefComplaint
+                      ? `Additional details for ${chiefComplaint} (Optional):`
+                      : t("assessment.customComplaintPrompt", "Or describe your symptoms in your own words:")}
+                  </span>
                   <small>{t("common.optional", "Optional")}</small>
                 </label>
                 <div className={styles.customInputBox}>
@@ -593,11 +604,14 @@ export default function ClinicalAssessment() {
                   <input
                     type="text"
                     className={styles.customInput}
-                    placeholder={t("assessment.customComplaintPlaceholder", "e.g., Throbbing temple headache since this morning, mild nausea...")}
+                    placeholder={
+                      chiefComplaint
+                        ? `e.g., Since 2-3 days, mild fever, worse at night...`
+                        : t("assessment.customComplaintPlaceholder", "e.g., Throbbing temple headache since this morning, mild nausea...")
+                    }
                     value={customComplaint}
                     onChange={(e) => {
                       setCustomComplaint(e.target.value);
-                      setChiefComplaint("");
                     }}
                   />
                   {customComplaint && (

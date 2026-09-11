@@ -126,27 +126,78 @@ async function startSessionCore({
         }
     }
 
-    // Call FastAPI ML service to initialize clinical ontology state
+    // Call FastAPI ML service to initialize clinical ontology state    // ── Fetch Patient Demographics & Medical History ──
+    let patientProfile = null;
+    if (patientId) {
+        try {
+            // Demographics
+            const userRes = await pool.query(
+                `SELECT u.first_name, u.last_name, p.date_of_birth, p.gender, p.preferred_language
+                 FROM users u
+                 LEFT JOIN patient_profiles p ON u.id = p.user_id
+                 WHERE u.id = $1;`,
+                [patientId]
+            );
+
+            // Medical History
+            const medRes = await pool.query(
+                `SELECT category, condition, status, description 
+                 FROM medical_history
+                 WHERE patient_id = $1
+                 ORDER BY COALESCE(diagnosed_at, created_at::date) DESC;`,
+                [patientId]
+            );
+
+            if (userRes.rows.length > 0) {
+                const u = userRes.rows[0];
+                let age = null;
+                if (u.date_of_birth) {
+                    const diffMs = Date.now() - new Date(u.date_of_birth).getTime();
+                    age = Math.abs(new Date(diffMs).getUTCFullYear() - 1970);
+                }
+
+                patientProfile = {
+                    name: `${u.first_name} ${u.last_name || ""}`.trim(),
+                    age: age,
+                    gender: u.gender,
+                    preferred_language: u.preferred_language,
+                    medical_history: medRes.rows.map(r => ({
+                        condition: r.condition,
+                        category: r.category,
+                        status: r.status,
+                        description: r.description
+                    }))
+                };
+            }
+        } catch (err) {
+            console.error("Error fetching patient profile for ML context:", err);
+        }
+    }
+
+    // Call ML Engine to start the session or fallback
     let mlSessionResponse;
     try {
-        mlSessionResponse = await mlService.startClinicalSession(
-            patientId,
+        const payloadState = {
+            patient_id: patientId,
             language,
-            consultationType,
-            chiefComplaint
-        );
-    } catch (mlErr) {
-        console.warn("[ML FALLBACK] Clinical AI service unavailable, using local session initial state:", mlErr.message);
+            consultation_type: consultationType,
+            chief_complaint: chiefComplaint,
+            patient_profile: patientProfile,
+        };
+        mlSessionResponse = await mlService.startClinicalSession(payloadState);
+    } catch (error) {
+        console.warn("[ML FALLBACK] ML service failed or timed out during session start:", error.message);
         
         const fallbackQuestions = {
-            hi: `मेडीकियोस्क में आपका स्वागत है। आपको ${chiefComplaint} की समस्या कितने समय से हो रही है?`,
-            mr: `मेडीकियोस्कंमध्ये आपले स्वागत आहे. तुम्हाला ${chiefComplaint} चा त्रास किती दिवसांपासून होत आहे?`,
-            gu: `મેડીકિયોસ્કમાં તમારું સ્વાગત છે. તમને ${chiefComplaint} ની તકલીફ કેટલા સમયથી થઈ રહી છે?`,
-            bn: `মেডিকিয়োস্কে আপনাকে স্বাগতম। আপনি কত দিন ধরে ${chiefComplaint} অনুভব করছেন?`,
-            ta: `மெடிகியோஸ்கிற்கு நல்வரவு. எவ்வளவு காலமாக ${chiefComplaint} பிரச்சினை இருக்கிறது?`,
-            te: `మెడికియోస్క్‌కి స్వాగతం. ఎంతకాలంగా ${chiefComplaint} సమస్యతో బాధపడుతున్నారు?`,
-            kn: `ಮೆಡಿಕಿಯೋಸ್ಕ್‌ಗೆ ಸ್ವಾಗತನ. ಎಷ್ಟು ದಿನಗಳಿಂದ ${chiefComplaint} ಸಮಸ್ಯೆ ಇದೆ?`,
-            ml: `മെഡികിയോസ്കിലേക്ക് സ്വാഗതം. എത്ര നാളായി ${chiefComplaint} പ്രശ്നം അനുഭവപ്പെടുന്നു?`,
+            en: `Welcome to MediKiosk. How long have you been experiencing ${chiefComplaint}?`,
+            hi: `मेडीकियोस्क में आपका स्वागत है। आपको ${chiefComplaint} की समस्या कब से है?`,
+            mr: `मेडीकिओस्क मध्ये आपले स्वागत आहे. तुम्हाला ${chiefComplaint} चा त्रास कधीपासून होत आहे?`,
+            gu: `મેડિકિઓસ્કમાં તમારું સ્વાગત છે. તમને ${chiefComplaint} ની સમસ્યા ક્યારથી છે?`,
+            bn: `মেডিকিয়স্কে আপনাকে স্বাগত। আপনার ${chiefComplaint} সমস্যাটি কতদিন ধরে হচ্ছে?`,
+            ta: `மெடிகியோஸ்க்கிற்கு வரவேற்கிறோம். உங்களுக்கு ${chiefComplaint} பிரச்சினை எவ்வளவு காலமாக உள்ளது?`,
+            te: `మెడికియోస్క్‌కు స్వాగతం. మీకు ${chiefComplaint} సమస్య ఎంత కాలంగా ఉంది?`,
+            kn: `ಮೆಡಿಕಿಯೋಸ್ಕ್‌ಗೆ ಸುಸ್ವಾಗತ. ನಿಮಗೆ ${chiefComplaint} ಸಮಸ್ಯೆ ಎಷ್ಟು ಸಮಯದಿಂದ ಇದೆ?`,
+            ml: `മെഡിക്കിയോസ്കിലേക്ക് സ്വാഗതം. നിങ്ങൾക്ക് ${chiefComplaint} പ്രശ്നം എത്ര നാളായി ഉണ്ട്?`,
             pa: `ਮੈਡੀਕਿਓਸਕ ਵਿੱਚ ਤੁਹਾਡਾ ਸੁਆਗਤ ਹੈ। ਤੁਹਾਨੂੰ ${chiefComplaint} ਦੀ ਸਮੱਸਿਆ ਕਿੰਨੇ ਸਮੇਂ ਤੋਂ ਹੋ ਰਹੀ ਹੈ?`,
             or: `ମେଡିକିଓସ୍କକୁ ସ୍ୱାଗତ। କେତେ ଦିନ ହେବ ${chiefComplaint} ସମସ୍ୟା ଅଛି?`,
             as: `মেডিকিয়স্কলৈ স্বাগতম। কিমান দিনৰ পৰা ${chiefComplaint} समस्या হৈছে?`
@@ -190,6 +241,7 @@ async function startSessionCore({
                 language,
                 consultation_type: consultationType,
                 chief_complaint: chiefComplaint,
+                patient_profile: patientProfile,
                 answered_fields: {},
                 missing_fields: ["onset", "duration", "severity", "associated_symptoms"],
                 clinical_entities: [],
@@ -311,11 +363,21 @@ async function processTextTurnCore({ sessionId, patientId = null, patientText })
 
     const newStatus = clinicalAiResult.is_complete ? "completed" : "active";
 
+    let finalSummary = "";
+    if (newStatus === "completed") {
+        try {
+            const summaryRes = await mlService.summarizeClinicalSession(sessionId, null, currentState);
+            finalSummary = summaryRes.summary || "";
+        } catch (sumErr) {
+            console.error("[ML FALLBACK] Auto-summarization failed:", sumErr.message);
+        }
+    }
+
     await pool.query(
         `UPDATE clinical_sessions
-         SET current_state = $1, status = $2, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3;`,
-        [JSON.stringify(currentState), newStatus, sessionId]
+         SET current_state = $1, status = $2, summary = COALESCE(NULLIF($3, ''), summary), updated_at = CURRENT_TIMESTAMP
+         WHERE id = $4;`,
+        [JSON.stringify(currentState), newStatus, finalSummary, sessionId]
     );
 
     return {
@@ -326,6 +388,7 @@ async function processTextTurnCore({ sessionId, patientId = null, patientText })
         redFlags: currentState.red_flags || [],
         isComplete: clinicalAiResult.is_complete,
         state: currentState,
+        summary: finalSummary,
     };
 }
 
@@ -351,7 +414,7 @@ async function finalizeSessionCore({ sessionId, patientId = null, documentData =
     // 1. Generate Summary via Clinical AI
     let summaryText = "";
     try {
-        const summaryRes = await mlService.summarizeClinicalSession(sessionId, documentData);
+        const summaryRes = await mlService.summarizeClinicalSession(sessionId, documentData, session.current_state);
         summaryText = summaryRes.summary || "";
     } catch (sumErr) {
         console.warn("[ML FALLBACK] Summarization fallback:", sumErr.message);

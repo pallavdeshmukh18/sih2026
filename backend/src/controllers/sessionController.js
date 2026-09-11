@@ -159,11 +159,21 @@ async function processVoiceTurn(req, res, next) {
 
         const newStatus = clinicalAiResult.is_complete ? "completed" : "active";
 
+        let finalSummary = "";
+        if (newStatus === "completed") {
+            try {
+                const summaryRes = await mlService.summarizeClinicalSession(sessionId, null, currentState);
+                finalSummary = summaryRes.summary || "";
+            } catch (sumErr) {
+                console.error("[ML FALLBACK] Auto-summarization failed for voice turn:", sumErr.message);
+            }
+        }
+
         await pool.query(
             `UPDATE clinical_sessions
-             SET current_state = $1, status = $2, updated_at = CURRENT_TIMESTAMP
-             WHERE id = $3;`,
-            [JSON.stringify(currentState), newStatus, sessionId]
+             SET current_state = $1, status = $2, summary = COALESCE(NULLIF($3, ''), summary), updated_at = CURRENT_TIMESTAMP
+             WHERE id = $4;`,
+            [JSON.stringify(currentState), newStatus, finalSummary, sessionId]
         );
 
         return res.status(200).json({
@@ -175,6 +185,7 @@ async function processVoiceTurn(req, res, next) {
             extractedEntities: clinicalAiResult.extracted_entities,
             redFlags: currentState.red_flags || [],
             isComplete: clinicalAiResult.is_complete,
+            summary: finalSummary,
         });
     } catch (error) {
         next(error);

@@ -559,8 +559,13 @@ def extract_entities_from_text(text: str, missing_fields: List[str]) -> Extracti
         logger.error(f"Failed to extract entities: {e}")
         return ExtractionResult(entities=[])
 
-def generate_next_question(missing_field: str, language: str = "en") -> Tuple[str, List[Dict[str, str]]]:
-    """Uses Groq or natural fallbacks to generate a clear question and options for a missing field in target language."""
+def generate_next_question(missing_field: str, language: str = "en", session: 'ClinicalSession' = None) -> Tuple[str, List[Dict[str, str]]]:
+    """Uses Groq or natural fallbacks to generate a context-aware question and options for a missing field.
+    
+    When a session is provided, the prompt includes conversation history and
+    answered fields so each question reads as a natural follow-up to the
+    patient's most recent answer — like a real doctor conducting history-taking.
+    """
     fallback_q = get_fallback_question(missing_field, language)
     fallback_opts = get_fallback_options(missing_field, language)
     
@@ -568,25 +573,56 @@ def generate_next_question(missing_field: str, language: str = "en") -> Tuple[st
         return fallback_q, fallback_opts
 
     lang_name = LANGUAGE_NAMES.get(language.lower(), "English")
+
+    # Build conversational context from session if available
+    context_block = ""
+    if session:
+        parts = []
+        if session.answered_fields:
+            answered_str = ", ".join(
+                f"{k.replace('_', ' ').title()}: {v}"
+                for k, v in session.answered_fields.items()
+            )
+            parts.append(f"ALREADY COLLECTED: {answered_str}")
+        recent = session.conversation_history[-4:] if session.conversation_history else []
+        if recent:
+            exchange = []
+            for msg in recent:
+                role = "Doctor" if msg["role"] == "system" else "Patient"
+                exchange.append(f"  {role}: {msg['content']}")
+            parts.append("RECENT CONVERSATION:\n" + "\n".join(exchange))
+        if parts:
+            context_block = "\n".join(parts)
+
+    chief = session.chief_complaint if session else "their health concern"
     
-    prompt = f"""
-    You are an empathetic medical intake assistant in MediKiosk.
-    Ask the patient a single, clear question to determine their '{missing_field}'.
-    Provide 3 to 4 quick-select answer options suitable for this question.
-    Target Language: {lang_name} ({language}).
-    
-    Respond STRICTLY as a JSON object in this format:
-    {{
-        "question": "Question text in {lang_name}",
-        "options": [
-            {{"id": "short_snake_case_id_1", "label": "Option label in {lang_name}"}},
-            {{"id": "short_snake_case_id_2", "label": "Option label in {lang_name}"}},
-            {{"id": "short_snake_case_id_3", "label": "Option label in {lang_name}"}},
-            {{"id": "short_snake_case_id_4", "label": "Option label in {lang_name}"}}
-        ]
-    }}
-    Do NOT offer medical advice. Keep option labels concise (2-4 words).
-    """
+    prompt = f"""You are an empathetic medical intake assistant in MediKiosk, conducting a structured clinical history-taking.
+You are speaking directly to the patient — like a caring, experienced doctor.
+
+CHIEF COMPLAINT: "{chief}"
+NEXT PARAMETER TO ASK: '{missing_field}'
+Target Language: {lang_name} ({language}).
+
+{'=== CONVERSATION CONTEXT ===\n' + context_block if context_block else 'This is an early question in the intake.'}
+
+INSTRUCTIONS:
+1. Frame the question as a NATURAL FOLLOW-UP to the patient's last answer. Briefly acknowledge what they just said before transitioning.
+   Example: If they said "sharp pain for 3 days", you might say: "Sharp pain for 3 days — understood. Now, how severe does this feel to you?"
+2. Adapt wording to the specific symptom/disease context.
+3. Do NOT offer medical advice or diagnosis.
+4. Provide 3 to 4 quick-select answer options suitable for '{missing_field}'.
+
+Respond STRICTLY as a JSON object:
+{{
+    "question": "Question text in {lang_name}",
+    "options": [
+        {{"id": "short_snake_case_id_1", "label": "Option label in {lang_name}"}},
+        {{"id": "short_snake_case_id_2", "label": "Option label in {lang_name}"}},
+        {{"id": "short_snake_case_id_3", "label": "Option label in {lang_name}"}},
+        {{"id": "short_snake_case_id_4", "label": "Option label in {lang_name}"}}
+    ]
+}}
+Keep option labels concise (2-4 words)."""
     
     try:
         chat_completion = groq_client.chat.completions.create(
@@ -750,6 +786,7 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
                 })
 
         session.reset_retry(target_field)
+        session.last_answered_field = target_field
 
         # Check if intake is complete
         if not session.missing_fields:
@@ -762,7 +799,7 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
 
         # Advance to next question
         next_field = session.get_highest_priority_missing_field()
-        next_q, options = generate_next_question(next_field, session.language)
+        next_q, options = generate_next_question(next_field, session.language, session=session)
         session.conversation_history.append({"role": "system", "content": next_q})
         session.current_question = next_q
         session.current_options = options
@@ -780,6 +817,7 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
         if target_field in session.missing_fields:
             session.missing_fields.remove(target_field)
         session.reset_retry(target_field)
+        session.last_answered_field = target_field
 
         if not session.missing_fields:
             session.status = "completed"
@@ -794,7 +832,7 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
             next_q = generate_rag_question(session, next_field)
             options = LOCALIZED_FALLBACK_OPTIONS.get(session.language, FALLBACK_OPTIONS).get(next_field, [])
         else:
-            next_q, options = generate_next_question(next_field, session.language)
+            next_q, options = generate_next_question(next_field, session.language, session=session)
 
         session.conversation_history.append({"role": "system", "content": next_q})
         session.current_question = next_q
@@ -859,7 +897,7 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
                 next_q = generate_rag_question(session, next_field)
                 options = LOCALIZED_FALLBACK_OPTIONS.get(session.language, FALLBACK_OPTIONS).get(next_field, [])
             else:
-                next_q, options = generate_next_question(next_field, session.language)
+                next_q, options = generate_next_question(next_field, session.language, session=session)
 
             notice = get_feedback_message("max_retries", session.language)
             combined_q = f"{notice}\n\n{next_q}"

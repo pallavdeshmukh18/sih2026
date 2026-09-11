@@ -293,8 +293,13 @@ export async function createAppointment(appointmentData, token) {
 }
 
 /** Get Authenticated Patient's Appointments */
-export async function getPatientAppointments(token) {
-    return apiRequest("/api/appointments/patient", "GET", null, token);
+export async function getPatientAppointments(token, params = {}) {
+    let url = "/api/appointments/patient";
+    const statusVal = typeof params === "string" ? params : params?.status;
+    if (statusVal) {
+        url += `?status=${encodeURIComponent(statusVal)}`;
+    }
+    return apiRequest(url, "GET", null, token);
 }
 
 /** Get Authenticated Doctor's Queue / Appointments */
@@ -421,6 +426,26 @@ export async function getAppointmentById(appointmentId, token) {
 /** Fetch Authenticated Patient Longitudinal Medical History */
 export async function getPatientMedicalHistory(token) {
     return apiRequest("/api/patient/history", "GET", null, token);
+}
+
+/** Add a Medical History Record */
+export async function addMedicalHistoryItem(data, token) {
+    return apiRequest("/api/patient/history", "POST", data, token);
+}
+
+/** Delete a Single Medical History Item */
+export async function deleteMedicalHistoryItem(historyId, token) {
+    return apiRequest(`/api/patient/history/${historyId}`, "DELETE", null, token);
+}
+
+/** Clear All Medical History Records */
+export async function clearAllMedicalHistory(token) {
+    return apiRequest("/api/patient/history", "DELETE", null, token);
+}
+
+/** Delete an Uploaded Document */
+export async function deleteDocument(documentId, token) {
+    return apiRequest(`/api/documents/${documentId}`, "DELETE", null, token);
 }
 
 /** Fetch Authenticated Patient Medical ID */
