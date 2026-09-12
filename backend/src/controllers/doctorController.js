@@ -66,7 +66,9 @@ async function getDoctorQueue(req, res, next) {
              FROM appointments a
              JOIN users u ON a.patient_id = u.id
              LEFT JOIN patient_profiles p ON u.id = p.user_id
-             LEFT JOIN clinical_sessions cs ON a.id = cs.appointment_id
+             LEFT JOIN LATERAL (
+                 SELECT id, status, chief_complaint, current_state, summary FROM clinical_sessions WHERE appointment_id = a.id ORDER BY updated_at DESC LIMIT 1
+             ) cs ON true
              WHERE a.doctor_id = $1
              ORDER BY a.scheduled_at ASC;`,
             [doctorId]

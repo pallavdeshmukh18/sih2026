@@ -49,16 +49,26 @@ DEFAULT_QUESTIONS: Dict[str, str] = {
     "associated_symptoms": "Are you experiencing any other symptoms alongside this (e.g. fever, nausea)?",
     "last_meal": "When was your last meal and what did you eat?",
     "bowel_movements": "How have your bowel movements and digestion been recently?",
-    "prakriti": "How would you describe your natural physical constitution and heat/cold tolerance?",
-    "vikriti": "Have you noticed any recent imbalance in your sleep, energy, or digestion?",
-    "sara": "How is your overall physical stamina and vital strength?",
-    "samhanana": "How would you describe your physical build (e.g., slender, medium, heavy)?",
-    "pramana": "Are your body proportions and weight normal for you?",
-    "satmya": "What foods or climatic conditions suit your body best?",
-    "sattva": "How is your mental resilience, mood, and stress level?",
-    "ahara_shakti": "How is your appetite and digestive fire (Agni)?",
-    "vyayama_shakti": "How is your capacity for physical exercise and exertion?",
-    "vaya": "What is your age category (youth, middle-aged, or senior)?"
+    # Ayurvedic / AYUSH fields — always written in plain patient-friendly language
+    "prakriti": "Generally, do you tend to feel cold easily, or do you easily feel hot and sweaty?",
+    "vikriti": "Lately, have you noticed any changes in your sleep, energy levels, or digestion compared to your usual self?",
+    "sara": "How would you describe your overall physical energy and stamina on a daily basis?",
+    "samhanana": "How would you describe your body build — are you naturally slim, medium-built, or on the heavier side?",
+    "pramana": "Do you feel your height and weight are balanced and normal for you?",
+    "satmya": "What kinds of food, weather, or environments make you feel most comfortable and healthy?",
+    "sattva": "How would you describe your mental strength and ability to handle stress or emotional challenges?",
+    "ahara_shakti": "How is your appetite? Do you feel hungry regularly and digest food comfortably?",
+    "vyayama_shakti": "How much physical activity or exercise can you comfortably do without getting too tired?",
+    "vaya": "Which age group do you fall into — young (below 30), middle-aged (30–60), or senior (above 60)?",
+    "agni": "How would you describe your digestion — do you usually feel comfortable after meals, or do you often feel bloated, heavy, or acidic?",
+    "koshtha": "How are your daily bowel habits — are they regular and easy, or do you face constipation or loose stools?",
+    "ahara_vihara": "What does your typical daily routine look like — diet, sleep, physical activity?",
+    "nidana": "Do you think anything specific may have triggered or worsened this condition — like a change in diet, stress, or weather?",
+    "samprapti": "Did this problem start suddenly all at once, or did it gradually build up over time?",
+    "dushya": "Have you noticed any changes in your skin, hair, nails, muscles, or body weight recently?",
+    "desha": "Where do you live, and how would you describe the climate in your area — hot, cold, humid, or dry?",
+    "bala": "How would you rate your overall immunity and physical strength — do you fall sick often?",
+    "kala": "Do your symptoms get worse or better at a particular time of day or season?"
 }
 
 LANGUAGE_NAMES: Dict[str, str] = {
@@ -371,6 +381,88 @@ FALLBACK_OPTIONS: Dict[str, List[Dict[str, str]]] = {
         {"id": "assoc_nausea", "label": "Nausea & Dizziness"},
         {"id": "assoc_cough", "label": "Cough & Cold"},
         {"id": "assoc_none", "label": "No other symptoms"}
+    ],
+    # ── AYUSH / Ayurvedic field options (all plain, patient-friendly) ──
+    "prakriti": [
+        {"id": "prak_cold", "label": "I feel cold easily, dry skin & hair"},
+        {"id": "prak_hot", "label": "I feel hot & sweaty easily, sharp hunger"},
+        {"id": "prak_heavy", "label": "I feel heavy & slow, gain weight easily"},
+        {"id": "prak_mixed", "label": "A mix of the above"}
+    ],
+    "vikriti": [
+        {"id": "vik_sleep", "label": "Disturbed sleep or excess sleep"},
+        {"id": "vik_digestion", "label": "Bloating, acidity or poor digestion"},
+        {"id": "vik_energy", "label": "Low energy or mood swings"},
+        {"id": "vik_none", "label": "No major changes noticed"}
+    ],
+    "sara": [
+        {"id": "sara_high", "label": "Very energetic, strong stamina"},
+        {"id": "sara_med", "label": "Moderate energy, tires after some time"},
+        {"id": "sara_low", "label": "Tires quickly, low stamina"}
+    ],
+    "samhanana": [
+        {"id": "sanh_slim", "label": "Naturally slim / lean"},
+        {"id": "sanh_medium", "label": "Medium build"},
+        {"id": "sanh_heavy", "label": "Heavy / stocky build"}
+    ],
+    "pramana": [
+        {"id": "pram_yes", "label": "Yes, feels balanced and normal"},
+        {"id": "pram_over", "label": "I feel I am overweight"},
+        {"id": "pram_under", "label": "I feel I am underweight"}
+    ],
+    "satmya": [
+        {"id": "satm_warm", "label": "Warm, cooked, easily digestible food"},
+        {"id": "satm_cold", "label": "Cool, light food (salads, fruits)"},
+        {"id": "satm_varied", "label": "I can eat a wide variety without problems"},
+        {"id": "satm_unsure", "label": "Not sure / no strong preference"}
+    ],
+    "sattva": [
+        {"id": "satt_strong", "label": "Handle stress well, emotionally stable"},
+        {"id": "satt_moderate", "label": "Sometimes anxious or irritable under pressure"},
+        {"id": "satt_low", "label": "Easily stressed, anxious, or emotionally sensitive"}
+    ],
+    "ahara_shakti": [
+        {"id": "ahar_good", "label": "Good appetite, digest most foods easily"},
+        {"id": "ahar_variable", "label": "Appetite varies, sometimes bloated"},
+        {"id": "ahar_poor", "label": "Poor appetite, feel heavy or uncomfortable after eating"}
+    ],
+    "vyayama_shakti": [
+        {"id": "vyay_high", "label": "Can do heavy exercise without much fatigue"},
+        {"id": "vyay_moderate", "label": "Moderate activity, tires after some effort"},
+        {"id": "vyay_low", "label": "Get tired very quickly with little effort"}
+    ],
+    "agni": [
+        {"id": "agni_strong", "label": "Regular hunger, digest food quickly"},
+        {"id": "agni_variable", "label": "Irregular hunger, sometimes bloated or gassy"},
+        {"id": "agni_slow", "label": "Low appetite, feel heavy and sluggish after meals"}
+    ],
+    "koshtha": [
+        {"id": "kosh_regular", "label": "Regular and easy bowel movements daily"},
+        {"id": "kosh_constipated", "label": "Often constipated or hard stools"},
+        {"id": "kosh_loose", "label": "Frequent or loose stools"}
+    ],
+    "bala": [
+        {"id": "bala_strong", "label": "Rarely fall sick, feel physically strong"},
+        {"id": "bala_moderate", "label": "Occasionally fall sick or get tired easily"},
+        {"id": "bala_weak", "label": "Fall sick often, feel physically weak"}
+    ],
+    "kala": [
+        {"id": "kala_morning", "label": "Worse in the morning"},
+        {"id": "kala_evening", "label": "Worse in the evening or night"},
+        {"id": "kala_season", "label": "Worse during certain seasons"},
+        {"id": "kala_none", "label": "No specific time pattern"}
+    ],
+    "dushya": [
+        {"id": "dush_skin", "label": "Skin changes (dryness, rashes, oiliness)"},
+        {"id": "dush_weight", "label": "Weight gain or weight loss"},
+        {"id": "dush_hair", "label": "Hair or nail changes"},
+        {"id": "dush_none", "label": "No noticeable changes"}
+    ],
+    "nidana": [
+        {"id": "nid_diet", "label": "Change in diet or eating habits"},
+        {"id": "nid_stress", "label": "Increased stress or emotional upset"},
+        {"id": "nid_weather", "label": "Change in weather or season"},
+        {"id": "nid_unsure", "label": "Not sure of any specific cause"}
     ]
 }
 
@@ -559,8 +651,13 @@ def extract_entities_from_text(text: str, missing_fields: List[str]) -> Extracti
         logger.error(f"Failed to extract entities: {e}")
         return ExtractionResult(entities=[])
 
-def generate_next_question(missing_field: str, language: str = "en") -> Tuple[str, List[Dict[str, str]]]:
-    """Uses Groq or natural fallbacks to generate a clear question and options for a missing field in target language."""
+def generate_next_question(missing_field: str, language: str = "en", session: 'ClinicalSession' = None) -> Tuple[str, List[Dict[str, str]]]:
+    """Uses Groq or natural fallbacks to generate a context-aware question and options for a missing field.
+    
+    When a session is provided, the prompt includes conversation history and
+    answered fields so each question reads as a natural follow-up to the
+    patient's most recent answer — like a real doctor conducting history-taking.
+    """
     fallback_q = get_fallback_question(missing_field, language)
     fallback_opts = get_fallback_options(missing_field, language)
     
@@ -568,25 +665,56 @@ def generate_next_question(missing_field: str, language: str = "en") -> Tuple[st
         return fallback_q, fallback_opts
 
     lang_name = LANGUAGE_NAMES.get(language.lower(), "English")
+
+    # Build conversational context from session if available
+    context_block = ""
+    if session:
+        parts = []
+        if session.answered_fields:
+            answered_str = ", ".join(
+                f"{k.replace('_', ' ').title()}: {v}"
+                for k, v in session.answered_fields.items()
+            )
+            parts.append(f"ALREADY COLLECTED: {answered_str}")
+        recent = session.conversation_history[-4:] if session.conversation_history else []
+        if recent:
+            exchange = []
+            for msg in recent:
+                role = "Doctor" if msg["role"] == "system" else "Patient"
+                exchange.append(f"  {role}: {msg['content']}")
+            parts.append("RECENT CONVERSATION:\n" + "\n".join(exchange))
+        if parts:
+            context_block = "\n".join(parts)
+
+    chief = session.chief_complaint if session else "their health concern"
     
-    prompt = f"""
-    You are an empathetic medical intake assistant in MediKiosk.
-    Ask the patient a single, clear question to determine their '{missing_field}'.
-    Provide 3 to 4 quick-select answer options suitable for this question.
-    Target Language: {lang_name} ({language}).
-    
-    Respond STRICTLY as a JSON object in this format:
-    {{
-        "question": "Question text in {lang_name}",
-        "options": [
-            {{"id": "short_snake_case_id_1", "label": "Option label in {lang_name}"}},
-            {{"id": "short_snake_case_id_2", "label": "Option label in {lang_name}"}},
-            {{"id": "short_snake_case_id_3", "label": "Option label in {lang_name}"}},
-            {{"id": "short_snake_case_id_4", "label": "Option label in {lang_name}"}}
-        ]
-    }}
-    Do NOT offer medical advice. Keep option labels concise (2-4 words).
-    """
+    prompt = f"""You are an empathetic medical intake assistant in MediKiosk, conducting a structured clinical history-taking.
+You are speaking directly to the patient — like a caring, experienced doctor.
+
+CHIEF COMPLAINT: "{chief}"
+NEXT PARAMETER TO ASK: '{missing_field}'
+Target Language: {lang_name} ({language}).
+
+{'=== CONVERSATION CONTEXT ===\n' + context_block if context_block else 'This is an early question in the intake.'}
+
+INSTRUCTIONS:
+1. Frame the question as a NATURAL FOLLOW-UP to the patient's last answer. Briefly acknowledge what they just said before transitioning.
+   Example: If they said "sharp pain for 3 days", you might say: "Sharp pain for 3 days — understood. Now, how severe does this feel to you?"
+2. Adapt wording to the specific symptom/disease context.
+3. Do NOT offer medical advice or diagnosis.
+4. Provide 3 to 4 quick-select answer options suitable for '{missing_field}'.
+
+Respond STRICTLY as a JSON object:
+{{
+    "question": "Question text in {lang_name}",
+    "options": [
+        {{"id": "short_snake_case_id_1", "label": "Option label in {lang_name}"}},
+        {{"id": "short_snake_case_id_2", "label": "Option label in {lang_name}"}},
+        {{"id": "short_snake_case_id_3", "label": "Option label in {lang_name}"}},
+        {{"id": "short_snake_case_id_4", "label": "Option label in {lang_name}"}}
+    ]
+}}
+Keep option labels concise (2-4 words)."""
     
     try:
         chat_completion = groq_client.chat.completions.create(
@@ -606,7 +734,7 @@ def generate_next_question(missing_field: str, language: str = "en") -> Tuple[st
         content = chat_completion.choices[0].message.content
         data = json.loads(content)
         q = data.get("question", "").strip() or fallback_q
-        opts = data.get("options", [])
+        opts = fallback_opts if fallback_opts else data.get("options", [])
         if not isinstance(opts, list) or not opts:
             opts = fallback_opts
         return q, opts
@@ -750,6 +878,7 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
                 })
 
         session.reset_retry(target_field)
+        session.last_answered_field = target_field
 
         # Check if intake is complete
         if not session.missing_fields:
@@ -762,7 +891,7 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
 
         # Advance to next question
         next_field = session.get_highest_priority_missing_field()
-        next_q, options = generate_next_question(next_field, session.language)
+        next_q, options = generate_next_question(next_field, session.language, session=session)
         session.conversation_history.append({"role": "system", "content": next_q})
         session.current_question = next_q
         session.current_options = options
@@ -780,6 +909,7 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
         if target_field in session.missing_fields:
             session.missing_fields.remove(target_field)
         session.reset_retry(target_field)
+        session.last_answered_field = target_field
 
         if not session.missing_fields:
             session.status = "completed"
@@ -792,9 +922,9 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
         next_field = session.get_highest_priority_missing_field()
         if generate_rag_question:
             next_q = generate_rag_question(session, next_field)
-            options = LOCALIZED_FALLBACK_OPTIONS.get(session.language, FALLBACK_OPTIONS).get(next_field, [])
+            options = get_fallback_options(next_field, session.language)
         else:
-            next_q, options = generate_next_question(next_field, session.language)
+            next_q, options = generate_next_question(next_field, session.language, session=session)
 
         session.conversation_history.append({"role": "system", "content": next_q})
         session.current_question = next_q
@@ -857,9 +987,9 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
             next_field = session.get_highest_priority_missing_field()
             if generate_rag_question:
                 next_q = generate_rag_question(session, next_field)
-                options = LOCALIZED_FALLBACK_OPTIONS.get(session.language, FALLBACK_OPTIONS).get(next_field, [])
+                options = get_fallback_options(next_field, session.language)
             else:
-                next_q, options = generate_next_question(next_field, session.language)
+                next_q, options = generate_next_question(next_field, session.language, session=session)
 
             notice = get_feedback_message("max_retries", session.language)
             combined_q = f"{notice}\n\n{next_q}"

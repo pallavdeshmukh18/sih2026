@@ -381,28 +381,31 @@ async function getPatientMedicalHistory(req, res, next) {
             let summaryText = row.summary;
 
             if (!summaryText || !summaryText.trim() || summaryText.startsWith("Intake session")) {
-                let generated = `### 🩺 Physician RAG Clinical Intake Summary\n\n`;
-                generated += `**Chief Complaint**: ${row.chief_complaint || "General Intake"}\n\n`;
+                let generated = `## Executive Summary\n`;
+                generated += `Patient presenting with ${row.chief_complaint || "general concerns"}. Intake is currently ${row.status === 'completed' ? 'completed' : 'in progress'}.\n\n`;
+
+                generated += `## Chief Complaint (CC)\n`;
+                generated += `${row.chief_complaint || "General Intake"}\n\n`;
                 
                 if (redFlags.length > 0) {
-                    generated += `**🚨 Red Flags Identified**:\n`;
+                    generated += `## 🚨 Red Flags & Triage Priority\n`;
                     redFlags.forEach(flag => {
-                        generated += `- ${flag}\n`;
+                        generated += `- ⚠️ ${flag}\n`;
                     });
                     generated += `\n`;
                 }
 
                 if (Object.keys(answeredFields).length > 0) {
-                    generated += `**📋 Clinical History & Parameters**:\n`;
+                    generated += `## History of Presenting Illness (HPI)\n`;
                     Object.entries(answeredFields).forEach(([field, val]) => {
                         const displayField = field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                         generated += `- **${displayField}**: ${val}\n`;
                     });
                 } else {
-                    generated += `No clinical parameters recorded during intake.`;
+                    generated += `No clinical parameters recorded during intake.\n`;
                 }
                 
-                generated += `\n\n*Synthesized by MediKiosk RAG Clinical Engine for Doctor Review*`;
+                generated += `\n\n*Auto-generated provisional summary for doctor review*`;
                 summaryText = generated;
             }
 
@@ -526,6 +529,8 @@ async function getPatientMedicalHistory(req, res, next) {
 
         conditions.forEach(c => timelineEvents.push({
             id: `timeline_cond_${c.id}`,
+            rawId: c.id,
+            recordType: "medical_history",
             date: c.date,
             type: "Condition",
             category: "diagnosis",
@@ -534,10 +539,13 @@ async function getPatientMedicalHistory(req, res, next) {
             subtitle: `Diagnosed (${c.status})`,
             details: c.description || c.notes,
             source: c.source,
+            canDelete: true,
         }));
 
         allergies.forEach(a => timelineEvents.push({
             id: `timeline_allergy_${a.id}`,
+            rawId: a.id,
+            recordType: "medical_history",
             date: a.date,
             type: "Allergy",
             category: "allergy",
@@ -546,10 +554,13 @@ async function getPatientMedicalHistory(req, res, next) {
             subtitle: "Allergy Record",
             details: a.description,
             source: a.source,
+            canDelete: true,
         }));
 
         procedures.forEach(p => timelineEvents.push({
             id: `timeline_proc_${p.id}`,
+            rawId: p.id,
+            recordType: "medical_history",
             date: p.date,
             type: "Procedure",
             category: "procedure",
@@ -558,10 +569,13 @@ async function getPatientMedicalHistory(req, res, next) {
             subtitle: `Procedure (${p.status})`,
             details: p.description || p.notes,
             source: p.source,
+            canDelete: true,
         }));
 
         consultations.forEach(c => timelineEvents.push({
             id: `timeline_consult_${c.id}`,
+            rawId: c.id,
+            recordType: "consultation",
             date: c.date,
             type: "Consultation",
             category: "consultation",
@@ -574,10 +588,13 @@ async function getPatientMedicalHistory(req, res, next) {
             clinicalNotes: c.clinicalNotes,
             treatmentNotes: c.treatmentNotes,
             source: c.source,
+            canDelete: false,
         }));
 
         assessments.forEach(a => timelineEvents.push({
             id: `timeline_assess_${a.id}`,
+            rawId: a.id,
+            recordType: "clinical_session",
             date: a.date,
             type: "Assessment",
             category: "assessment",
@@ -589,6 +606,7 @@ async function getPatientMedicalHistory(req, res, next) {
             answeredFields: a.answeredFields,
             chatHistory: a.chatHistory,
             source: a.source,
+            canDelete: true,
         }));
 
         documents.forEach(d => {
@@ -599,6 +617,8 @@ async function getPatientMedicalHistory(req, res, next) {
 
             timelineEvents.push({
                 id: `timeline_doc_${d.id}`,
+                rawId: d.id,
+                recordType: "document",
                 date: d.date,
                 type: docType === "prescription" ? "Prescription" : (docType === "lab_report" ? "Lab Test" : "Document"),
                 category: cat,
@@ -611,6 +631,7 @@ async function getPatientMedicalHistory(req, res, next) {
                 hasOcrText: d.hasOcrText,
                 extractedEntities: d.extractedEntities,
                 source: d.source,
+                canDelete: true,
             });
         });
 
@@ -1097,11 +1118,128 @@ async function revokeDoctorAccess(req, res, next) {
     }
 }
 
+/**
+ * 9. Add Medical History Item
+ * POST /api/patient/history
+ * Access: Authenticated patient only
+ */
+async function addMedicalHistoryItem(req, res, next) {
+    try {
+        const patientId = req.user.id;
+        const { category = "condition", condition, description, diagnosed_at, status = "active", notes } = req.body;
+
+        if (!condition || !condition.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "Condition or diagnosis name is required.",
+            });
+        }
+
+        const validCategories = ["condition", "allergy", "surgery", "hospitalization", "procedure", "other"];
+        const recordCategory = validCategories.includes(category) ? category : "condition";
+
+        const result = await pool.query(
+            `INSERT INTO medical_history (patient_id, category, condition, description, diagnosed_at, status, notes)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING id, category, condition, description, diagnosed_at, status, notes, created_at;`,
+            [patientId, recordCategory, condition.trim(), description || null, diagnosed_at || null, status, notes || null]
+        );
+
+        return res.status(201).json({
+            success: true,
+            message: "Medical history record added successfully.",
+            record: result.rows[0],
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * 10. Delete Medical History Item
+ * DELETE /api/patient/history/:id
+ * Access: Authenticated patient only
+ */
+async function deleteMedicalHistoryItem(req, res, next) {
+    try {
+        const patientId = req.user.id;
+        const { id } = req.params;
+
+        if (!id) {
+            return res.status(400).json({
+                success: false,
+                message: "Medical history record ID is required.",
+            });
+        }
+
+        // 1. Try deleting from medical_history table
+        const medResult = await pool.query(
+            `DELETE FROM medical_history WHERE id = $1 AND patient_id = $2 RETURNING id;`,
+            [id, patientId]
+        );
+
+        if (medResult.rows.length > 0) {
+            return res.status(200).json({
+                success: true,
+                message: "Medical history record deleted successfully.",
+                deletedId: id,
+            });
+        }
+
+        // 2. Fallback check: if the ID is a clinical_session owned by this patient
+        const sessResult = await pool.query(
+            `DELETE FROM clinical_sessions WHERE id = $1 AND patient_id = $2 RETURNING id;`,
+            [id, patientId]
+        );
+
+        if (sessResult.rows.length > 0) {
+            return res.status(200).json({
+                success: true,
+                message: "Clinical assessment session deleted successfully.",
+                deletedId: id,
+            });
+        }
+
+        return res.status(404).json({
+            success: false,
+            message: "Medical record not found or unauthorized.",
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * 11. Clear All Medical History Records for Patient
+ * DELETE /api/patient/history
+ * Access: Authenticated patient only
+ */
+async function clearAllMedicalHistory(req, res, next) {
+    try {
+        const patientId = req.user.id;
+
+        await pool.query(
+            `DELETE FROM medical_history WHERE patient_id = $1;`,
+            [patientId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "All medical history records cleared successfully.",
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     saveOnboardingPreferences,
     getOnboardingPreferences,
     updatePatientProfile,
     getPatientMedicalHistory,
+    addMedicalHistoryItem,
+    deleteMedicalHistoryItem,
+    clearAllMedicalHistory,
     getPatientMedicalId,
     generatePatientQrToken,
     getConnectedDoctors,

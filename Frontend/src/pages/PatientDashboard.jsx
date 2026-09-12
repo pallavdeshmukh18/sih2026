@@ -41,7 +41,7 @@ export default function PatientDashboard() {
 
   const fetchAppointments = () => {
     if (!token) return;
-    getPatientAppointments(token).then((res) => {
+    getPatientAppointments(token, "upcoming").then((res) => {
       if (res.success && Array.isArray(res.appointments)) setAppointments(res.appointments);
     }).catch(() => {});
   };
@@ -57,6 +57,7 @@ export default function PatientDashboard() {
       await cancelAppointment(apptId, token);
       toast.success("Appointment cancelled successfully.");
       setSelectedAppt(null);
+      setAppointments((prev) => prev.filter((a) => a.id !== apptId));
       fetchAppointments();
     } catch (err) {
       toast.error(err.message || "Failed to cancel appointment.");
@@ -93,7 +94,10 @@ export default function PatientDashboard() {
     { label: t("dashboard.aiHealthAssistant", "AI Health Assistant"), copy: t("dashboard.aiHealthAssistantDesc", "Get quick health insights"), icon: Sparkles, to: "/patient/assessment", tone: "lilac" },
   ];
 
-  const displayedAppointments = appointments.slice(0, 3);
+  const upcomingStatuses = new Set(["scheduled", "confirmed", "upcoming"]);
+  const uniqueAppointments = Array.from(new Map((appointments || []).map(item => [item.id, item])).values());
+  const activeAppointments = uniqueAppointments.filter((item) => upcomingStatuses.has(item.status?.toLowerCase()));
+  const displayedAppointments = activeAppointments.slice(0, 3);
   const firstName = user?.firstName || user?.name || "Patient";
 
   const currentHour = new Date().getHours();

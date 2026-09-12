@@ -263,20 +263,33 @@ async function getAvailableSlots(req, res, next) {
 async function getPatientAppointments(req, res, next) {
     try {
         const patientId = req.user.id;
+        const { status } = req.query;
 
-        const result = await pool.query(
-            `SELECT a.id, a.patient_id, a.doctor_id, a.scheduled_at, a.duration_minutes, a.appointment_type, a.status, a.reason, a.notes,
+        let queryText = `
+            SELECT a.id, a.patient_id, a.doctor_id, a.scheduled_at, a.duration_minutes, a.appointment_type, a.status, a.reason, a.notes,
                     u.first_name AS doctor_first_name, u.last_name AS doctor_last_name,
                     d.specialization, d.department,
                     cs.id AS clinical_session_id, cs.status AS clinical_session_status
              FROM appointments a
              JOIN users u ON a.doctor_id = u.id
              LEFT JOIN doctor_profiles d ON a.doctor_id = d.user_id
-             LEFT JOIN clinical_sessions cs ON a.id = cs.appointment_id
-             WHERE a.patient_id = $1
-             ORDER BY a.scheduled_at DESC;`,
-            [patientId]
-        );
+             LEFT JOIN LATERAL (
+                 SELECT id, status FROM clinical_sessions WHERE appointment_id = a.id ORDER BY updated_at DESC LIMIT 1
+             ) cs ON true
+             WHERE a.patient_id = $1`;
+        
+        const params = [patientId];
+        if (status === "upcoming") {
+            queryText += ` AND a.status IN ('scheduled', 'confirmed')`;
+            queryText += ` ORDER BY a.scheduled_at ASC;`;
+        } else if (status) {
+            queryText += ` AND a.status = $2 ORDER BY a.scheduled_at DESC;`;
+            params.push(status);
+        } else {
+            queryText += ` ORDER BY a.scheduled_at DESC;`;
+        }
+
+        const result = await pool.query(queryText, params);
 
         const appointments = result.rows.map(row => ({
             id: row.id,
@@ -329,7 +342,9 @@ async function getAppointmentById(req, res, next) {
              JOIN users pu ON a.patient_id = pu.id
              JOIN users du ON a.doctor_id = du.id
              LEFT JOIN doctor_profiles dp ON a.doctor_id = dp.user_id
-             LEFT JOIN clinical_sessions cs ON a.id = cs.appointment_id
+             LEFT JOIN LATERAL (
+                 SELECT id, status, summary FROM clinical_sessions WHERE appointment_id = a.id ORDER BY updated_at DESC LIMIT 1
+             ) cs ON true
              WHERE a.id = $1;`,
             [appointmentId]
         );

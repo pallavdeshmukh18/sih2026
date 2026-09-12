@@ -92,7 +92,15 @@ export default function Appointments() {
     }
   };
 
-  const records = appointments.length ? appointments : fallbackAppointments;
+  const records = useMemo(() => {
+    const map = new Map();
+    (appointments || []).forEach((item) => {
+      if (item && item.id && !map.has(item.id)) {
+        map.set(item.id, item);
+      }
+    });
+    return Array.from(map.values());
+  }, [appointments]);
   const upcoming = records.filter((item) => upcomingStatuses.has(item.status?.toLowerCase()));
   const completed = records.filter((item) => item.status?.toLowerCase() === "completed");
   const thisWeek = upcoming.filter((item) => Math.abs(getApptDate(item) - new Date()) <= 7 * 86400000);

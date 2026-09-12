@@ -76,16 +76,11 @@ async function synthesizeSpeech(text, languageCode = "en-IN", speaker = "simran"
 /**
  * 3. Start Adaptive Clinical Session
  */
-async function startClinicalSession(patientId, language = "en", consultationType = "allopathic", chiefComplaint = "") {
+async function startClinicalSession(payloadState) {
     try {
         const response = await axios.post(
             `${ML_BASE_URL}/clinical/session/start`,
-            {
-                patient_id: patientId,
-                language,
-                consultation_type: consultationType,
-                chief_complaint: chiefComplaint,
-            },
+            payloadState,
             {
                 timeout: 30000,
             }
@@ -125,13 +120,14 @@ async function respondClinicalSession(sessionId, patientText, state = null) {
 /**
  * 5. Generate Physician Summary
  */
-async function summarizeClinicalSession(sessionId, documentData = null) {
+async function summarizeClinicalSession(sessionId, documentData = null, state = null) {
     try {
         const response = await axios.post(
             `${ML_BASE_URL}/clinical/session/summary`,
             {
                 session_id: sessionId,
                 document_data: documentData,
+                state: state
             },
             {
                 timeout: 45000,

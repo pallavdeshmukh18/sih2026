@@ -88,7 +88,9 @@ async function getReceptionistAppointments(req, res, next) {
             LEFT JOIN patient_profiles pp ON pu.id = pp.user_id
             JOIN users du ON a.doctor_id = du.id
             LEFT JOIN doctor_profiles dp ON du.id = dp.user_id
-            LEFT JOIN clinical_sessions cs ON a.id = cs.appointment_id
+            LEFT JOIN LATERAL (
+                SELECT id, status FROM clinical_sessions WHERE appointment_id = a.id ORDER BY updated_at DESC LIMIT 1
+            ) cs ON true
             WHERE a.doctor_id = $1
         `;
 

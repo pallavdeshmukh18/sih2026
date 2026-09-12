@@ -227,15 +227,33 @@ async function getDocumentDownloadUrl(req, res, next) {
                 success: true,
                 localDownload: true,
                 downloadUrl: `/api/documents/${document.id}/file`,
+                url: `/api/documents/${document.id}/file`,
                 fileName: document.file_name,
                 fileType: document.file_type,
             });
         }
-        const downloadUrl = await supabaseStorageService.getDocumentDownloadUrl(document.storage_path);
+        let downloadUrl = null;
+        try {
+            downloadUrl = await supabaseStorageService.getDocumentDownloadUrl(document.storage_path);
+        } catch (storageErr) {
+            console.warn("[STORAGE WARNING] Supabase download URL generation failed:", storageErr.message);
+        }
+
+        if (!downloadUrl && local) {
+            return res.status(200).json({
+                success: true,
+                localDownload: true,
+                downloadUrl: `/api/documents/${document.id}/file`,
+                url: `/api/documents/${document.id}/file`,
+                fileName: document.file_name,
+                fileType: document.file_type,
+            });
+        }
 
         return res.status(200).json({
             success: true,
             downloadUrl,
+            url: downloadUrl,
             fileName: document.file_name,
             fileType: document.file_type,
         });
@@ -553,7 +571,11 @@ async function downloadLocalDocument(req, res, next) {
         const local = await supabaseStorageService.getLocalDocumentPath(document.storage_path);
         if (!local) return res.status(404).json({ message: 'Local document not found.' });
         res.setHeader('Cache-Control', 'no-store');
-        return res.download(local, document.file_name);
+        if (document.file_type) {
+            res.setHeader('Content-Type', document.file_type);
+        }
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(document.file_name)}"`);
+        return res.sendFile(local);
     } catch (error) { next(error); }
 }
 

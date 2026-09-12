@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore", message=".*urllib3.*or chardet.*charset_normalizer.*")
+
 import logging
 import os
 import sys
