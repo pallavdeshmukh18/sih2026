@@ -4,10 +4,11 @@ const { JWT_SECRET } = require('../config/auth');
 
 module.exports = async function authenticateToken(req, res, next) {
     const match = /^Bearer ([^\s]+)$/i.exec(req.headers.authorization || '');
-    if (!match) return res.status(401).json({ message: 'Authentication token required' });
+    const token = match ? match[1] : (req.query?.token || null);
+    if (!token) return res.status(401).json({ message: 'Authentication token required' });
     let decoded;
     try {
-        decoded = jwt.verify(match[1], JWT_SECRET, { algorithms: ['HS256'] });
+        decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     } catch {
         return res.status(401).json({ message: 'Invalid or expired token' });
     }

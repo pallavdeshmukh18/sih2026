@@ -35,6 +35,7 @@ import {
   deleteDocument,
   deleteMedicalHistoryItem,
   getDocumentDownloadUrl,
+  openDocumentOriginal,
   getPatientMedicalHistory
 } from "../../services/api";
 import ClinicalSummaryCard from "../../components/common/ClinicalSummaryCard";
@@ -173,8 +174,7 @@ export default function MedicalHistory() {
 
   const openDocument = async (documentId) => {
     try {
-      const response = await getDocumentDownloadUrl(documentId, token);
-      if (response.url) window.open(response.url, "_blank", "noopener,noreferrer");
+      await openDocumentOriginal(documentId, token);
     } catch {
       setError("The selected document could not be opened.");
     }

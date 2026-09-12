@@ -1,12 +1,21 @@
 # schemas.py
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
+
+class MedicationTiming(BaseModel):
+    morning: Optional[str] = None
+    afternoon: Optional[str] = None
+    evening: Optional[str] = None
+    night: Optional[str] = None
 
 class Medication(BaseModel):
     medicine: str
     dose: Optional[str] = None
     frequency: Optional[str] = None
     duration: Optional[str] = None
+    dosage_pattern: Optional[str] = None
+    timing: Optional[MedicationTiming] = None
+    instructions: Optional[str] = None
 
 class LabResult(BaseModel):
     test: str

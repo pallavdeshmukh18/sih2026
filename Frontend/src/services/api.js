@@ -458,6 +458,24 @@ export async function getDocumentDownloadUrl(documentId, token) {
     return apiRequest(`/api/documents/${documentId}/url`, "GET", null, token);
 }
 
+/** Open/View Original Document safely in a new browser tab */
+export async function openDocumentOriginal(documentId, token) {
+    const res = await getDocumentDownloadUrl(documentId, token);
+    let targetUrl = res.downloadUrl || res.url;
+    if (!targetUrl) {
+        throw new Error(res.message || "Document URL not available.");
+    }
+
+    if (targetUrl.startsWith("/")) {
+        targetUrl = `${API_BASE_URL}${targetUrl}`;
+        if (token && !targetUrl.includes("token=")) {
+            targetUrl += `${targetUrl.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`;
+        }
+    }
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
+    return targetUrl;
+}
+
 // ==================================================
 // TEXT-TO-SPEECH (TTS) ACCESSIBILITY API CALL
 // ==================================================

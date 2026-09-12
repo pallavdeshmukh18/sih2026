@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { X, Trash2, Pill, Activity, FileText, Calendar, ExternalLink, ShieldAlert, Sparkles, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { getDocumentDownloadUrl } from "../services/api";
+import { getDocumentDownloadUrl, openDocumentOriginal } from "../services/api";
 import styles from "./DocumentDetailModal.module.css";
 
 export default function DocumentDetailModal({ doc, onClose, onDelete }) {
@@ -75,10 +75,7 @@ export default function DocumentDetailModal({ doc, onClose, onDelete }) {
 
   const handleOpenOriginal = async () => {
     try {
-      const res = await getDocumentDownloadUrl(doc.id, token);
-      if (res.downloadUrl) {
-        window.open(res.downloadUrl, "_blank", "noopener,noreferrer");
-      }
+      await openDocumentOriginal(doc.id, token);
     } catch (err) {
       console.error("Fetch document download URL error:", err);
     }
