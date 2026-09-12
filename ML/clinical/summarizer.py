@@ -36,7 +36,7 @@ OLDCARTS_MAP = {
 }
 
 GI_FIELDS = {"last_meal": "Last Meal", "bowel_movements": "Bowel Movements / GI Status"}
-AYUSH_FIELDS = {
+DASHAVIDHA_FIELDS = {
     "prakriti": "Prakriti (Constitution)",
     "vikriti": "Vikriti (Imbalance)",
     "sara": "Sara (Tissue Quality)",
@@ -47,6 +47,18 @@ AYUSH_FIELDS = {
     "ahara_shakti": "Ahara Shakti (Digestive Power)",
     "vyayama_shakti": "Vyayama Shakti (Exercise Capacity)",
     "vaya": "Vaya (Age Factor)",
+}
+
+ADDITIONAL_AYURVEDIC_FIELDS = {
+    "agni": "Agni (Digestive Fire)",
+    "koshtha": "Koshtha (Bowel Nature)",
+    "ahara_vihara": "Ahara-Vihara (Diet & Lifestyle)",
+    "nidana": "Nidana (Causative Factors)",
+    "samprapti": "Samprapti (Pathogenesis)",
+    "dushya": "Dushya (Affected Tissues/Doshas)",
+    "desha": "Desha (Habitat/Region)",
+    "bala": "Bala (Strength)",
+    "kala": "Kala (Time/Season)",
 }
 
 
@@ -69,9 +81,18 @@ def _build_gi_section(session: ClinicalSession) -> str:
     return "\n".join(lines) if lines else ""
 
 
-def _build_ayush_section(session: ClinicalSession) -> str:
+def _build_dashavidha_section(session: ClinicalSession) -> str:
     lines = []
-    for field_key, label in AYUSH_FIELDS.items():
+    for field_key, label in DASHAVIDHA_FIELDS.items():
+        val = session.answered_fields.get(field_key)
+        if val:
+            lines.append(f"- **{label}**: {val}")
+    return "\n".join(lines) if lines else ""
+
+
+def _build_additional_ayurvedic_section(session: ClinicalSession) -> str:
+    lines = []
+    for field_key, label in ADDITIONAL_AYURVEDIC_FIELDS.items():
         val = session.answered_fields.get(field_key)
         if val:
             lines.append(f"- **{label}**: {val}")
@@ -89,7 +110,8 @@ def generate_summary(session: ClinicalSession, document_data: dict = None) -> st
     # Build structured answered fields for the prompt
     hpi_block = _build_structured_hpi(session)
     gi_block = _build_gi_section(session)
-    ayush_block = _build_ayush_section(session)
+    dashavidha_block = _build_dashavidha_section(session)
+    additional_ayurvedic_block = _build_additional_ayurvedic_section(session)
 
     # Conversation transcript for the LLM to synthesize from
     convo_text = ""
@@ -134,7 +156,8 @@ Session Language: {lang_name} ({session.language})
 === STRUCTURED CLINICAL PARAMETERS (OLDCARTS) ===
 {hpi_block}
 {f"GI-Specific: {gi_block}" if gi_block else ""}
-{f"AYUSH Dashavidha Pariksha: {ayush_block}" if ayush_block else ""}
+{f"AYUSH / DASHAVIDHA PARIKSHA:\n{dashavidha_block}" if dashavidha_block else ""}
+{f"ADDITIONAL AYURVEDIC HISTORY:\n{additional_ayurvedic_block}" if additional_ayurvedic_block else ""}
 
 === RED FLAGS IDENTIFIED ===
 {', '.join(session.red_flags) if session.red_flags else 'None identified'}
@@ -167,7 +190,8 @@ Only include systems that have relevant findings from the patient's responses.
 Include ONLY if document data or patient responses mention prior conditions, surgeries, medications, or allergies.
 If nothing is available, write "Not available from this intake."
 
-{"## AYUSH Dashavidha Pariksha Assessment" + chr(10) + "Summarize the Ayurvedic constitutional assessment findings." if ayush_block else ""}
+{"## AYUSH / DASHAVIDHA PARIKSHA" + chr(10) + "Summarize the Ayurvedic constitutional assessment findings." if dashavidha_block else ""}
+{"## ADDITIONAL AYURVEDIC HISTORY" + chr(10) + "Summarize the additional Ayurvedic history." if additional_ayurvedic_block else ""}
 
 ## 🚨 Red Flags & Triage Priority
 List any identified red flags and recommend triage priority level (Immediate / Urgent / Routine).
@@ -229,9 +253,12 @@ CRITICAL RULES:
         summary += gi_block + "\n\n"
 
     # AYUSH
-    if ayush_block:
-        summary += "## AYUSH Dashavidha Pariksha\n"
-        summary += ayush_block + "\n\n"
+    if dashavidha_block:
+        summary += "## AYUSH / DASHAVIDHA PARIKSHA\n"
+        summary += dashavidha_block + "\n\n"
+    if additional_ayurvedic_block:
+        summary += "## ADDITIONAL AYURVEDIC HISTORY\n"
+        summary += additional_ayurvedic_block + "\n\n"
 
     # Documents
     if document_data:

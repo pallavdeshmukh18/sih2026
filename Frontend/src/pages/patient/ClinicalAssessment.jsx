@@ -27,6 +27,7 @@ import {
   FileText,
   FlaskConical,
   HeartPulse,
+  Leaf,
   Loader2,
   Mic,
   Pill,
@@ -119,6 +120,7 @@ export default function ClinicalAssessment() {
   const [selectedAppointmentId, setSelectedAppointmentId] = useState(appointmentIdFromUrl || "");
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [customComplaint, setCustomComplaint] = useState("");
+  const [consultationType, setConsultationType] = useState("allopathic");
 
   const [sessionId, setSessionId] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState("");
@@ -306,6 +308,8 @@ export default function ClinicalAssessment() {
         appointmentId: selectedAppointmentId || undefined,
         doctorId: selectedDoctorId || undefined,
         language: activeLang,
+        consultation_type: consultationType,
+        consultationType: consultationType,
       };
 
       const res = await startClinicalSession(payload, token);
@@ -610,6 +614,92 @@ export default function ClinicalAssessment() {
                 <h3>{t("assessment.chiefComplaintPrompt", "What is your main symptom or health concern today?")}</h3>
                 <p>{t("assessment.selectPrimaryDesc", "Select your primary symptom to begin adaptive clinical questioning:")}</p>
               </header>
+
+              <div className={styles.consultationPathwaySection} style={{ marginBottom: "24px", marginTop: "16px" }}>
+                <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, color: "#475569", marginBottom: "8px" }}>
+                  {t("assessment.selectPathway", "Select Assessment Pathway:")}
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setConsultationType("allopathic")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "12px 16px",
+                      borderRadius: "10px",
+                      border: consultationType === "allopathic" ? "2px solid #087b6d" : "1px solid #e2e8f0",
+                      background: consultationType === "allopathic" ? "#f0fdf4" : "#ffffff",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "all 0.2s ease"
+                    }}
+                  >
+                    <div style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "8px",
+                      background: consultationType === "allopathic" ? "#087b6d" : "#f1f5f9",
+                      color: consultationType === "allopathic" ? "#ffffff" : "#64748b",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0
+                    }}>
+                      <Stethoscope size={20} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "0.925rem", color: consultationType === "allopathic" ? "#0f172a" : "#334155" }}>
+                        Modern Allopathic
+                      </div>
+                      <div style={{ fontSize: "0.775rem", color: "#64748b" }}>
+                        Standard clinical triage & symptom breakdown
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setConsultationType("ayush")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "12px 16px",
+                      borderRadius: "10px",
+                      border: consultationType === "ayush" ? "2px solid #16a34a" : "1px solid #e2e8f0",
+                      background: consultationType === "ayush" ? "#f0fdf4" : "#ffffff",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "all 0.2s ease"
+                    }}
+                  >
+                    <div style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "8px",
+                      background: consultationType === "ayush" ? "#16a34a" : "#f1f5f9",
+                      color: consultationType === "ayush" ? "#ffffff" : "#64748b",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0
+                    }}>
+                      <Leaf size={20} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "0.925rem", color: consultationType === "ayush" ? "#0f172a" : "#334155", display: "flex", alignItems: "center", gap: "6px" }}>
+                        AYUSH / Ayurvedic
+                        <span style={{ fontSize: "0.7rem", background: "#dcfce7", color: "#15803d", padding: "2px 6px", borderRadius: "4px", fontWeight: 700 }}>AYUSH</span>
+                      </div>
+                      <div style={{ fontSize: "0.775rem", color: "#64748b" }}>
+                        Holistic Dashavidha Pariksha assessment
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
 
               <div className={styles.symptomGrid}>
                 {SYMPTOM_CARDS.map((item) => {

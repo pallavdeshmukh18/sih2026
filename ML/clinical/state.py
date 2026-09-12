@@ -34,7 +34,7 @@ CLINICAL_FLOW_GRAPH: Dict[str, List[str]] = {
     "last_meal":            ["bowel_movements", "associated_symptoms"],
     "bowel_movements":      ["last_meal", "associated_symptoms"],
 
-    # AYUSH Dashavidha Pariksha — natural clinical ordering
+    # AYUSH Dashavidha Pariksha & Additional History
     "prakriti":             ["vikriti", "sara", "samhanana"],
     "vikriti":              ["sara", "samhanana", "sattva"],
     "sara":                 ["samhanana", "pramana", "ahara_shakti"],
@@ -42,8 +42,23 @@ CLINICAL_FLOW_GRAPH: Dict[str, List[str]] = {
     "pramana":              ["satmya", "sattva", "ahara_shakti"],
     "satmya":               ["sattva", "ahara_shakti", "vyayama_shakti"],
     "sattva":               ["ahara_shakti", "vyayama_shakti", "vaya"],
-    "ahara_shakti":         ["vyayama_shakti", "vaya"],
-    "vyayama_shakti":       ["vaya"],
+    
+    # Connect Dashavidha to additional Ayurvedic history logically
+    "ahara_shakti":         ["agni", "koshtha", "vyayama_shakti", "vaya"],
+    "agni":                 ["koshtha", "ahara_vihara", "vyayama_shakti"],
+    "koshtha":              ["ahara_vihara", "vyayama_shakti"],
+    "ahara_vihara":         ["vyayama_shakti", "vaya"],
+    
+    "vyayama_shakti":       ["bala", "vaya"],
+    "bala":                 ["vaya"],
+    
+    "nidana":               ["samprapti", "dushya", "vaya"],
+    "samprapti":            ["dushya", "vaya"],
+    "dushya":               ["vaya"],
+    
+    "desha":                ["kala", "vaya"],
+    "kala":                 ["vaya"],
+    
     "vaya":                 [],
 }
 
@@ -55,9 +70,12 @@ DEFAULT_FIELD_PRIORITY = [
     "associated_symptoms",
     # GI-specific
     "last_meal", "bowel_movements",
-    # AYUSH
+    # AYUSH Dashavidha Pariksha
     "prakriti", "vikriti", "sara", "samhanana", "pramana",
     "satmya", "sattva", "ahara_shakti", "vyayama_shakti", "vaya",
+    # Additional Ayurvedic History
+    "agni", "koshtha", "ahara_vihara", "nidana", "samprapti",
+    "dushya", "desha", "bala", "kala"
 ]
 
 

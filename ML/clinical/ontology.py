@@ -40,6 +40,7 @@ class AbdominalPainOntology(ChiefComplaintOntology):
 
 class AyushDashavidhaOntology(ChiefComplaintOntology):
     complaint_name: str = "ayush_general"
+    # Mandatory Dashavidha Pariksha Parameters
     required_fields: List[str] = [
         "prakriti", # body constitution
         "vikriti",  # disease susceptibility
@@ -52,7 +53,18 @@ class AyushDashavidhaOntology(ChiefComplaintOntology):
         "vyayama_shakti",# exercise capacity
         "vaya"      # age factor
     ]
-    optional_fields: List[str] = ["chief_complaint", "duration"]
+    # Broader Ayurvedic Clinical History (Optional)
+    optional_fields: List[str] = [
+        "agni",         # digestion / metabolic fire
+        "koshtha",      # bowel nature
+        "ahara_vihara", # diet and lifestyle
+        "nidana",       # causative factors
+        "samprapti",    # pathogenesis
+        "dushya",       # affected tissues/doshas
+        "desha",        # habitat / region
+        "bala",         # strength
+        "kala"          # time / season
+    ]
 
 # Registry of ontologies
 ONTOLOGY_REGISTRY: Dict[str, ChiefComplaintOntology] = {
@@ -80,12 +92,14 @@ def get_ontology(complaint_name: str, consultation_type: str = "allopathic") -> 
     ))
 
     if consultation_type == "ayush":
-        ayush_fields = ONTOLOGY_REGISTRY.get("ayush_general").required_fields
+        ayush_ontology = ONTOLOGY_REGISTRY.get("ayush_general")
+        ayush_fields = ayush_ontology.required_fields
+        ayush_optional = ayush_ontology.optional_fields
         # Return a combined ontology so Dashavidha Pariksha is asked at the end
         return ChiefComplaintOntology(
             complaint_name=f"{base_ontology.complaint_name}_ayush",
             required_fields=base_ontology.required_fields + ayush_fields,
-            optional_fields=base_ontology.optional_fields
+            optional_fields=list(set(base_ontology.optional_fields + ayush_optional))
         )
 
     return base_ontology

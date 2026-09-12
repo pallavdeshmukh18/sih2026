@@ -5,7 +5,7 @@ import uuid
 
 from .state import ClinicalSession
 from .ontology import get_ontology
-from .engine import generate_next_question, process_patient_response, generate_rag_question, LOCALIZED_FALLBACK_OPTIONS, FALLBACK_OPTIONS, extract_entities_from_text
+from .engine import generate_next_question, process_patient_response, generate_rag_question, LOCALIZED_FALLBACK_OPTIONS, FALLBACK_OPTIONS, extract_entities_from_text, get_fallback_options
 try:
     from .rag_engine import extract_entities_rag
 except ImportError:
@@ -68,6 +68,20 @@ async def start_session(req: StartSessionRequest):
             session.clinical_entities.append({"field": "location", "value": loc_val, "confidence": "High"})
             break
 
+    # 1.5 Auto-derive Vaya (Age) from patient profile if available
+    if "vaya" in session.missing_fields and session.patient_profile:
+        age = session.patient_profile.get("age")
+        if age is not None:
+            vaya_val = "Youth"
+            if int(age) > 60:
+                vaya_val = "Senior"
+            elif int(age) > 35:
+                vaya_val = "Middle-aged"
+            
+            session.missing_fields.remove("vaya")
+            session.answered_fields["vaya"] = vaya_val
+            session.clinical_entities.append({"field": "vaya", "value": vaya_val, "confidence": "High"})
+
     # 2. Pre-extract any clinical parameters answered upfront (e.g., duration "for 2 3 days", severity, onset)
     # to avoid repeating questions the patient already answered in their initial text input.
     try:
@@ -93,7 +107,7 @@ async def start_session(req: StartSessionRequest):
     if next_field:
         if generate_rag_question:
             next_q = generate_rag_question(session, next_field)
-            options = LOCALIZED_FALLBACK_OPTIONS.get(session.language, FALLBACK_OPTIONS).get(next_field, [])
+            options = get_fallback_options(next_field, session.language)
         else:
             next_q, options = generate_next_question(next_field, session.language, session=session)
     else:
