@@ -66,6 +66,7 @@ export default function Documents() {
   const fileInputRef = useRef(null);
   const scanInputRef = useRef(null);
   const aiInputRef = useRef(null);
+  const recordsSectionRef = useRef(null);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -105,14 +106,64 @@ export default function Documents() {
     fetchDocuments();
   }, [fetchDocuments]);
 
+  /** Build a deep-searchable haystack from each document's metadata, OCR text, and extracted entities */
+  const buildSearchHaystack = (doc) => {
+    const type = classifyDocument(doc);
+    const parts = [
+      doc.file_name || "",
+      doc.description || "",
+      type.label,
+      doc.ai_summary || "",
+      doc.extracted_text || "",
+    ];
+
+    // Parse extracted_entities JSON — contains medicines, diagnoses, lab results, procedures
+    let entities = doc.extracted_entities;
+    if (typeof entities === "string") {
+      try { entities = JSON.parse(entities); } catch { entities = null; }
+    }
+    if (entities && typeof entities === "object") {
+      // Diagnoses
+      if (Array.isArray(entities.diagnoses)) {
+        parts.push(...entities.diagnoses);
+      }
+      // Medications — each has a .medicine field
+      if (Array.isArray(entities.medications)) {
+        entities.medications.forEach((med) => {
+          parts.push(med.medicine || "", med.dose || "", med.frequency || "", med.instructions || "");
+        });
+      }
+      // Lab results — each has .test, .value, .flag
+      if (Array.isArray(entities.lab_results)) {
+        entities.lab_results.forEach((lr) => {
+          parts.push(lr.test || "", lr.value || "", lr.flag || "");
+        });
+      }
+      // Procedures
+      if (Array.isArray(entities.procedures)) {
+        parts.push(...entities.procedures);
+      }
+      // Summary from entities
+      if (entities.summary) parts.push(entities.summary);
+      // Document type from entities
+      if (entities.document_type) parts.push(entities.document_type);
+    }
+
+    return parts.join(" ").toLowerCase();
+  };
+
   const visibleDocuments = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
     return [...documents]
       .filter((doc) => {
         const type = classifyDocument(doc);
         const matchesType = typeFilter === "all" || type.key === typeFilter;
-        const haystack = `${doc.file_name || ""} ${doc.description || ""} ${type.label}`.toLowerCase();
-        return matchesType && (!normalizedQuery || haystack.includes(normalizedQuery));
+        if (!matchesType) return false;
+        if (!normalizedQuery) return true;
+        const haystack = buildSearchHaystack(doc);
+        // Every search token must appear somewhere in the haystack
+        return queryTokens.every((token) => haystack.includes(token));
       })
       .sort((a, b) => {
         const difference = new Date(b.created_at || 0) - new Date(a.created_at || 0);
@@ -244,7 +295,7 @@ export default function Documents() {
           <div className={styles.filters}>
             <label className={styles.searchField}>
               <Search size={18} />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("documents.searchPlaceholder", "Search documents by name, type, or description…")} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("documents.searchPlaceholder", "Search by medicine, doctor, diagnosis, lab test, or file name…")} />
             </label>
             <label className={styles.selectField}>
               <FileText size={17} />
@@ -268,7 +319,7 @@ export default function Documents() {
             </label>
           </div>
 
-          <section className={styles.recordsCard}>
+          <section className={styles.recordsCard} ref={recordsSectionRef}>
             <div className={styles.recordsHeader}>
               <div>
                 <h2>{t("documents.recentDocuments", "Your Document Records")}</h2>
@@ -337,7 +388,7 @@ export default function Documents() {
             <button onClick={() => fileInputRef.current?.click()}><span><UploadCloud /></span>{t("history.uploadRecord", "Upload Document")}<ChevronRight /></button>
             <button onClick={() => scanInputRef.current?.click()}><span><FileScan /></span>{t("documents.filterScan", "Scan Document")}<ChevronRight /></button>
             <button onClick={openAiPanel}><span><Sparkles /></span>{t("documents.askAi", "Ask AI about Document")}<ChevronRight /></button>
-            <button onClick={() => setSortOrder("recent")}><span><FolderOpen /></span>{t("documents.filterAll", "Organize Files")}<ChevronRight /></button>
+            <button onClick={() => { setTypeFilter("all"); setQuery(""); setSortOrder("recent"); recordsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}><span><FolderOpen /></span>{t("documents.allDocuments", "All Documents")}<ChevronRight /></button>
             <input ref={scanInputRef} type="file" accept="image/*" capture="environment" onChange={(event) => processUpload(event.target.files?.[0])} hidden />
           </section>
 
