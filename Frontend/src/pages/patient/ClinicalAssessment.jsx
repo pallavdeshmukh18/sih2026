@@ -232,8 +232,8 @@ export default function ClinicalAssessment() {
         const res = await getPatientAppointments(token);
         if (res.success && Array.isArray(res.appointments) && res.appointments.length > 0) {
           setAppointments(res.appointments);
-          if (!selectedAppointmentId) {
-            setSelectedAppointmentId(appointmentIdFromUrl || res.appointments[0].id);
+          if (!selectedAppointmentId && appointmentIdFromUrl) {
+            setSelectedAppointmentId(appointmentIdFromUrl);
           }
         }
       } catch (err) {
@@ -1042,13 +1042,23 @@ export default function ClinicalAssessment() {
               )}
 
               <div className={styles.completionActions}>
-                <button
-                  onClick={() => setShowBookingModal(true)}
-                  className={styles.startBtn}
-                  style={{ width: "auto", padding: "0 24px" }}
-                >
-                  {targetDoctor ? `Book with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Book an Appointment"}
-                </button>
+                {!appointmentIdFromUrl ? (
+                  <button
+                    onClick={() => setShowBookingModal(true)}
+                    className={styles.startBtn}
+                    style={{ width: "auto", padding: "0 24px" }}
+                  >
+                    {targetDoctor ? `Book with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Book an Appointment"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate("/patient/appointments")}
+                    className={styles.startBtn}
+                    style={{ width: "auto", padding: "0 24px" }}
+                  >
+                    {t("navigation.appointments", "View Appointments")}
+                  </button>
+                )}
                 <button
                   onClick={() => navigate("/patient/dashboard")}
                   className={styles.startBtn}

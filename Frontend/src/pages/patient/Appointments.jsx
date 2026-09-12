@@ -211,7 +211,7 @@ export default function Appointments() {
                       <td>
                         <div className={styles.withIcon}>
                           <Stethoscope />
-                          <span>{(appointment.appointmentType || appointment.appointment_type) === "teleconsultation" ? t("appointments.teleconsultation", "Virtual") : t("appointments.inPerson", "In-person")}</span>
+                          <span>{["video", "teleconsultation", "virtual"].includes((appointment.appointmentType || appointment.appointment_type)?.toLowerCase()) ? t("appointments.teleconsultation", "Virtual") : t("appointments.inPerson", "In-person")}</span>
                         </div>
                       </td>
                       <td>
@@ -327,7 +327,7 @@ export default function Appointments() {
                     <div>📅 <strong>Scheduled Date:</strong> {!isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { dateStyle: "full" }) : "TBD"}</div>
                     <div>⏰ <strong>Time Slot:</strong> {!isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "TBD"}</div>
                     <div>🏥 <strong>Location:</strong> {selectedApptModal.location || "MediKiosk Clinic, Mumbai"}</div>
-                    <div>🩺 <strong>Consultation Type:</strong> {(selectedApptModal.appointmentType || selectedApptModal.appointment_type) === "teleconsultation" ? "Video Call (Teleconsultation)" : "In-Person Visit"}</div>
+                    <div>🩺 <strong>Consultation Type:</strong> {["video", "teleconsultation", "virtual"].includes((selectedApptModal.appointmentType || selectedApptModal.appointment_type)?.toLowerCase()) ? "Video Call (Teleconsultation)" : "In-Person Visit"}</div>
                     <div>📌 <strong>Reason / Complaint:</strong> {selectedApptModal.reason || "General Medical Checkup"}</div>
                     {selectedApptModal.notes && (
                       <div style={{ marginTop: "8px" }}>
