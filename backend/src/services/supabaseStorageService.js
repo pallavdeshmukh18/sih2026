@@ -11,9 +11,18 @@ function localPath(storagePath) {
 }
 
 function storageConfig() {
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) throw Object.assign(new Error('Private document storage is not configured.'), { statusCode: 503 });
+    const rawUrl = process.env.SUPABASE_URL;
+    const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!rawUrl || !rawKey) throw Object.assign(new Error('Private document storage is not configured.'), { statusCode: 503 });
+
+    let url;
+    try {
+        url = new URL(rawUrl.trim().replace(/^['"]|['"]$/g, '')).origin;
+    } catch {
+        throw Object.assign(new Error('SUPABASE_URL must be a valid project URL.'), { statusCode: 503 });
+    }
+    const key = rawKey.trim().replace(/^['"]|['"]$/g, '');
+    if (!key) throw Object.assign(new Error('Private document storage is not configured.'), { statusCode: 503 });
     return { url, key };
 }
 
@@ -21,10 +30,22 @@ async function storageRequest(resource, options = {}) {
     const { url, key } = storageConfig();
     const response = await fetch(`${url}/storage/v1/${resource}`, {
         ...options,
-        headers: { Authorization: `Bearer ${key}`, ...options.headers },
+        headers: { Authorization: `Bearer ${key}`, apikey: key, ...options.headers },
         signal: AbortSignal.timeout(30000),
     });
-    if (!response.ok) throw Object.assign(new Error('Private document storage request failed.'), { statusCode: 502 });
+    if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        // Supabase's error body contains the actionable reason, but never log credentials.
+        console.error('Supabase medical document storage error:', response.status, detail.slice(0, 1000));
+        const messages = {
+            400: 'Document storage rejected the upload.',
+            401: 'Document storage credentials are invalid.',
+            403: 'Document storage access was denied.',
+            404: `Document storage bucket '${BUCKET_NAME}' was not found.`,
+            409: 'A document already exists at this storage path.',
+        };
+        throw Object.assign(new Error(messages[response.status] || 'Private document storage request failed.'), { statusCode: response.status >= 400 && response.status < 500 ? response.status : 502 });
+    }
     return response;
 }
 

@@ -2,6 +2,7 @@ import base64
 import re
 import requests
 import os
+import time
 
 os.environ["FLAGS_enable_pir_api"] = "0"
 os.environ["GLOG_minloglevel"] = "2"  # Suppress C++ logging
@@ -14,9 +15,20 @@ from config import (
     ENABLE_OCR_FALLBACK,
 )
 
-def ocr_with_groq_rest(image_bytes: bytes, api_key: str) -> str:
+def ocr_with_groq_rest(image_bytes: bytes, api_key: str, time_budget_seconds: int = 45) -> str:
     """Primary Vision OCR using direct Groq REST API with model fallback."""
     b64 = base64.b64encode(image_bytes).decode("utf-8")
+    if image_bytes.startswith(b"\xff\xd8\xff"):
+        image_mime = "image/jpeg"
+    elif image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        image_mime = "image/png"
+    elif image_bytes[:4] in (b"RIFF",):
+        image_mime = "image/webp"
+    else:
+        # Normalize unknown image encodings before sending them to the vision API.
+        image_bytes = preprocess_image(image_bytes)
+        b64 = base64.b64encode(image_bytes).decode("utf-8")
+        image_mime = "image/png"
     
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -32,7 +44,11 @@ def ocr_with_groq_rest(image_bytes: bytes, api_key: str) -> str:
     models = [m for m in candidates if m and not (m in seen or seen.add(m))]
     
     last_err = None
+    deadline = time.monotonic() + time_budget_seconds
     for model_name in models:
+        remaining = deadline - time.monotonic()
+        if remaining <= 1:
+            break
         payload = {
             "model": model_name,
             "messages": [
@@ -52,7 +68,7 @@ def ocr_with_groq_rest(image_bytes: bytes, api_key: str) -> str:
                         },
                         {
                             "type": "image_url",
-                            "image_url": {"url": f"data:image/png;base64,{b64}"}
+                            "image_url": {"url": f"data:{image_mime};base64,{b64}"}
                         },
                     ],
                 }
@@ -66,7 +82,7 @@ def ocr_with_groq_rest(image_bytes: bytes, api_key: str) -> str:
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=45
+                timeout=min(20, max(1, remaining))
             )
             if resp.status_code == 200:
                 data = resp.json()
@@ -144,26 +160,11 @@ def ocr_with_paddleocr(image_bytes: bytes) -> str:
             os.remove(image_path)
 
 
-def ocr_with_rapidocr(image_bytes: bytes) -> str:
-    """Fast, accurate offline OCR using RapidOCR ONNX with border padding & low score threshold."""
-    try:
-        from rapidocr_onnxruntime import RapidOCR
-        from ocr.preprocess import preprocess_image
-        processed_bytes = preprocess_image(image_bytes)
-        engine = RapidOCR(text_score=0.15)
-        result, _ = engine(processed_bytes)
-        if result:
-            lines = [item[1] for item in result if len(item) > 1 and item[1]]
-            return "\n".join(lines).strip()
-    except Exception as e:
-        print(f"RapidOCR error: {e}")
-    return ""
-
-
 def run_ocr(
     image_bytes: bytes,
     api_key: str | None,
-    filename: str = "document.png"
+    filename: str = "document.png",
+    fast_mode: bool = False,
 ) -> str:
     fn_lower = (filename or "document").lower()
     target_bytes = image_bytes
@@ -182,7 +183,7 @@ def run_ocr(
     # -------------------------------------------------
     if api_key and GROQ_VISION_MODEL:
         try:
-            text = ocr_with_groq_rest(target_bytes, api_key)
+            text = ocr_with_groq_rest(target_bytes, api_key, time_budget_seconds=40 if fast_mode else 45)
             if text.strip():
                 print(f"OCR successful using Groq REST for {filename}.")
                 return text
@@ -190,18 +191,7 @@ def run_ocr(
             print(f"Groq Vision REST OCR skipped for {filename}: {e}")
 
     # -------------------------------------------------
-    # 2. OFFLINE OCR: RapidOCR ONNX Engine
-    # -------------------------------------------------
-    try:
-        text = ocr_with_rapidocr(target_bytes)
-        if text.strip():
-            print(f"OCR successful using RapidOCR for {filename}.")
-            return text
-    except Exception as e:
-        print(f"RapidOCR failed for {filename}: {e}")
-
-    # -------------------------------------------------
-    # 3. FALLBACK: PaddleOCR
+    # 2. LOCAL FALLBACK: PaddleOCR
     # -------------------------------------------------
     if ENABLE_OCR_FALLBACK:
         try:
@@ -214,6 +204,6 @@ def run_ocr(
             print(f"PaddleOCR failed for {filename}: {e}")
 
     # -------------------------------------------------
-    # 4. No Text Extracted
+    # 3. No Text Extracted
     # -------------------------------------------------
     return ""

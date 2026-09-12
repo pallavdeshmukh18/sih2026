@@ -23,7 +23,13 @@ async function uploadDocument(req, res, next) {
 
         const patientId = req.user.role === "patient" ? req.user.id : req.body.patientId;
         const uploadedBy = req.user.id;
-        const documentType = req.body.documentType || "other";
+        const requestedDocumentType = req.body.documentType || "other";
+        // Keep older/newer clients compatible with the canonical database value.
+        const documentType = requestedDocumentType === "insurance_policy" ? "insurance" : requestedDocumentType;
+        const allowedDocumentTypes = new Set(["lab_report", "prescription", "discharge_summary", "medical_report", "scan", "insurance", "personal", "other"]);
+        if (!allowedDocumentTypes.has(documentType)) {
+            return res.status(400).json({ success: false, message: "Unsupported document type." });
+        }
         const filename = req.file.originalname;
         const fileSize = req.file.size;
         const mimeType = req.file.mimetype;
@@ -81,18 +87,21 @@ async function uploadDocument(req, res, next) {
         let ocrResult = null;
         let ocrText = "";
         let extractedEntities = null;
+        let ocrFailureReason = null;
 
         try {
             ocrResult = await mlService.processDocumentOCR(
                 patientId,
                 documentId,
                 req.file.buffer,
-                filename
+                filename,
+                documentType
             );
             ocrText = ocrResult.ocr_text || "";
             extractedEntities = ocrResult.extracted || null;
         } catch (ocrErr) {
             console.warn("[OCR WARNING] OCR service error:", ocrErr.message);
+            ocrFailureReason = ocrErr.message;
         }
 
         const ocrStatus = typeof ocrText === "string" && ocrText.trim() ? "completed" : "failed";
@@ -131,6 +140,7 @@ async function uploadDocument(req, res, next) {
                 status: ocrStatus,
                 extractedText: ocrText,
                 entities: extractedEntities,
+                failureReason: ocrFailureReason,
             },
         });
     } catch (error) {
@@ -603,4 +613,3 @@ module.exports = {
     getDocumentById,
     askDocumentQuestion,
 };
-

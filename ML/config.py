@@ -1,8 +1,11 @@
 import os
+from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    # Resolve from this service directory so `uvicorn ML.main:app` and
+    # `cd ML && uvicorn main:app` load the same configuration.
+    load_dotenv(Path(__file__).resolve().parent / ".env")
 except ImportError:
     pass
 

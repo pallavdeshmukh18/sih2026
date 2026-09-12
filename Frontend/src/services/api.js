@@ -334,6 +334,18 @@ export async function getPatientDocuments(patientId, token) {
     return apiRequest(`/api/documents/patient/${patientId}`, "GET", null, token);
 }
 
+export const createInsurancePolicy = (data, token) => apiRequest("/api/insurance/policies", "POST", data, token);
+export const getInsurancePolicies = token => apiRequest("/api/insurance/policies", "GET", null, token);
+export const getInsurancePolicy = (id, token) => apiRequest(`/api/insurance/policies/${id}`, "GET", null, token);
+export const updateInsurancePolicy = (id, data, token) => apiRequest(`/api/insurance/policies/${id}`, "PATCH", data, token);
+export const deleteInsurancePolicy = (id, token) => apiRequest(`/api/insurance/policies/${id}`, "DELETE", null, token);
+export const addInsuranceProcedureLimit = (id, data, token) => apiRequest(`/api/insurance/policies/${id}/procedure-limits`, "POST", data, token);
+export const addInsuranceExclusion = (id, data, token) => apiRequest(`/api/insurance/policies/${id}/exclusions`, "POST", data, token);
+export const extractInsurancePolicy = (documentId, token) => apiRequest(`/api/insurance/documents/${documentId}/extract`, "POST", null, token);
+export const createClaimEstimate = (data, token) => apiRequest("/api/insurance/claim-estimates", "POST", data, token);
+export const getClaimEstimates = token => apiRequest("/api/insurance/claim-estimates", "GET", null, token);
+export const getClaimEstimate = (id, token) => apiRequest(`/api/insurance/claim-estimates/${id}`, "GET", null, token);
+
 /** Search Patient Medical Documents / Ask History Question */
 export async function searchMedicalDocuments(query, token) {
     return apiRequest("/api/documents/search", "POST", { query }, token);

@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import importlib.util
 from pathlib import Path
 
 # Ensure ML directory is on sys.path so modules can be imported
@@ -25,14 +26,27 @@ from stt.schemas import HealthResponse
 # Clinical AI
 from clinical.router import router as clinical_router
 
-# Document Intelligence & OCR services
+# Document Intelligence services are optional independently. A missing Q&A
+# dependency must not disable core OCR uploads.
 try:
     from ocr.ocr_engine import run_ocr
-    from ocr.entity_extraction import extract_entities
-    from ocr.doc_qa import answer_document_question
-except ImportError:
+except ImportError as exc:
+    logging.getLogger("medikiosk.ml").warning("OCR module unavailable: %s", exc)
     run_ocr = None
+try:
+    from ocr.entity_extraction import extract_entities
+except ImportError as exc:
+    logging.getLogger("medikiosk.ml").warning("Entity extraction unavailable: %s", exc)
     extract_entities = None
+try:
+    from ocr.policy_extraction import extract_policy_entities
+except ImportError as exc:
+    logging.getLogger("medikiosk.ml").warning("Policy extraction unavailable: %s", exc)
+    extract_policy_entities = None
+try:
+    from ocr.doc_qa import answer_document_question
+except ImportError as exc:
+    logging.getLogger("medikiosk.ml").warning("Document Q&A unavailable: %s", exc)
     answer_document_question = None
 
 
@@ -101,6 +115,28 @@ async def health_check():
     )
 
 
+@app.get("/documents/ocr-health", tags=["Document Intelligence"])
+async def ocr_health():
+    """Report OCR capability availability without exposing credentials."""
+    paddleocr_available = importlib.util.find_spec("paddleocr") is not None and importlib.util.find_spec("paddle") is not None
+    pdf_available = importlib.util.find_spec("fitz") is not None
+    vision_available = bool(GROQ_API_KEY)
+    return {
+        "status": "ready" if run_ocr is not None and (
+            vision_available or paddleocr_available
+        ) else "not_ready",
+        "ocr_module_loaded": run_ocr is not None,
+        "structured_policy_extraction_ready": extract_policy_entities is not None and vision_available,
+        "image_ocr_ready": run_ocr is not None and (vision_available or paddleocr_available),
+        "pdf_ocr_ready": run_ocr is not None and pdf_available and (vision_available or paddleocr_available),
+        "groq_vision_configured": vision_available,
+        "paddleocr_available": paddleocr_available,
+        "pymupdf_available": pdf_available,
+        "pillow_available": importlib.util.find_spec("PIL") is not None,
+        "fallback_enabled": True,
+    }
+
+
 app.include_router(stt_router)
 app.include_router(tts_router)
 
@@ -116,6 +152,7 @@ app.include_router(clinical_router)
 async def process_document(
     patient_id: str = Form(...),
     document_id: str = Form(...),
+    document_type: str = Form("other"),
     file: UploadFile = File(...)
 ):
     raw_bytes = await file.read()
@@ -125,10 +162,14 @@ async def process_document(
             detail="Uploaded file is empty."
         )
 
+    is_pdf = (file.filename or "").lower().endswith(".pdf") or raw_bytes.startswith(b"%PDF")
+    if is_pdf and importlib.util.find_spec("fitz") is None:
+        raise HTTPException(status_code=503, detail="PDF OCR requires PyMuPDF. Install ML requirements or upload a JPG/PNG policy image.")
+
     # 1. OCR Extraction
     try:
         if run_ocr is not None:
-            text = run_ocr(raw_bytes, GROQ_API_KEY, file.filename)
+            text = run_ocr(raw_bytes, GROQ_API_KEY, file.filename, fast_mode=document_type == "insurance")
         else:
             text = ""
     except Exception as e:
@@ -136,20 +177,31 @@ async def process_document(
         text = ""
 
     # 2. Entity Extraction
+    if not text.strip():
+        logger.warning("No readable OCR text produced for document %s (%s). Check vision API and local OCR engine logs.", document_id, file.filename)
+
     try:
-        if extract_entities is not None:
+        if document_type == "insurance":
+            if extract_policy_entities is not None:
+                extracted = extract_policy_entities(text, GROQ_API_KEY)
+            else:
+                extracted = {}
+        elif extract_entities is not None:
             extracted = extract_entities(text, GROQ_API_KEY)
         else:
             from ocr.entity_extraction import extract_entities_fallback
             extracted = extract_entities_fallback(text)
     except Exception as e:
         logger.exception(f"Entity extraction error fallback: {e}")
-        from ocr.entity_extraction import extract_entities_fallback
-        extracted = extract_entities_fallback(text)
+        if document_type == "insurance":
+            extracted = {}
+        else:
+            from ocr.entity_extraction import extract_entities_fallback
+            extracted = extract_entities_fallback(text)
 
     # 3. Vector Storage (Optional)
     storage_result = {"status": "skipped"}
-    if store_document is not None:
+    if store_document is not None and document_type != "insurance":
         try:
             storage_result = store_document(
                 patient_id=patient_id,

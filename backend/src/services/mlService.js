@@ -147,10 +147,11 @@ async function summarizeClinicalSession(sessionId, documentData = null) {
 /**
  * 6. Process Medical Document OCR & Entity Extraction
  */
-async function processDocumentOCR(patientId, documentId, fileBuffer, filename = "document.png") {
+async function processDocumentOCR(patientId, documentId, fileBuffer, filename = "document.png", documentType = "other") {
     const formData = new FormData();
     formData.append("patient_id", patientId);
     formData.append("document_id", documentId);
+    formData.append("document_type", documentType);
     formData.append("file", fileBuffer, { filename });
 
     try {
@@ -158,7 +159,7 @@ async function processDocumentOCR(patientId, documentId, fileBuffer, filename = 
             headers: {
                 ...formData.getHeaders(),
             },
-            timeout: 60000,
+            timeout: Math.max(10000, Number(process.env.ML_OCR_TIMEOUT_MS) || 120000),
         });
         return response.data;
     } catch (error) {

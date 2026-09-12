@@ -20,6 +20,7 @@ import MedicalHistory from "./pages/patient/MedicalHistory";
 import MedicalID from "./pages/patient/MedicalID";
 import Appointments from "./pages/patient/Appointments";
 import Documents from "./pages/patient/Documents";
+import ClaimEstimator from "./pages/patient/ClaimEstimator";
 import DoctorAppointments from "./pages/doctor/DoctorAppointments";
 import PatientAccess from "./pages/doctor/PatientAccess";
 import TeamManagement from "./pages/doctor/TeamManagement";
@@ -67,6 +68,7 @@ function App() {
             <Route path="history" element={<MedicalHistory />} />
             <Route path="appointments" element={<Appointments />} />
             <Route path="documents" element={<Documents />} />
+            <Route path="claim-estimator" element={<ClaimEstimator />} />
             
             {/* Patient Application Routes */}
             <Route path="account" element={<Account />} />

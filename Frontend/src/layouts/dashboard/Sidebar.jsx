@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
     LayoutDashboard, User, Stethoscope, Users, Calendar, 
-    FileText, ClipboardList, Video, LogOut, UserCog, ShieldCheck, Settings as SettingsIcon
+    FileText, ClipboardList, Video, LogOut, UserCog, ShieldCheck, Settings as SettingsIcon, Calculator
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../context/AuthContext';
@@ -73,6 +73,10 @@ const Sidebar = ({ onHoverChange, collapsed = false }) => {
                             <NavLink to="/patient/history" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                                 <FileText size={20} />
                                 <span>{t('navigation.history')}</span>
+                            </NavLink>
+                            <NavLink to="/patient/claim-estimator" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                                <Calculator size={20} />
+                                <span>Claim Estimator</span>
                             </NavLink>
                         </>
                     )}

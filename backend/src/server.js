@@ -19,6 +19,7 @@ const ttsRoutes = require("./routes/ttsRoutes");
 const whatsappRoutes = require("./routes/whatsappRoutes");
 const teleconsultRoutes = require("./routes/teleconsultRoutes");
 const userRoutes = require("./routes/userRoutes");
+const insuranceRoutes = require("./routes/insuranceRoutes");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -69,6 +70,7 @@ app.use("/api/receptionist", receptionistRoutes);
 app.use("/api/tts", ttsRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/insurance", insuranceRoutes);
 
 app.get("/", (req, res) => {
     res.json({

@@ -1,0 +1,10 @@
+const router=require("express").Router();
+const authenticate=require("../middleware/authMiddleware");
+const roles=require("../middleware/rbacMiddleware");
+const c=require("../controllers/insuranceController");
+router.use(authenticate,roles("patient"));
+router.post("/policies",c.createPolicy);router.get("/policies",c.listPolicies);router.get("/policies/:id",c.getPolicy);router.patch("/policies/:id",c.updatePolicy);router.delete("/policies/:id",c.deletePolicy);
+router.post("/policies/:id/procedure-limits",c.addProcedureLimit);router.post("/policies/:id/exclusions",c.addExclusion);
+router.post("/documents/:documentId/extract",c.extractDocument);
+router.post("/claim-estimates",c.createEstimate);router.get("/claim-estimates",c.listEstimates);router.get("/claim-estimates/:id",c.getEstimate);
+module.exports=router;
