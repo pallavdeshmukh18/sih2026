@@ -167,12 +167,22 @@ async function getOnboardingPreferences(req, res, next) {
  * PATCH /api/patient/profile
  * Access: Authenticated patient only
  */
+const ALLOWED_BLOOD_GROUPS = [
+    "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"
+];
+
 async function updatePatientProfile(req, res, next) {
     try {
         const userId = req.user.id;
-        const { firstName, lastName, dateOfBirth, gender, state, preferredLanguage, interactionMode, accessibilityPreference, islEnabled } = req.body;
+        const { firstName, lastName, dateOfBirth, gender, bloodGroup, state, preferredLanguage, interactionMode, accessibilityPreference, islEnabled } = req.body;
 
         // Validation for allowed dropdown values if supplied
+        if (bloodGroup && !ALLOWED_BLOOD_GROUPS.includes(bloodGroup)) {
+            return res.status(400).json({
+                success: false,
+                message: `Invalid bloodGroup '${bloodGroup}'. Allowed: [${ALLOWED_BLOOD_GROUPS.join(", ")}]`,
+            });
+        }
         if (state && !ALLOWED_STATES.includes(state)) {
             return res.status(400).json({
                 success: false,
@@ -222,23 +232,24 @@ async function updatePatientProfile(req, res, next) {
 
         if (profileCheck.rows.length === 0) {
             await pool.query(
-                `INSERT INTO patient_profiles (user_id, date_of_birth, gender, state, preferred_language, interaction_mode, accessibility_preference, isl_enabled)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`,
-                [userId, dateOfBirth || null, gender || null, state || null, preferredLanguage || null, interactionMode || null, accessibilityPreference || null, resolvedIslEnabled ?? false]
+                `INSERT INTO patient_profiles (user_id, date_of_birth, gender, blood_group, state, preferred_language, interaction_mode, accessibility_preference, isl_enabled)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);`,
+                [userId, dateOfBirth || null, gender || null, bloodGroup || null, state || null, preferredLanguage || null, interactionMode || null, accessibilityPreference || null, resolvedIslEnabled ?? false]
             );
         } else {
             await pool.query(
                 `UPDATE patient_profiles
                  SET date_of_birth = COALESCE($1, date_of_birth),
                      gender = COALESCE($2, gender),
-                     state = COALESCE($3, state),
-                     preferred_language = COALESCE($4, preferred_language),
-                     interaction_mode = COALESCE($5, interaction_mode),
-                     accessibility_preference = COALESCE($6, accessibility_preference),
-                     isl_enabled = COALESCE($7, isl_enabled),
+                     blood_group = COALESCE($3, blood_group),
+                     state = COALESCE($4, state),
+                     preferred_language = COALESCE($5, preferred_language),
+                     interaction_mode = COALESCE($6, interaction_mode),
+                     accessibility_preference = COALESCE($7, accessibility_preference),
+                     isl_enabled = COALESCE($8, isl_enabled),
                      updated_at = CURRENT_TIMESTAMP
-                 WHERE user_id = $8;`,
-                [dateOfBirth || null, gender || null, state || null, preferredLanguage || null, interactionMode || null, accessibilityPreference || null, resolvedIslEnabled, userId]
+                 WHERE user_id = $9;`,
+                [dateOfBirth || null, gender || null, bloodGroup || null, state || null, preferredLanguage || null, interactionMode || null, accessibilityPreference || null, resolvedIslEnabled, userId]
             );
         }
 
@@ -682,11 +693,62 @@ async function getPatientMedicalId(req, res, next) {
     try {
         const patientId = req.user.id;
 
+        // 0. Parse Time-Range Parameters
+        const timeRangeParam = req.query.timeRange || (req.query.startDate || req.query.endDate ? "custom" : "1_year");
+        const { startDate, endDate } = req.query;
+        let cutoffDate = null;
+        let endDateObj = null;
+
+        if (startDate || endDate) {
+            if (startDate) {
+                const s = new Date(startDate);
+                if (!isNaN(s.getTime())) cutoffDate = s;
+            }
+            if (endDate) {
+                const e = new Date(endDate);
+                if (!isNaN(e.getTime())) {
+                    endDateObj = e;
+                    endDateObj.setHours(23, 59, 59, 999);
+                }
+            }
+        } else {
+            const now = new Date();
+            if (timeRangeParam === "3_months") {
+                cutoffDate = new Date(now);
+                cutoffDate.setMonth(now.getMonth() - 3);
+            } else if (timeRangeParam === "1_year") {
+                cutoffDate = new Date(now);
+                cutoffDate.setFullYear(now.getFullYear() - 1);
+            } else if (timeRangeParam === "2_years") {
+                cutoffDate = new Date(now);
+                cutoffDate.setFullYear(now.getFullYear() - 2);
+            } else if (timeRangeParam === "5_years") {
+                cutoffDate = new Date(now);
+                cutoffDate.setFullYear(now.getFullYear() - 5);
+            } else if (timeRangeParam === "all") {
+                cutoffDate = null;
+            } else {
+                // Default: 1 year
+                cutoffDate = new Date(now);
+                cutoffDate.setFullYear(now.getFullYear() - 1);
+            }
+        }
+
+        function inDateRange(dateVal) {
+            if (!dateVal) return true;
+            const d = new Date(dateVal);
+            if (isNaN(d.getTime())) return true;
+            if (cutoffDate && d < cutoffDate) return false;
+            if (endDateObj && d > endDateObj) return false;
+            return true;
+        }
+
         // 1. Patient Identity & Profile
         const userRes = await pool.query(
             `SELECT u.id, u.first_name, u.last_name, u.email, u.phone,
                     p.date_of_birth, p.gender, p.state, p.preferred_language,
-                    p.interaction_mode, p.accessibility_preference, p.updated_at AS profile_updated_at
+                    p.interaction_mode, p.accessibility_preference, p.abha_id,
+                    p.updated_at AS profile_updated_at
              FROM users u
              LEFT JOIN patient_profiles p ON u.id = p.user_id
              WHERE u.id = $1;`,
@@ -716,6 +778,16 @@ async function getPatientMedicalId(req, res, next) {
             }
         }
 
+        let bloodGroup = null;
+        try {
+            const bgRes = await pool.query(`SELECT blood_group FROM patient_profiles WHERE user_id = $1;`, [patientId]);
+            if (bgRes.rows.length > 0 && bgRes.rows[0].blood_group) {
+                bloodGroup = bgRes.rows[0].blood_group;
+            }
+        } catch (e) {
+            // Safe fallback if column not present
+        }
+
         // 2. Fetch Medical History (conditions, allergies, surgeries, etc.)
         const historyRes = await pool.query(
             `SELECT id, category, condition, description, diagnosed_at, status, notes, created_at, updated_at
@@ -728,7 +800,7 @@ async function getPatientMedicalId(req, res, next) {
 
         // 3. Fetch Documents & OCR Extractions
         const docsRes = await pool.query(
-            `SELECT d.id, d.file_name, d.file_type, d.document_type, d.created_at, d.updated_at,
+            `SELECT d.id, d.file_name, d.file_type, d.document_type, o.status AS ocr_status, d.created_at, d.updated_at,
                     o.extracted_entities, o.extracted_text, s.summary AS ai_summary
              FROM documents d
              LEFT JOIN document_ocr o ON d.id = o.document_id
@@ -741,20 +813,22 @@ async function getPatientMedicalId(req, res, next) {
 
         // 4. Fetch Consultations
         const consultRes = await pool.query(
-            `SELECT c.id, c.chief_complaint, c.diagnosis, c.treatment_notes, c.started_at, c.created_at, c.updated_at,
-                    u.first_name AS doctor_first_name, u.last_name AS doctor_last_name
+            `SELECT c.id, c.chief_complaint, c.clinical_notes, c.diagnosis, c.treatment_notes, c.started_at, c.created_at, c.updated_at,
+                    u.first_name AS doctor_first_name, u.last_name AS doctor_last_name,
+                    dp.specialization AS doctor_specialization, dp.department AS doctor_department
              FROM consultations c
              JOIN appointments a ON c.appointment_id = a.id
              JOIN users u ON a.doctor_id = u.id
+             LEFT JOIN doctor_profiles dp ON u.id = dp.user_id
              WHERE a.patient_id = $1
-             ORDER BY c.created_at DESC;`,
+             ORDER BY COALESCE(c.started_at, c.created_at) DESC;`,
             [patientId]
         );
         const consultRows = consultRes.rows;
 
         // 5. Fetch Clinical Sessions / Assessments
         const sessionRes = await pool.query(
-            `SELECT id, chief_complaint, status, summary, current_state, created_at, updated_at
+            `SELECT id, consultation_type, chief_complaint, status, summary, current_state, created_at, updated_at
              FROM clinical_sessions
              WHERE patient_id = $1
              ORDER BY created_at DESC;`,
@@ -764,21 +838,32 @@ async function getPatientMedicalId(req, res, next) {
 
         // --- AGGREGATION & NORMALIZATION ---
 
-        // ALLERGIES
+        // ALLERGIES (Clinical Safety Rule: Retain active allergies even if predating cutoff)
         const allergies = [];
         historyRows.filter(r => r.category === "allergy").forEach(r => {
-            allergies.push({
-                id: r.id,
-                allergy: r.condition,
-                description: r.description || null,
-                source: r.notes || "Recorded Medical History",
-                verificationStatus: r.notes?.toLowerCase().includes("doctor") ? "verified" : "patient_reported"
-            });
+            const recordDate = r.diagnosed_at || r.created_at;
+            const inPeriod = inDateRange(recordDate);
+            const isCurrentlyActive = (r.status || "active").toLowerCase() === "active";
+            if (inPeriod || isCurrentlyActive) {
+                allergies.push({
+                    id: r.id,
+                    allergy: r.condition,
+                    description: r.description || null,
+                    status: r.status || "active",
+                    date: recordDate,
+                    source: r.notes || "Recorded Medical History",
+                    verificationStatus: r.notes?.toLowerCase().includes("doctor") ? "verified" : "patient_reported",
+                    inPeriod,
+                    isCurrentlyActive
+                });
+            }
         });
         docRows.forEach(doc => {
             let entities = doc.extracted_entities;
             if (typeof entities === "string") { try { entities = JSON.parse(entities); } catch(e){} }
             if (entities && Array.isArray(entities.allergies)) {
+                const docDate = entities.document_date || doc.created_at;
+                const inPeriod = inDateRange(docDate);
                 entities.allergies.forEach(alg => {
                     const algName = typeof alg === "string" ? alg : alg.name;
                     if (algName && !allergies.some(a => a.allergy.toLowerCase() === algName.toLowerCase())) {
@@ -786,35 +871,50 @@ async function getPatientMedicalId(req, res, next) {
                             id: `ocr_alg_${doc.id}_${allergies.length}`,
                             allergy: algName,
                             description: null,
+                            status: "active",
+                            date: docDate,
                             source: doc.file_name,
-                            verificationStatus: "ai_extracted"
+                            verificationStatus: "ai_extracted",
+                            inPeriod,
+                            isCurrentlyActive: true
                         });
                     }
                 });
             }
         });
 
-        // CONDITIONS / DIAGNOSES
+        // CONDITIONS / DIAGNOSES (Clinical Safety Rule: Retain active conditions even if predating cutoff)
         const conditions = [];
         historyRows.filter(r => r.category === "condition").forEach(r => {
-            conditions.push({
-                id: r.id,
-                condition: r.condition,
-                diagnosedDate: r.diagnosed_at || r.updated_at,
-                status: r.status || "active",
-                source: r.notes || "Recorded Medical History",
-                verificationStatus: "verified"
-            });
+            const recordDate = r.diagnosed_at || r.created_at;
+            const inPeriod = inDateRange(recordDate);
+            const isCurrentlyActive = (r.status || "active").toLowerCase() === "active";
+            if (inPeriod || isCurrentlyActive) {
+                conditions.push({
+                    id: r.id,
+                    condition: r.condition,
+                    diagnosedDate: recordDate,
+                    status: r.status || "active",
+                    source: r.notes || "Recorded Medical History",
+                    verificationStatus: "verified",
+                    inPeriod,
+                    isCurrentlyActive
+                });
+            }
         });
         consultRows.forEach(c => {
-            if (c.diagnosis && !conditions.some(cond => cond.condition.toLowerCase() === c.diagnosis.toLowerCase())) {
+            const consultDate = c.started_at || c.created_at;
+            const inPeriod = inDateRange(consultDate);
+            if (c.diagnosis && inPeriod && !conditions.some(cond => cond.condition.toLowerCase() === c.diagnosis.toLowerCase())) {
                 conditions.push({
                     id: `consult_${c.id}`,
                     condition: c.diagnosis,
-                    diagnosedDate: c.started_at || c.created_at,
+                    diagnosedDate: consultDate,
                     status: "active",
                     source: `Doctor Consultation (${c.doctor_first_name} ${c.doctor_last_name || ''})`.trim(),
-                    verificationStatus: "verified"
+                    verificationStatus: "verified",
+                    inPeriod: true,
+                    isCurrentlyActive: true
                 });
             }
         });
@@ -822,53 +922,69 @@ async function getPatientMedicalId(req, res, next) {
             let entities = doc.extracted_entities;
             if (typeof entities === "string") { try { entities = JSON.parse(entities); } catch(e){} }
             if (entities && Array.isArray(entities.diagnoses)) {
-                entities.diagnoses.forEach(diag => {
-                    if (diag && diag.trim() && !conditions.some(c => c.condition.toLowerCase() === diag.trim().toLowerCase())) {
-                        conditions.push({
-                            id: `ocr_diag_${doc.id}_${conditions.length}`,
-                            condition: diag.trim(),
-                            diagnosedDate: entities.document_date || doc.created_at,
-                            status: "active",
-                            source: doc.file_name,
-                            verificationStatus: "ai_extracted"
-                        });
-                    }
-                });
+                const docDate = entities.document_date || doc.created_at;
+                const inPeriod = inDateRange(docDate);
+                if (inPeriod) {
+                    entities.diagnoses.forEach(diag => {
+                        if (diag && diag.trim() && !conditions.some(c => c.condition.toLowerCase() === diag.trim().toLowerCase())) {
+                            conditions.push({
+                                id: `ocr_diag_${doc.id}_${conditions.length}`,
+                                condition: diag.trim(),
+                                diagnosedDate: docDate,
+                                status: "active",
+                                source: doc.file_name,
+                                verificationStatus: "ai_extracted",
+                                inPeriod: true,
+                                isCurrentlyActive: true
+                            });
+                        }
+                    });
+                }
             }
         });
 
-        // CURRENT MEDICATIONS
+        // MEDICATIONS (Filtered by period, conservative wording "Recently recorded")
         const medications = [];
         docRows.forEach(doc => {
             let entities = doc.extracted_entities;
             if (typeof entities === "string") { try { entities = JSON.parse(entities); } catch(e){} }
             if (entities && Array.isArray(entities.medications)) {
-                entities.medications.forEach(med => {
-                    const medName = med.medicine || med.name;
-                    if (medName) {
-                        medications.push({
-                            id: `ocr_med_${doc.id}_${medications.length}`,
-                            medicine: medName,
-                            dosage: med.dose || med.dosage || null,
-                            frequency: med.frequency || null,
-                            duration: med.duration || null,
-                            source: doc.file_name,
-                            verificationStatus: "ai_extracted"
-                        });
-                    }
-                });
+                const docDate = entities.document_date || doc.created_at;
+                if (inDateRange(docDate)) {
+                    entities.medications.forEach(med => {
+                        const medName = med.medicine || med.name;
+                        if (medName) {
+                            medications.push({
+                                id: `ocr_med_${doc.id}_${medications.length}`,
+                                medicine: medName,
+                                dosage: med.dose || med.dosage || null,
+                                frequency: med.frequency || null,
+                                duration: med.duration || null,
+                                date: docDate,
+                                source: doc.file_name,
+                                verificationStatus: "ai_extracted",
+                                inPeriod: true,
+                                isCurrentlyActive: false
+                            });
+                        }
+                    });
+                }
             }
         });
         consultRows.forEach(c => {
-            if (c.treatment_notes) {
+            const consultDate = c.started_at || c.created_at;
+            if (c.treatment_notes && inDateRange(consultDate)) {
                 medications.push({
                     id: `consult_med_${c.id}`,
                     medicine: c.treatment_notes,
                     dosage: null,
                     frequency: "As prescribed",
                     duration: null,
+                    date: consultDate,
                     source: `Dr. ${c.doctor_first_name} ${c.doctor_last_name || ''}`.trim(),
-                    verificationStatus: "verified"
+                    verificationStatus: "verified",
+                    inPeriod: true,
+                    isCurrentlyActive: false
                 });
             }
         });
@@ -876,33 +992,55 @@ async function getPatientMedicalId(req, res, next) {
         // PAST PROCEDURES / SURGERIES
         const procedures = [];
         historyRows.filter(r => r.category === "surgery" || r.category === "hospitalization").forEach(r => {
-            procedures.push({
-                id: r.id,
-                procedure: r.condition,
-                date: r.diagnosed_at || r.updated_at,
-                status: r.status || "completed",
-                source: r.notes || "Recorded Medical History",
-                verificationStatus: "verified"
-            });
+            const procDate = r.diagnosed_at || r.created_at;
+            if (inDateRange(procDate)) {
+                procedures.push({
+                    id: r.id,
+                    procedure: r.condition,
+                    date: procDate,
+                    status: r.status || "completed",
+                    source: r.notes || "Recorded Medical History",
+                    verificationStatus: "verified"
+                });
+            }
         });
         docRows.forEach(doc => {
             let entities = doc.extracted_entities;
             if (typeof entities === "string") { try { entities = JSON.parse(entities); } catch(e){} }
             if (entities && Array.isArray(entities.procedures)) {
-                entities.procedures.forEach(proc => {
-                    if (proc && !procedures.some(p => p.procedure.toLowerCase() === proc.toLowerCase())) {
-                        procedures.push({
-                            id: `ocr_proc_${doc.id}_${procedures.length}`,
-                            procedure: proc,
-                            date: doc.created_at,
-                            status: "completed",
-                            source: doc.file_name,
-                            verificationStatus: "ai_extracted"
-                        });
-                    }
-                });
+                const docDate = entities.document_date || doc.created_at;
+                if (inDateRange(docDate)) {
+                    entities.procedures.forEach(proc => {
+                        if (proc && !procedures.some(p => p.procedure.toLowerCase() === proc.toLowerCase())) {
+                            procedures.push({
+                                id: `ocr_proc_${doc.id}_${procedures.length}`,
+                                procedure: proc,
+                                date: docDate,
+                                status: "completed",
+                                source: doc.file_name,
+                                verificationStatus: "ai_extracted"
+                            });
+                        }
+                    });
+                }
             }
         });
+
+        // RECENT CONSULTATIONS
+        const consultations = consultRows
+            .filter(c => inDateRange(c.started_at || c.created_at))
+            .map(c => ({
+                id: c.id,
+                date: c.started_at || c.created_at,
+                doctorName: `Dr. ${c.doctor_first_name} ${c.doctor_last_name || ''}`.trim(),
+                specialization: c.doctor_specialization || "General Medicine",
+                department: c.doctor_department || null,
+                chiefComplaint: c.chief_complaint || "General Consultation",
+                diagnosis: c.diagnosis || null,
+                treatmentNotes: c.treatment_notes || null,
+                clinicalNotes: c.clinical_notes || null,
+                source: "Doctor Consultation"
+            }));
 
         // INVESTIGATIONS / LAB RESULTS
         const investigations = [];
@@ -910,23 +1048,173 @@ async function getPatientMedicalId(req, res, next) {
             let entities = doc.extracted_entities;
             if (typeof entities === "string") { try { entities = JSON.parse(entities); } catch(e){} }
             if (entities && Array.isArray(entities.lab_results)) {
-                entities.lab_results.forEach(lab => {
-                    if (lab.test) {
-                        investigations.push({
-                            id: `lab_${doc.id}_${investigations.length}`,
-                            test: lab.test,
-                            value: lab.value || null,
-                            unit: lab.unit || null,
-                            referenceRange: lab.reference_range || null,
-                            flag: lab.flag || "normal",
-                            date: doc.created_at,
-                            source: doc.file_name,
-                            verificationStatus: "ai_extracted"
-                        });
-                    }
-                });
+                const docDate = entities.document_date || doc.created_at;
+                if (inDateRange(docDate)) {
+                    entities.lab_results.forEach(lab => {
+                        if (lab.test) {
+                            investigations.push({
+                                id: `lab_${doc.id}_${investigations.length}`,
+                                test: lab.test,
+                                value: lab.value || null,
+                                unit: lab.unit || null,
+                                referenceRange: lab.reference_range || null,
+                                flag: lab.flag || "normal",
+                                date: docDate,
+                                source: doc.file_name,
+                                verificationStatus: "ai_extracted"
+                            });
+                        }
+                    });
+                }
             }
         });
+
+        // MEDICAL DOCUMENTS
+        const documents = docRows
+            .filter(d => inDateRange(d.created_at))
+            .map(d => ({
+                id: d.id,
+                fileName: d.file_name,
+                fileType: d.file_type,
+                documentType: d.document_type || "other",
+                date: d.created_at,
+                ocrStatus: d.ocr_status || (d.extracted_text ? "completed" : "pending"),
+                hasOcrText: !!d.extracted_text,
+                aiSummary: d.ai_summary || null
+            }));
+
+        // HEALTH SUMMARY
+        let healthSummary = {
+            summary: null,
+            isAiGenerated: false,
+            source: null
+        };
+        const sessionWithSummary = sessionRows.find(s => s.summary && s.summary.trim().length > 0);
+        const consultWithNotes = consultRows.find(c => c.clinical_notes && c.clinical_notes.trim().length > 0);
+        if (sessionWithSummary) {
+            healthSummary = {
+                summary: sessionWithSummary.summary.trim(),
+                isAiGenerated: true,
+                source: "AI-generated from available MediKiosk clinical records"
+            };
+        } else if (consultWithNotes) {
+            healthSummary = {
+                summary: consultWithNotes.clinical_notes.trim(),
+                isAiGenerated: false,
+                source: `Recorded by Dr. ${consultWithNotes.doctor_first_name} ${consultWithNotes.doctor_last_name || ''}`.trim()
+            };
+        }
+
+        // AYUSH HEALTH PROFILE (Extracted dynamically only if AYUSH session exists)
+        let ayushProfile = null;
+        const ayushSession = sessionRows.find(s => 
+            s.consultation_type === "ayush" || 
+            s.current_state?.consultation_type === "ayush"
+        );
+        if (ayushSession) {
+            let cs = ayushSession.current_state;
+            if (typeof cs === "string") { try { cs = JSON.parse(cs); } catch(e){ cs = {}; } }
+            const af = cs?.answered_fields || cs?.clinical_entities || cs || {};
+            let fields = {};
+            if (Array.isArray(af)) {
+                af.forEach(e => { if (e && e.field) fields[e.field.toLowerCase()] = e.value; });
+            } else if (typeof af === "object" && af !== null) {
+                Object.keys(af).forEach(k => { fields[k.toLowerCase()] = af[k]; });
+            }
+            const prakriti = fields.prakriti || cs?.prakriti || null;
+            const vikriti = fields.vikriti || cs?.vikriti || null;
+            const agni = fields.agni || cs?.agni || null;
+            const koshtha = fields.koshtha || cs?.koshtha || null;
+            const satmya = fields.satmya || cs?.satmya || null;
+            const aharaVihara = fields.ahara_vihara || fields.aharavihara || fields.diet_lifestyle || cs?.ahara_vihara || null;
+            if (prakriti || vikriti || agni || koshtha || satmya || aharaVihara || ayushSession.summary) {
+                ayushProfile = {
+                    id: ayushSession.id,
+                    date: ayushSession.created_at,
+                    prakriti,
+                    vikriti,
+                    agni,
+                    koshtha,
+                    satmya,
+                    aharaVihara,
+                    summary: ayushSession.summary || null
+                };
+            }
+        }
+
+        // MEDICAL TIMELINE (Unified chronological synthesis, newest first)
+        const timeline = [];
+        consultations.forEach(c => timeline.push({
+            id: `timeline_consult_${c.id}`,
+            type: "Consultation",
+            category: "consultation",
+            date: c.date,
+            title: `Consultation with ${c.doctorName}`,
+            subtitle: c.specialization,
+            details: c.diagnosis ? `Diagnosis: ${c.diagnosis}` : c.chiefComplaint,
+            source: c.source
+        }));
+        conditions.filter(c => inDateRange(c.diagnosedDate)).forEach(c => timeline.push({
+            id: `timeline_cond_${c.id}`,
+            type: "Condition",
+            category: "diagnosis",
+            date: c.diagnosedDate,
+            title: c.condition,
+            subtitle: `Status: ${c.status}`,
+            details: c.source,
+            source: c.source
+        }));
+        allergies.filter(a => inDateRange(a.date)).forEach(a => timeline.push({
+            id: `timeline_alg_${a.id}`,
+            type: "Allergy",
+            category: "allergy",
+            date: a.date,
+            title: a.allergy,
+            subtitle: `Allergy Alert (${a.status})`,
+            details: a.description || "Active allergy on record",
+            source: a.source
+        }));
+        procedures.forEach(p => timeline.push({
+            id: `timeline_proc_${p.id}`,
+            type: "Procedure",
+            category: "procedure",
+            date: p.date,
+            title: p.procedure,
+            subtitle: `Status: ${p.status}`,
+            details: p.source,
+            source: p.source
+        }));
+        investigations.forEach(inv => timeline.push({
+            id: `timeline_inv_${inv.id}`,
+            type: "Investigation",
+            category: "lab_test",
+            date: inv.date,
+            title: inv.test,
+            subtitle: inv.value ? `${inv.value} ${inv.unit || ''}`.trim() : "Lab Result",
+            details: `Source: ${inv.source}`,
+            source: inv.source
+        }));
+        documents.forEach(d => timeline.push({
+            id: `timeline_doc_${d.id}`,
+            type: d.documentType === "prescription" ? "Prescription" : (d.documentType === "lab_report" ? "Lab Test" : "Document"),
+            category: "document",
+            date: d.date,
+            title: d.fileName,
+            subtitle: `${d.documentType.toUpperCase()} • ${d.ocrStatus}`,
+            details: d.aiSummary || null,
+            source: d.fileName
+        }));
+        sessionRows.filter(s => inDateRange(s.created_at)).forEach(s => timeline.push({
+            id: `timeline_session_${s.id}`,
+            type: "Assessment",
+            category: "assessment",
+            date: s.created_at,
+            title: `Clinical Intake: ${s.chief_complaint || "General Intake"}`,
+            subtitle: `Status: ${(s.status || "in_progress").toUpperCase()}`,
+            details: s.summary || null,
+            source: "MediKiosk Clinical Assessment"
+        }));
+        timeline.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         // RECENT CLINICAL ASSESSMENT
         const recentAssessment = sessionRows.length > 0 ? {
@@ -940,10 +1228,12 @@ async function getPatientMedicalId(req, res, next) {
 
         // RECORD STATS
         const recordStats = {
-            documents: docRows.length,
+            clinicalRecords: conditions.length + allergies.length + procedures.length + medications.length,
+            consultations: consultations.length,
+            documents: documents.length,
+            investigations: investigations.length,
             conditions: conditions.length,
-            medications: medications.length,
-            assessments: sessionRows.length
+            medications: medications.length
         };
 
         // LAST UPDATED
@@ -957,34 +1247,48 @@ async function getPatientMedicalId(req, res, next) {
             ? new Date(Math.max(...updateTimestamps.map(d => new Date(d)))).toISOString() 
             : new Date().toISOString();
 
+        const passportData = {
+            patient: {
+                id: p.id,
+                name: `${p.first_name} ${p.last_name || ''}`.trim(),
+                firstName: p.first_name,
+                lastName: p.last_name || '',
+                dateOfBirth: dob || null,
+                age: age,
+                gender: p.gender || null,
+                bloodGroup: bloodGroup || null,
+                phone: p.phone || null,
+                email: p.email || null,
+                state: p.state || null,
+                preferredLanguage: p.preferred_language || null,
+                abhaId: p.abha_id || null,
+                interactionMode: p.interaction_mode || null,
+                accessibilityPreference: p.accessibility_preference || null
+            },
+            healthSummary,
+            allergies,
+            conditions,
+            medications,
+            procedures,
+            consultations,
+            investigations,
+            documents,
+            timeline,
+            ayushProfile,
+            recentAssessment,
+            recordStats,
+            timeRange: timeRangeParam,
+            appliedDateRange: {
+                startDate: cutoffDate ? cutoffDate.toISOString() : null,
+                endDate: endDateObj ? endDateObj.toISOString() : null
+            },
+            lastUpdated
+        };
+
         return res.status(200).json({
             success: true,
-            medicalId: {
-                patient: {
-                    id: p.id,
-                    name: `${p.first_name} ${p.last_name || ''}`.trim(),
-                    firstName: p.first_name,
-                    lastName: p.last_name || '',
-                    dateOfBirth: dob || null,
-                    age: age,
-                    gender: p.gender || null,
-                    bloodGroup: "Not recorded",
-                    phone: p.phone || null,
-                    email: p.email || null,
-                    state: p.state || null,
-                    preferredLanguage: p.preferred_language || null,
-                    interactionMode: p.interaction_mode || null,
-                    accessibilityPreference: p.accessibility_preference || null
-                },
-                allergies,
-                conditions,
-                medications,
-                procedures,
-                investigations,
-                recentAssessment,
-                recordStats,
-                lastUpdated
-            }
+            medicalPassport: passportData,
+            medicalId: passportData // Backwards compatibility alias
         });
     } catch (error) {
         next(error);

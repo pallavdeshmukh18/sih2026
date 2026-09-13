@@ -16,6 +16,7 @@ router.post("/history", patientController.addMedicalHistoryItem);
 router.delete("/history/:id", patientController.deleteMedicalHistoryItem);
 router.delete("/history", patientController.clearAllMedicalHistory);
 router.get("/medical-id", patientController.getPatientMedicalId);
+router.get("/medical-passport", patientController.getPatientMedicalId);
 router.post("/medical-id/qr", patientController.generatePatientQrToken);
 router.get("/connected-doctors", patientController.getConnectedDoctors);
 router.delete("/connected-doctors/:relationshipId", patientController.revokeDoctorAccess);

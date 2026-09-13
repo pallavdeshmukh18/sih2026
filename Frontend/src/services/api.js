@@ -465,10 +465,17 @@ export async function deleteDocument(documentId, token) {
     return apiRequest(`/api/documents/${documentId}`, "DELETE", null, token);
 }
 
-/** Fetch Authenticated Patient Medical ID */
-export async function getMedicalId(token) {
-    return apiRequest("/api/patient/medical-id", "GET", null, token);
+/** Fetch Authenticated Patient Medical Passport / ID with Time Range Support */
+export async function getMedicalPassport(token, params = {}) {
+    const query = new URLSearchParams();
+    if (params.timeRange) query.append("timeRange", params.timeRange);
+    if (params.startDate) query.append("startDate", params.startDate);
+    if (params.endDate) query.append("endDate", params.endDate);
+    const qs = query.toString() ? `?${query.toString()}` : "";
+    return apiRequest(`/api/patient/medical-passport${qs}`, "GET", null, token);
 }
+
+export const getMedicalId = getMedicalPassport;
 
 /** Get Document View / Download Signed URL */
 export async function getDocumentDownloadUrl(documentId, token) {

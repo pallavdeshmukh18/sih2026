@@ -34,6 +34,7 @@ export default function Account() {
     lastName: user?.lastName || "",
     dateOfBirth: user?.profile?.dateOfBirth ? new Date(user.profile.dateOfBirth).toISOString().split("T")[0] : "",
     gender: user?.profile?.gender || "",
+    bloodGroup: user?.profile?.bloodGroup || user?.profile?.blood_group || "",
     state: user?.onboarding?.state || "",
     preferredLanguage: user?.onboarding?.preferredLanguage || user?.preferredLanguage || language || "en",
     interactionMode: user?.onboarding?.interactionMode || "voice_touch",
@@ -202,6 +203,7 @@ export default function Account() {
         lastName: user?.lastName || "",
         dateOfBirth: user?.profile?.dateOfBirth ? new Date(user.profile.dateOfBirth).toISOString().split("T")[0] : "",
         gender: user?.profile?.gender || "",
+        bloodGroup: user?.profile?.bloodGroup || user?.profile?.blood_group || "",
         state: user?.onboarding?.state || "",
         preferredLanguage: user?.onboarding?.preferredLanguage || user?.preferredLanguage || language || "en",
       }));
@@ -229,6 +231,7 @@ export default function Account() {
         lastName: form.lastName,
         dateOfBirth: form.dateOfBirth || null,
         gender: form.gender || null,
+        bloodGroup: form.bloodGroup || null,
         state: form.state,
         preferredLanguage: form.preferredLanguage,
         interactionMode: form.interactionMode,
@@ -387,6 +390,15 @@ export default function Account() {
                   </select>
                 </label>
                 <label>
+                  {t("account.bloodGroup", "Blood Group")}
+                  <select name="bloodGroup" value={form.bloodGroup} onChange={update}>
+                    <option value="">{t("account.selectBloodGroup", "Select blood group")}</option>
+                    {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bg) => (
+                      <option key={bg} value={bg}>{bg}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
                   {t("account.state", "State")}
                   <select name="state" value={form.state} onChange={update}>
                     <option value="">{t("account.selectState", "Select State or UT")}</option>
@@ -438,6 +450,10 @@ export default function Account() {
                 <div>
                   <dt>{t("account.gender", "Gender")}</dt>
                   <dd>{user?.profile?.gender ? t(`account.${user.profile.gender.toLowerCase()}`, user.profile.gender) : t("account.notProvided", "Not provided")}</dd>
+                </div>
+                <div>
+                  <dt>{t("account.bloodGroup", "Blood Group")}</dt>
+                  <dd>{user?.profile?.bloodGroup || user?.profile?.blood_group || form.bloodGroup || t("account.notProvided", "Not provided")}</dd>
                 </div>
                 <div>
                   <dt>{t("account.phoneNumber", "Phone Number")}</dt>

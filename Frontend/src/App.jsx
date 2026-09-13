@@ -19,6 +19,7 @@ import PatientDashboard from "./pages/PatientDashboard";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import MedicalHistory from "./pages/patient/MedicalHistory";
 import MedicalID from "./pages/patient/MedicalID";
+import MedicalPassport from "./pages/patient/MedicalPassport";
 import Appointments from "./pages/patient/Appointments";
 import Documents from "./pages/patient/Documents";
 import ClaimEstimator from "./pages/patient/ClaimEstimator";
@@ -74,7 +75,8 @@ function App() {
           <Route path="/patient" element={<ProtectedRoute role="patient"><DashboardLayout /></ProtectedRoute>}>
             <Route path="dashboard" element={<PatientDashboard />} />
             <Route path="assessment" element={<ClinicalAssessment />} />
-            <Route path="medical-id" element={<MedicalID />} />
+            <Route path="medical-passport" element={<MedicalPassport />} />
+            <Route path="medical-id" element={<Navigate to="/patient/medical-passport" replace />} />
             <Route path="history" element={<MedicalHistory />} />
             <Route path="appointments" element={<Appointments />} />
             <Route path="documents" element={<Documents />} />

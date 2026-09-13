@@ -12,7 +12,8 @@ export default function TopBar() {
   const role = user?.role || 'patient';
   const rawKey = pathname.split('/').pop();
   const navKeyMap = {
-    'medical-id': 'medicalId',
+    'medical-passport': 'medicalPassport',
+    'medical-id': 'medicalPassport',
     'teleconsult': 'teleconsult',
     'dashboard': 'dashboard',
     'account': 'account',

@@ -1122,7 +1122,7 @@ export default function ClinicalAssessment() {
           <div className={styles.sideCard}>
             <div className={styles.sideCardHeader}>
               <h3>{t("assessment.profileSnapshot", "Your Medical Profile")}</h3>
-              <button type="button" onClick={() => navigate("/patient/medical-id")}>{t("common.view", "View")}</button>
+              <button type="button" onClick={() => navigate("/patient/medical-passport")}>{t("common.view", "View")}</button>
             </div>
             <div className={styles.profileMini}>
               <div className={styles.miniItem}>

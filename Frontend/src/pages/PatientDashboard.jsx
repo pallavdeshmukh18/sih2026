@@ -335,7 +335,7 @@ export default function PatientDashboard() {
               <h2>{t("dashboard.quickActions", "Quick Actions")}</h2>
             </div>
             <div className={styles.quickActions}>
-              <button onClick={() => navigate("/patient/medical-id")}><Share2 /><span>{t("dashboard.shareRecords", "Share Records")}</span></button>
+              <button onClick={() => navigate("/patient/medical-passport")}><Share2 /><span>{t("dashboard.shareRecords", "Share Records")}</span></button>
               <button onClick={() => navigate("/patient/documents")}><Download /><span>{t("dashboard.downloadSummary", "Download Summary")}</span></button>
               <button onClick={() => navigate("/patient/assessment")}><Activity /><span>{t("dashboard.addVitals", "Add Vitals")}</span></button>
               <button onClick={() => navigate("/patient/history")}><ShieldCheck /><span>{t("dashboard.insuranceClaims", "Insurance Claims")}</span></button>

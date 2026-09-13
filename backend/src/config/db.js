@@ -23,6 +23,12 @@ pool.on("connect", () => {
     console.log("PostgreSQL database connected ✅");
 });
 
+// Ensure blood_group column exists on patient_profiles
+pool.query(`ALTER TABLE patient_profiles ADD COLUMN IF NOT EXISTS blood_group VARCHAR(10);`)
+    .catch((err) => {
+        console.warn("patient_profiles blood_group check:", err.message);
+    });
+
 pool.on("error", (err) => {
     console.error("Unexpected PostgreSQL error:", err);
 });
