@@ -1,9 +1,6 @@
 const pool = require("../config/db");
+const crypto = require("crypto");
 
-/**
- * 1. Create a new Appointment
- * POST /api/appointments
- */
 /**
  * 1. Create a new Appointment
  * POST /api/appointments
@@ -13,6 +10,8 @@ async function createAppointment(req, res, next) {
         const { doctorId, scheduledAt, durationMinutes = 30, appointmentType = "in_person", reason, notes, sessionId, clinicalSessionId } = req.body;
         const patientId = req.user.role === "patient" ? req.user.id : req.body.patientId;
         const activeSessionId = sessionId || clinicalSessionId;
+        const rawType = appointmentType || "in_person";
+        const normalizedType = rawType === "teleconsultation" ? "video" : rawType;
 
         if (!patientId || !doctorId || !scheduledAt) {
             return res.status(400).json({
@@ -24,7 +23,7 @@ async function createAppointment(req, res, next) {
         const scheduledDate = new Date(scheduledAt);
         if (!Number.isFinite(scheduledDate.getTime()) || scheduledDate <= new Date()
             || !Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 240
-            || !["in_person", "video", "follow_up"].includes(appointmentType)) {
+            || !["in_person", "video", "follow_up"].includes(normalizedType)) {
             return res.status(400).json({ message: "Choose a future appointment, a valid type, and duration between 1 and 240 minutes." });
         }
 
@@ -65,7 +64,7 @@ async function createAppointment(req, res, next) {
 
         // REQUIREMENT 2: Verify doctor exists, is active, and verified
         const doctorCheck = await pool.query(
-            `SELECT u.id
+            `SELECT u.id, u.first_name, u.last_name
              FROM users u
              JOIN doctor_profiles d ON u.id = d.user_id
              WHERE u.id = $1
@@ -124,7 +123,7 @@ async function createAppointment(req, res, next) {
                 doctorId,
                 scheduledDate.toISOString(),
                 durationMinutes,
-                appointmentType,
+                normalizedType,
                 activeReason,
                 notes || null,
             ]);
@@ -141,6 +140,43 @@ async function createAppointment(req, res, next) {
                 await client.query("ROLLBACK;");
                 return res.status(409).json({ message: "This assessment is already linked to an appointment." });
             }
+
+            // If it's a video/teleconsultation appointment, automatically create a teleconsult_sessions entry with pending_approval
+            if (normalizedType === "video") {
+                const uniqueChannel = `teleconsult_${crypto.randomBytes(8).toString("hex")}`;
+                const teleconsultInsert = `
+                    INSERT INTO teleconsult_sessions (
+                        patient_id, doctor_id, channel_name, call_type, status,
+                        requested_time, scheduled_at, reason, patient_notes
+                    )
+                    VALUES ($1, $2, $3, 'video', 'pending_approval', CURRENT_TIMESTAMP, $4, $5, $6)
+                    RETURNING id;
+                `;
+                const teleconsultRes = await client.query(teleconsultInsert, [
+                    patientId,
+                    doctorId,
+                    uniqueChannel,
+                    scheduledDate.toISOString(),
+                    activeReason,
+                    notes || null,
+                ]);
+
+                if (teleconsultRes.rows.length > 0) {
+                    const teleconsultId = teleconsultRes.rows[0].id;
+                    const docInfo = doctorCheck.rows[0];
+                    const docName = `${docInfo?.first_name || ""} ${docInfo?.last_name || ""}`.trim();
+                    await client.query(
+                        `INSERT INTO teleconsult_messages (session_id, sender_id, sender_role, message, message_type)
+                         VALUES ($1, $2, 'system', $3, 'system');`,
+                        [
+                            teleconsultId,
+                            patientId,
+                            `Scheduled teleconsultation requested with Dr. ${docName || "Doctor"} for ${scheduledDate.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}. Awaiting doctor confirmation.`,
+                        ]
+                    );
+                }
+            }
+
             await client.query("COMMIT;");
 
             return res.status(201).json({
@@ -415,6 +451,25 @@ async function updateAppointmentStatus(req, res, next) {
         );
         if (!result.rows.length) return res.status(409).json({ message: "Appointment changed. Please refresh." });
 
+        if (status === "cancelled") {
+            const teleRes = await pool.query(
+                `UPDATE teleconsult_sessions 
+                 SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+                 WHERE patient_id = $1 AND doctor_id = $2 AND scheduled_at = $3 AND status IN ('pending_approval', 'approved')
+                 RETURNING id;`,
+                [appointment.patient_id, appointment.doctor_id, appointment.scheduled_at]
+            );
+            if (teleRes.rows.length > 0) {
+                for (const row of teleRes.rows) {
+                    await pool.query(
+                        `INSERT INTO teleconsult_messages (session_id, sender_id, sender_role, message, message_type)
+                         VALUES ($1, $2, 'system', 'Teleconsultation cancelled due to appointment cancellation.', 'system');`,
+                        [row.id, req.user.id]
+                    );
+                }
+            }
+        }
+
         return res.status(200).json({
             success: true,
             message: `Appointment status updated to '${status}'`,
@@ -431,14 +486,34 @@ async function deleteAppointment(req, res, next) {
         const patientId = req.user.id;
 
         const check = await pool.query(
-            "SELECT id FROM appointments WHERE id = $1 AND patient_id = $2;",
+            "SELECT id, patient_id, doctor_id, scheduled_at, appointment_type FROM appointments WHERE id = $1 AND patient_id = $2;",
             [appointmentId, patientId]
         );
         if (check.rows.length === 0) {
             return res.status(404).json({ success: false, message: "Appointment not found." });
         }
+        const appt = check.rows[0];
 
         await pool.query("UPDATE appointments SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = $1;", [appointmentId]);
+
+        // Synchronize cancellation with corresponding teleconsultation session
+        const teleRes = await pool.query(
+            `UPDATE teleconsult_sessions 
+             SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
+             WHERE patient_id = $1 AND doctor_id = $2 AND scheduled_at = $3 AND status IN ('pending_approval', 'approved')
+             RETURNING id;`,
+            [appt.patient_id, appt.doctor_id, appt.scheduled_at]
+        );
+        if (teleRes.rows.length > 0) {
+            for (const row of teleRes.rows) {
+                await pool.query(
+                    `INSERT INTO teleconsult_messages (session_id, sender_id, sender_role, message, message_type)
+                     VALUES ($1, $2, 'system', 'Teleconsultation cancelled by patient.', 'system');`,
+                    [row.id, patientId]
+                );
+            }
+        }
+
         return res.status(200).json({ success: true, message: "Appointment cancelled successfully." });
     } catch (error) {
         next(error);

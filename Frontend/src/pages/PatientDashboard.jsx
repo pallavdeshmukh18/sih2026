@@ -272,7 +272,7 @@ export default function PatientDashboard() {
                         <div>📅 <strong>Scheduled Date:</strong> {!isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { dateStyle: "full" }) : "TBD"}</div>
                         <div>⏰ <strong>Time Slot:</strong> {!isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "TBD"}</div>
                         <div>🏥 <strong>Location:</strong> {selectedAppt.location || "MediKiosk Clinic, Mumbai"}</div>
-                        <div>🩺 <strong>Consultation Type:</strong> {selectedAppt.appointmentType === "teleconsultation" ? "Video Call (Teleconsultation)" : "In-Person Visit"}</div>
+                        <div>🩺 <strong>Consultation Type:</strong> {["teleconsultation", "virtual", "video"].includes((selectedAppt.appointmentType || selectedAppt.appointment_type)?.toLowerCase()) ? "Video Call (Teleconsultation)" : "In-Person Visit"}</div>
                         <div>📌 <strong>Reason:</strong> {selectedAppt.reason || "General Medical Checkup"}</div>
                         {selectedAppt.notes && (
                           <div style={{ marginTop: "8px" }}>

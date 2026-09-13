@@ -306,6 +306,19 @@ export default function PatientTeleconsult() {
                     {session.callType === "video" ? "Video Call" : "Voice Call"}
                   </span>
                 </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#087b6d", margin: "6px 0", fontWeight: "600" }}>
+                  <Calendar size={13} />
+                  <span>
+                    Scheduled:{" "}
+                    {new Date(session.scheduledAt || session.scheduled_at || session.createdAt).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
                 <p className={styles.readyReason}><strong>Reason:</strong> {session.reason}</p>
                 <div className={styles.readyActions}>
                   <button className={styles.joinCallBtn} onClick={() => handleJoinCall(session)} disabled={isJoining}>
@@ -336,7 +349,7 @@ export default function PatientTeleconsult() {
               <thead>
                 <tr>
                   <th>Doctor</th>
-                  <th>Date & Time</th>
+                  <th>Scheduled Date & Time</th>
                   <th>Type</th>
                   <th>Reason</th>
                   <th>Status</th>
@@ -358,8 +371,8 @@ export default function PatientTeleconsult() {
                       <div className={styles.withIcon}>
                         <Clock />
                         <span>
-                          {new Date(session.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
-                          <small>{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>
+                          {new Date(session.scheduledAt || session.scheduled_at || session.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                          <small>{new Date(session.scheduledAt || session.scheduled_at || session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>
                         </span>
                       </div>
                     </td>

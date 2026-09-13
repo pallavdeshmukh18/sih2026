@@ -227,7 +227,7 @@ export default function DoctorDirectory() {
                   {t("doctors.consultationType", "Consultation type")}
                   <select value={appointmentType} onChange={(event) => setAppointmentType(event.target.value)}>
                     <option value="in_person">{t("doctors.inPersonType", "In-person consultation")}</option>
-                    <option value="teleconsultation">{t("doctors.teleconsultType", "Teleconsultation")}</option>
+                    <option value="video">{t("doctors.teleconsultType", "Teleconsultation")}</option>
                   </select>
                 </label>
                 <label>
