@@ -344,6 +344,11 @@ export const getInsurancePolicies = token => apiRequest("/api/insurance/policies
 export const getInsurancePolicy = (id, token) => apiRequest(`/api/insurance/policies/${id}`, "GET", null, token);
 export const updateInsurancePolicy = (id, data, token) => apiRequest(`/api/insurance/policies/${id}`, "PATCH", data, token);
 export const deleteInsurancePolicy = (id, token) => apiRequest(`/api/insurance/policies/${id}`, "DELETE", null, token);
+export const getInsuranceShareCandidates = token => apiRequest("/api/insurance/share-candidates", "GET", null, token);
+export const getInsurancePolicyAccess = (id, token) => apiRequest(`/api/insurance/policies/${id}/access`, "GET", null, token);
+export const setInsurancePolicyAccess = (id, data, token) => apiRequest(`/api/insurance/policies/${id}/access`, "PUT", data, token);
+export const getSharedInsurancePolicies = token => apiRequest("/api/insurance/shared-policies", "GET", null, token);
+export const getSharedInsurancePolicy = (id, token) => apiRequest(`/api/insurance/shared-policies/${id}`, "GET", null, token);
 export const addInsuranceProcedureLimit = (id, data, token) => apiRequest(`/api/insurance/policies/${id}/procedure-limits`, "POST", data, token);
 export const addInsuranceExclusion = (id, data, token) => apiRequest(`/api/insurance/policies/${id}/exclusions`, "POST", data, token);
 export const extractInsurancePolicy = (documentId, token) => apiRequest(`/api/insurance/documents/${documentId}/extract`, "POST", null, token);

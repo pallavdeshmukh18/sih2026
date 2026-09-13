@@ -36,6 +36,7 @@ import Settings from "./pages/shared/Settings";
 import DoctorDirectory from "./pages/shared/DoctorDirectory";
 import Departments from "./pages/shared/Departments";
 import PatientSchedule from "./pages/shared/PatientSchedule";
+import SharedInsurancePolicies from "./pages/shared/SharedInsurancePolicies";
 
 // Receptionist Pages
 import ReceptionistDashboard from "./pages/ReceptionistDashboard";
@@ -89,6 +90,7 @@ function App() {
             <Route path="dashboard" element={<DoctorDashboard />} />
             <Route path="appointments" element={<DoctorAppointments />} />
             <Route path="patients" element={<PatientAccess />} />
+            <Route path="insurance" element={<SharedInsurancePolicies />} />
             <Route path="team" element={<TeamManagement />} />
             
             {/* Doctor Teleconsultation & Shared Modules */}
@@ -111,6 +113,7 @@ function App() {
             <Route path="dashboard" element={<ReceptionistDashboard />} />
             <Route path="appointments" element={<ReceptionistAppointments />} />
             <Route path="patients" element={<ReceptionistPatients />} />
+            <Route path="insurance" element={<SharedInsurancePolicies />} />
             
             {/* Shared Hospital Modules */}
             <Route path="doctor" element={<DoctorDirectory />} />

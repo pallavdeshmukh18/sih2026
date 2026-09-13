@@ -1097,6 +1097,15 @@ async function revokeDoctorAccess(req, res, next) {
                 UPDATE document_access da SET revoked_at = CURRENT_TIMESTAMP
                 FROM documents d, revoked r
                 WHERE da.document_id = d.id AND d.patient_id = r.patient_id AND da.user_id = r.doctor_id
+             ), revoked_insurance AS (
+                UPDATE insurance_policy_access ipa SET revoked_at = CURRENT_TIMESTAMP
+                FROM insurance_policies policy, revoked r
+                WHERE ipa.policy_id = policy.id AND policy.patient_id = r.patient_id
+                  AND ipa.revoked_at IS NULL
+                  AND (ipa.grantee_user_id = r.doctor_id OR ipa.grantee_user_id IN (
+                    SELECT staff.id FROM users staff
+                    WHERE staff.role = 'receptionist' AND staff.created_by_doctor_id = r.doctor_id
+                  ))
              ) SELECT * FROM revoked;`,
             [relationshipId, patientId]
         );
@@ -1245,4 +1254,3 @@ module.exports = {
     getConnectedDoctors,
     revokeDoctorAccess,
 };
-
