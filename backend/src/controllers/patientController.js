@@ -9,7 +9,7 @@ const ALLOWED_INTERACTION_MODES = [
 ];
 
 const ALLOWED_ACCESSIBILITY_PREFERENCES = [
-    "none", "large_text", "voice_guidance", "hearing_assistance"
+    "none", "large_text", "voice_guidance", "hearing_assistance", "sign_language"
 ];
 
 const ALLOWED_STATES = [
@@ -170,7 +170,7 @@ async function getOnboardingPreferences(req, res, next) {
 async function updatePatientProfile(req, res, next) {
     try {
         const userId = req.user.id;
-        const { firstName, lastName, dateOfBirth, gender, state, preferredLanguage, interactionMode, accessibilityPreference } = req.body;
+        const { firstName, lastName, dateOfBirth, gender, state, preferredLanguage, interactionMode, accessibilityPreference, islEnabled } = req.body;
 
         // Validation for allowed dropdown values if supplied
         if (state && !ALLOWED_STATES.includes(state)) {
@@ -198,6 +198,10 @@ async function updatePatientProfile(req, res, next) {
             });
         }
 
+        const resolvedIslEnabled = (accessibilityPreference === "sign_language") 
+            ? true 
+            : (islEnabled !== undefined ? Boolean(islEnabled) : null);
+
         // Update users table (first_name, last_name) if passed
         if (firstName !== undefined || lastName !== undefined) {
             await pool.query(
@@ -218,9 +222,9 @@ async function updatePatientProfile(req, res, next) {
 
         if (profileCheck.rows.length === 0) {
             await pool.query(
-                `INSERT INTO patient_profiles (user_id, date_of_birth, gender, state, preferred_language, interaction_mode, accessibility_preference)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7);`,
-                [userId, dateOfBirth || null, gender || null, state || null, preferredLanguage || null, interactionMode || null, accessibilityPreference || null]
+                `INSERT INTO patient_profiles (user_id, date_of_birth, gender, state, preferred_language, interaction_mode, accessibility_preference, isl_enabled)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`,
+                [userId, dateOfBirth || null, gender || null, state || null, preferredLanguage || null, interactionMode || null, accessibilityPreference || null, resolvedIslEnabled ?? false]
             );
         } else {
             await pool.query(
@@ -231,9 +235,10 @@ async function updatePatientProfile(req, res, next) {
                      preferred_language = COALESCE($4, preferred_language),
                      interaction_mode = COALESCE($5, interaction_mode),
                      accessibility_preference = COALESCE($6, accessibility_preference),
+                     isl_enabled = COALESCE($7, isl_enabled),
                      updated_at = CURRENT_TIMESTAMP
-                 WHERE user_id = $7;`,
-                [dateOfBirth || null, gender || null, state || null, preferredLanguage || null, interactionMode || null, accessibilityPreference || null, userId]
+                 WHERE user_id = $8;`,
+                [dateOfBirth || null, gender || null, state || null, preferredLanguage || null, interactionMode || null, accessibilityPreference || null, resolvedIslEnabled, userId]
             );
         }
 

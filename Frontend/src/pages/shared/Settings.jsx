@@ -22,6 +22,7 @@ import {
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
+import { useAccessibility } from "../../context/AccessibilityContext";
 import { SUPPORTED_LANGUAGES } from "../../constants/onboardingData";
 import { updatePatientProfile } from "../../services/api";
 import styles from "./Settings.module.css";
@@ -40,10 +41,29 @@ export default function Settings() {
         return user?.onboarding?.interactionMode || "voice_touch";
     });
 
-    // 3. Accessibility Preference (none, large_text, voice_guidance, hearing_assistance)
+    // 3. Accessibility Preference (none, large_text, voice_guidance, hearing_assistance, sign_language)
+    const { islEnabled, setIslEnabled } = useAccessibility();
     const [accessibility, setAccessibility] = useState(() => {
         return user?.onboarding?.accessibilityPreference || "none";
     });
+
+    const [islActive, setIslActive] = useState(() => {
+        return (
+            user?.onboarding?.islEnabled === true ||
+            user?.onboarding?.accessibilityPreference === "sign_language" ||
+            islEnabled
+        );
+    });
+
+    useEffect(() => {
+        if (user?.onboarding) {
+            const serverIsl =
+                user.onboarding.islEnabled === true ||
+                user.onboarding.accessibilityPreference === "sign_language";
+            setIslActive(serverIsl);
+            setAccessibility(user.onboarding.accessibilityPreference || "none");
+        }
+    }, [user]);
 
     // 4. Preferred Language
     const [selectedLanguage, setSelectedLanguage] = useState(() => {
@@ -102,12 +122,17 @@ export default function Settings() {
 
             // Sync with backend database
             if (token && user?.role === "patient") {
+                const effectiveIsl = islActive || accessibility === "sign_language";
                 await updatePatientProfile({
                     preferredLanguage: selectedLanguage,
                     interactionMode: interactionMode,
-                    accessibilityPreference: accessibility
+                    accessibilityPreference: accessibility,
+                    islEnabled: effectiveIsl
                 }, token);
+                setIslEnabled(effectiveIsl);
                 await refreshUser();
+            } else {
+                setIslEnabled(islActive || accessibility === "sign_language");
             }
 
             toast.success("Settings updated successfully!");
@@ -130,6 +155,7 @@ export default function Settings() {
                     className={styles.saveBtn}
                     onClick={handleSave}
                     disabled={isSaving}
+                    data-testid="settings-save-btn"
                 >
                     <Save size={18} />
                     {isSaving ? "Saving..." : "Save Preferences"}
@@ -335,6 +361,61 @@ export default function Settings() {
                                 <span className={styles.optionDesc}>{t("onboarding.hearingAssistanceDesc", "Enhanced visual cues and clear closed-captions")}</span>
                             </div>
                             {accessibility === "hearing_assistance" && <Check size={20} className={styles.checkIcon} />}
+                        </button>
+
+                        {/* Option E: Indian Sign Language */}
+                        <button
+                            type="button"
+                            className={`${styles.optionCard} ${accessibility === "sign_language" ? styles.optionCardSelected : ""}`}
+                            onClick={() => {
+                                setAccessibility("sign_language");
+                                setIslActive(true);
+                                setIslEnabled(true);
+                            }}
+                            data-testid="settings-opt-sign-language"
+                        >
+                            <div className={styles.iconCircle}>
+                                <Sparkles size={22} />
+                            </div>
+                            <div className={styles.optionText}>
+                                <span className={styles.optionTitle}>{t("accessibility.indianSignLanguage", "Indian Sign Language")}</span>
+                                <span className={styles.optionDesc}>{t("accessibility.indianSignLanguageDesc", "Show a 3D avatar that signs instructions and information")}</span>
+                            </div>
+                            {accessibility === "sign_language" && <Check size={20} className={styles.checkIcon} />}
+                        </button>
+                    </div>
+
+                    {/* Independent Assistance Addon: Indian Sign Language (3D Avatar) */}
+                    <div className={styles.addonSection} data-testid="settings-isl-addon-section">
+                        <div className={styles.addonHeader}>
+                            <div className={styles.addonIconCircle}>
+                                <Sparkles size={20} />
+                            </div>
+                            <div>
+                                <div className={styles.addonTitle}>Indian Sign Language (3D Avatar)</div>
+                                <div className={styles.addonDesc}>Display a persistent 3D avatar at the bottom-right that signs instructions and questions</div>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={islActive}
+                            aria-pressed={islActive}
+                            className={`${styles.toggleSwitch} ${islActive ? styles.toggleSwitchActive : ""}`}
+                            onClick={() => {
+                                const next = !islActive;
+                                setIslActive(next);
+                                setIslEnabled(next);
+                                if (next && accessibility === "none") {
+                                    setAccessibility("sign_language");
+                                } else if (!next && accessibility === "sign_language") {
+                                    setAccessibility("none");
+                                }
+                            }}
+                            aria-label="Toggle Indian Sign Language Avatar"
+                            data-testid="settings-isl-toggle"
+                        >
+                            <span className={styles.toggleKnob} />
                         </button>
                     </div>
                 </motion.section>

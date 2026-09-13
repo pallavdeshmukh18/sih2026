@@ -55,7 +55,7 @@ export default function AppointmentsView({ doctor = false }) {
               date: dateStr,
               time: timeStr,
               rawDate: isValidDate ? dateObj : new Date(0),
-              type: apptType === 'teleconsultation' || apptType === 'virtual' ? 'Virtual' : 'In-person',
+              type: ['teleconsultation', 'virtual', 'video'].includes(apptType?.toLowerCase()) ? 'Virtual' : 'In-person',
               status: apptStatus === 'completed' ? 'Completed' : apptStatus === 'cancelled' ? 'Cancelled' : 'Upcoming',
             };
           });
@@ -94,7 +94,7 @@ export default function AppointmentsView({ doctor = false }) {
               date: dateStr,
               time: timeStr,
               rawDate: isValidDate ? dateObj : new Date(0),
-              type: apptType === 'teleconsultation' || apptType === 'virtual' ? 'Virtual' : 'In-person',
+              type: ['teleconsultation', 'virtual', 'video'].includes(apptType?.toLowerCase()) ? 'Virtual' : 'In-person',
               status: item.status === 'completed' ? 'Completed' : item.status === 'cancelled' ? 'Cancelled' : 'Upcoming',
             };
           });

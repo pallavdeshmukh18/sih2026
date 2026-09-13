@@ -7,6 +7,7 @@ import {
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../i18n";
+import { useAccessibility } from "../context/AccessibilityContext";
 import { getPatientAppointments, uploadMedicalDocument, cancelAppointment } from "../services/api";
 import { formatDoctorName, transliterateName } from "../utils/transliterate";
 import careImage from "../assets/indian-care-dashboard.png";
@@ -32,12 +33,14 @@ const healthTips = [
 export default function PatientDashboard() {
   const { user, token } = useAuth();
   const { language, t } = useLanguage();
+  const { islEnabled, requestSign } = useAccessibility();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [appointments, setAppointments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [tipIndex, setTipIndex] = useState(0);
   const [selectedAppt, setSelectedAppt] = useState(null);
+
 
   const fetchAppointments = () => {
     if (!token) return;
@@ -269,7 +272,7 @@ export default function PatientDashboard() {
                         <div>📅 <strong>Scheduled Date:</strong> {!isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { dateStyle: "full" }) : "TBD"}</div>
                         <div>⏰ <strong>Time Slot:</strong> {!isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "TBD"}</div>
                         <div>🏥 <strong>Location:</strong> {selectedAppt.location || "MediKiosk Clinic, Mumbai"}</div>
-                        <div>🩺 <strong>Consultation Type:</strong> {selectedAppt.appointmentType === "teleconsultation" ? "Video Call (Teleconsultation)" : "In-Person Visit"}</div>
+                        <div>🩺 <strong>Consultation Type:</strong> {["teleconsultation", "virtual", "video"].includes((selectedAppt.appointmentType || selectedAppt.appointment_type)?.toLowerCase()) ? "Video Call (Teleconsultation)" : "In-Person Visit"}</div>
                         <div>📌 <strong>Reason:</strong> {selectedAppt.reason || "General Medical Checkup"}</div>
                         {selectedAppt.notes && (
                           <div style={{ marginTop: "8px" }}>

@@ -418,6 +418,7 @@ export default function Account() {
                     <option value="large_text">{t("account.largerText", "Larger Text")}</option>
                     <option value="voice_guidance">{t("account.audioVoiceover", "Audio Voiceover")}</option>
                     <option value="hearing_assistance">{t("account.visualHighlights", "Visual Highlights")}</option>
+                    <option value="sign_language">{t("account.indianSignLanguage", "Indian Sign Language")}</option>
                   </select>
                 </label>
                 <button className={styles.save} disabled={saving}>
@@ -464,7 +465,7 @@ export default function Account() {
                 </div>
                 <div>
                   <dt>{t("account.accessibilityPreference", "Accessibility Preference")}</dt>
-                  <dd>{user?.onboarding?.accessibilityPreference === "large_text" ? t("account.largerText", "Larger Text") : user?.onboarding?.accessibilityPreference === "voice_guidance" ? t("account.audioVoiceover", "Audio Voiceover") : user?.onboarding?.accessibilityPreference === "hearing_assistance" ? t("account.visualHighlights", "Visual Highlights") : t("account.standardInterface", "Standard Interface")}</dd>
+                  <dd>{user?.onboarding?.accessibilityPreference === "large_text" ? t("account.largerText", "Larger Text") : user?.onboarding?.accessibilityPreference === "voice_guidance" ? t("account.audioVoiceover", "Audio Voiceover") : user?.onboarding?.accessibilityPreference === "hearing_assistance" ? t("account.visualHighlights", "Visual Highlights") : user?.onboarding?.accessibilityPreference === "sign_language" ? t("account.indianSignLanguage", "Indian Sign Language") : t("account.standardInterface", "Standard Interface")}</dd>
                 </div>
               </motion.dl>
             )}

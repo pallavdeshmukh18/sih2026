@@ -332,3 +332,84 @@
   accent-color: var(--color-teal, #0d9488);
   cursor: pointer;
 }
+
+/* ISL Independent Assistance Addon Box */
+.addonSection {
+  margin-top: 16px;
+  padding: 16px 18px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  transition: all 0.2s ease;
+}
+
+.addonSection:hover {
+  border-color: #cbd5e1;
+}
+
+.addonHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+}
+
+.addonIconCircle {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(13, 148, 136, 0.1);
+  color: var(--color-teal, #0d9488);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.addonTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-dark, #0f172a);
+}
+
+.addonDesc {
+  font-size: 13px;
+  color: var(--color-text-muted, #64748b);
+  margin-top: 2px;
+}
+
+.toggleSwitch {
+  width: 50px;
+  height: 28px;
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+  border: none;
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+  padding: 3px;
+}
+
+.toggleSwitchActive {
+  background-color: var(--color-teal, #0d9488);
+}
+
+.toggleKnob {
+  display: block;
+  width: 22px;
+  height: 22px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toggleSwitchActive .toggleKnob {
+  transform: translateX(22px);
+}

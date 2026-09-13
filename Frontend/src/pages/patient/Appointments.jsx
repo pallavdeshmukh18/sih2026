@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
+import { useAccessibility } from "../../context/AccessibilityContext";
 import { getPatientAppointments, cancelAppointment } from "../../services/api";
 import { formatDoctorName, translateClinicalTerm } from "../../utils/transliterate";
 import heroImage from "../../assets/schedule-hero.png";
@@ -46,6 +47,7 @@ const buildMiniCalendar = (month) => {
 export default function Appointments() {
   const { token } = useAuth();
   const { t, language } = useLanguage();
+  const { islEnabled, requestSign } = useAccessibility();
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [filter, setFilter] = useState("all");
@@ -54,6 +56,12 @@ export default function Appointments() {
   const [expanded, setExpanded] = useState(null);
   const [month, setMonth] = useState(new Date(2026, 9, 1));
   const [selectedDate, setSelectedDate] = useState(new Date(2026, 9, 15));
+
+  useEffect(() => {
+    if (islEnabled) {
+      requestSign("Appointments", { context: "appointments_header" });
+    }
+  }, [islEnabled, requestSign]);
 
   const formatStatus = (status) => {
     const s = status?.toLowerCase();
@@ -211,7 +219,7 @@ export default function Appointments() {
                       <td>
                         <div className={styles.withIcon}>
                           <Stethoscope />
-                          <span>{(appointment.appointmentType || appointment.appointment_type) === "teleconsultation" ? t("appointments.teleconsultation", "Virtual") : t("appointments.inPerson", "In-person")}</span>
+                          <span>{["video", "teleconsultation", "virtual"].includes((appointment.appointmentType || appointment.appointment_type)?.toLowerCase()) ? t("appointments.teleconsultation", "Virtual") : t("appointments.inPerson", "In-person")}</span>
                         </div>
                       </td>
                       <td>
@@ -327,7 +335,7 @@ export default function Appointments() {
                     <div>📅 <strong>Scheduled Date:</strong> {!isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { dateStyle: "full" }) : "TBD"}</div>
                     <div>⏰ <strong>Time Slot:</strong> {!isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "TBD"}</div>
                     <div>🏥 <strong>Location:</strong> {selectedApptModal.location || "MediKiosk Clinic, Mumbai"}</div>
-                    <div>🩺 <strong>Consultation Type:</strong> {(selectedApptModal.appointmentType || selectedApptModal.appointment_type) === "teleconsultation" ? "Video Call (Teleconsultation)" : "In-Person Visit"}</div>
+                    <div>🩺 <strong>Consultation Type:</strong> {["video", "teleconsultation", "virtual"].includes((selectedApptModal.appointmentType || selectedApptModal.appointment_type)?.toLowerCase()) ? "Video Call (Teleconsultation)" : "In-Person Visit"}</div>
                     <div>📌 <strong>Reason / Complaint:</strong> {selectedApptModal.reason || "General Medical Checkup"}</div>
                     {selectedApptModal.notes && (
                       <div style={{ marginTop: "8px" }}>

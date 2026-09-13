@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
+import { useAccessibility } from "../../context/AccessibilityContext";
 import {
   clearAllMedicalHistory,
   deleteClinicalSession,
@@ -71,8 +72,15 @@ const formatDate = (value) => {
 export default function MedicalHistory() {
   const { token } = useAuth();
   const { t } = useLanguage();
+  const { islEnabled, requestSign } = useAccessibility();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (islEnabled) {
+      requestSign("Medical History", { context: "history_header" });
+    }
+  }, [islEnabled, requestSign]);
   const [error, setError] = useState("");
   const [history, setHistory] = useState(null);
   const [activeFilter, setActiveFilter] = useState("all");

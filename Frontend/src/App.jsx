@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { LanguageProvider } from "./i18n";
+import { AccessibilityProvider } from "./context/AccessibilityContext";
 import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./layouts/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
@@ -42,6 +43,8 @@ import SharedInsurancePolicies from "./pages/shared/SharedInsurancePolicies";
 import ReceptionistDashboard from "./pages/ReceptionistDashboard";
 import ReceptionistAppointments from "./pages/receptionist/ReceptionistAppointments";
 import ReceptionistPatients from "./pages/receptionist/ReceptionistPatients";
+// Accessibility Development Prototype
+import ISLAvatarTest from "./pages/accessibility/ISLAvatarTest";
 
 import "./App.css";
 
@@ -49,7 +52,8 @@ function App() {
   return (
     <AuthProvider>
       <LanguageProvider>
-        <Toaster position="top-right" toastOptions={{ style: { background: '#fff', color: '#111', borderRadius: '12px' } }} />
+        <AccessibilityProvider>
+          <Toaster position="top-right" toastOptions={{ style: { background: '#fff', color: '#111', borderRadius: '12px' } }} />
         <Router>
           <ScrollToTop />
           <Routes>
@@ -57,6 +61,7 @@ function App() {
           <Route path="/auth" element={<SignupPage />} />
           <Route path="/signup" element={<Navigate to="/auth" replace />} />
           <Route path="/auth/google/callback" element={<GoogleCallback />} />
+          <Route path="/test/isl" element={<ISLAvatarTest />} />
 
           {/* Dedicated Patient Onboarding Route */}
           <Route path="/patient/onboarding" element={<ProtectedRoute role="patient" allowIncompleteOnboarding={true}><PatientOnboarding /></ProtectedRoute>} />
@@ -133,6 +138,7 @@ function App() {
           <Route path="/account/whatsapp" element={<ProtectedRoute><Navigate to="/patient/account/whatsapp" replace /></ProtectedRoute>} />
           </Routes>
         </Router>
+        </AccessibilityProvider>
       </LanguageProvider>
     </AuthProvider>
   );

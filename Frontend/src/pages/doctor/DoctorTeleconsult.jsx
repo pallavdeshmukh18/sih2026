@@ -261,6 +261,20 @@ export default function DoctorTeleconsult() {
                   </span>
                 </div>
 
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#b45309", background: "#fffbeb", padding: "6px 10px", borderRadius: "8px", border: "1px solid #fde68a", fontWeight: "600" }}>
+                  <Calendar size={13} />
+                  <span>
+                    Scheduled:{" "}
+                    {new Date(session.scheduledAt || session.scheduled_at || session.createdAt).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+
                 <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "10px", border: "1px solid #e2e8f0", fontSize: "13px" }}>
                   <div style={{ fontWeight: "600", color: "#0f172a", marginBottom: "2px" }}>Health Concern:</div>
                   <div style={{ color: "#334155" }}>{session.reason}</div>
@@ -326,6 +340,20 @@ export default function DoctorTeleconsult() {
                   <span className={`${styles.badge} ${styles.badgeApproved}`}>
                     {session.callType === "video" ? <Video size={12} /> : <Phone size={12} />}
                     {session.callType === "video" ? "Video Call" : "Voice Call"}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#0369a1", background: "#f0f9ff", padding: "6px 10px", borderRadius: "8px", border: "1px solid #bae6fd", fontWeight: "600" }}>
+                  <Calendar size={13} />
+                  <span>
+                    Scheduled:{" "}
+                    {new Date(session.scheduledAt || session.scheduled_at || session.createdAt).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </span>
                 </div>
 

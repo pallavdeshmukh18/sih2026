@@ -43,6 +43,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useLanguage } from "../../i18n";
+import { useAccessibility } from "../../context/AccessibilityContext";
 import heroImage from "../../assets/teleconsult-hero.png";
 import VoiceOrb from "../../components/voice/VoiceOrb";
 import styles from "./ClinicalAssessment.module.css";
@@ -110,6 +111,7 @@ const getDynamicOptions = (question, language = "en") => {
 export default function ClinicalAssessment() {
   const { user, token } = useAuth();
   const { t, currentLanguage } = useLanguage();
+  const { islEnabled, requestSign } = useAccessibility();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -124,6 +126,17 @@ export default function ClinicalAssessment() {
 
   const [sessionId, setSessionId] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState("");
+
+  // Auto-feed clinical questions or header to ISL avatar
+  useEffect(() => {
+    if (islEnabled) {
+      if (currentQuestion) {
+        requestSign(currentQuestion, { context: "clinical_question" });
+      } else {
+        requestSign("Clinical Assessment", { context: "clinical_header" });
+      }
+    }
+  }, [currentQuestion, islEnabled, requestSign]);
   const [options, setOptions] = useState([]);
   const [conversationHistory, setConversationHistory] = useState([]);
   const [customAnswerText, setCustomAnswerText] = useState("");
@@ -232,8 +245,8 @@ export default function ClinicalAssessment() {
         const res = await getPatientAppointments(token);
         if (res.success && Array.isArray(res.appointments) && res.appointments.length > 0) {
           setAppointments(res.appointments);
-          if (!selectedAppointmentId) {
-            setSelectedAppointmentId(appointmentIdFromUrl || res.appointments[0].id);
+          if (!selectedAppointmentId && appointmentIdFromUrl) {
+            setSelectedAppointmentId(appointmentIdFromUrl);
           }
         }
       } catch (err) {
@@ -1042,13 +1055,23 @@ export default function ClinicalAssessment() {
               )}
 
               <div className={styles.completionActions}>
-                <button
-                  onClick={() => setShowBookingModal(true)}
-                  className={styles.startBtn}
-                  style={{ width: "auto", padding: "0 24px" }}
-                >
-                  {targetDoctor ? `Book with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Book an Appointment"}
-                </button>
+                {!appointmentIdFromUrl ? (
+                  <button
+                    onClick={() => setShowBookingModal(true)}
+                    className={styles.startBtn}
+                    style={{ width: "auto", padding: "0 24px" }}
+                  >
+                    {targetDoctor ? `Book with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Book an Appointment"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate("/patient/appointments")}
+                    className={styles.startBtn}
+                    style={{ width: "auto", padding: "0 24px" }}
+                  >
+                    {t("navigation.appointments", "View Appointments")}
+                  </button>
+                )}
                 <button
                   onClick={() => navigate("/patient/dashboard")}
                   className={styles.startBtn}
