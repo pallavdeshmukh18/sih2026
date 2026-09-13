@@ -191,7 +191,15 @@ export function initRetargeting(targetScene, targetBoneMap) {
     }
   }
 
-  return { M_map };
+  // Preserve each digit's authored rest alignment, especially thumb opposition.
+  const digitRest = new Map();
+  for (const name of BONE_ORDER) {
+    if (/Hand(Thumb|Index|Middle|Ring|Pinky)[123]$/.test(name)) {
+      const bone = targetBoneMap.get(name);
+      if (bone) digitRest.set(name, bone.quaternion.clone());
+    }
+  }
+  return { M_map, digitRest };
 }
 
 /**
@@ -255,6 +263,15 @@ export function applyRetargetedPose(canonicalPose, targetBoneMap, retargetData) 
       localQ = parentW.clone().invert().multiply(wTarget);
     } else {
       localQ = wTarget;
+    }
+    if (retargetData.digitRest?.has(bname)) {
+      const p = canonicalPose[bname] || { x: 0, y: 0, z: 0 };
+      const delta = new THREE.Quaternion().setFromEuler(new THREE.Euler(p.x, p.y, p.z));
+      localQ = M.clone().invert().multiply(delta).multiply(M);
+      localQ.premultiply(retargetData.digitRest.get(bname));
+      // Descendants must use the corrected parent orientation too.
+      const parentW = W_target.get(parentBone?.id);
+      W_target.set(bone.id, parentW ? parentW.clone().multiply(localQ) : localQ.clone());
     }
     bone.quaternion.copy(localQ);
   }

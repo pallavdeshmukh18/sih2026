@@ -5,17 +5,15 @@ import styles from "./ISLAvatarTest.module.css";
 export default function ISLAvatarTest() {
   const [inputText, setInputText] = useState("");
   const [activeText, setActiveText] = useState("");
-  const [signedHistory, setSignedHistory] = useState([]);
+  const [replayId, setReplayId] = useState(0);
+  const [speed, setSpeed] = useState(0.08);
   const [selectedModel, setSelectedModel] = useState("humanbot");
 
   const handleSign = (textToSign) => {
     const val = (textToSign || inputText).trim();
     if (!val) return;
-    setActiveText("");
-    setTimeout(() => {
-      setActiveText(val);
-      setSignedHistory((prev) => [val, ...prev.slice(0, 4)]);
-    }, 20);
+    setActiveText(val);
+    setReplayId((id) => id + 1);
   };
 
   const handleKeyDown = (e) => {
@@ -28,7 +26,7 @@ export default function ISLAvatarTest() {
   const presets = ["HELLO", "TIME", "HOME", "PERSON", "YOU", "CARE", "NAMASTE"];
 
   return (
-    <div className={styles.pageContainer}>
+    <div className={styles.pageContainer} data-isl-ignore="true">
       <div className={styles.contentCard}>
         {/* Header */}
         <div className={styles.header}>
@@ -65,9 +63,10 @@ export default function ISLAvatarTest() {
             modelUrl={selectedModel === "humanbot" ? "/models/humanbot-colored.glb" : "/models/ybot.glb"}
             text={activeText}
             visible={true}
-            speed={0.09}
-            pause={600}
-            height={360}
+            replayId={replayId}
+            speed={speed}
+            pause={180}
+            height={460}
           />
         </div>
 
@@ -91,6 +90,11 @@ export default function ISLAvatarTest() {
           </button>
         </div>
 
+        <label>Signing speed
+          <input aria-label="Signing speed" type="range" min="0.04" max="0.12" step="0.01"
+            value={speed} onChange={(event) => setSpeed(Number(event.target.value))} />
+        </label>
+        <p>Word signs: TIME, HOME, PERSON, YOU. Other English words and numbers are fingerspelled.</p>
         {/* Presets */}
         <div className={styles.presetSection}>
           <span className={styles.presetLabel}>Quick Test Words</span>

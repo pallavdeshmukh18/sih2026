@@ -1,10 +1,15 @@
+import { useTranslation } from "react-i18next";
+import { resources } from "../i18n/resources.js";
+import { createSiteTextResolver } from "../components/accessibility/isl/siteText.js";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useAuth } from "./AuthContext";
 
 const AccessibilityContext = createContext(null);
+const resolveSiteText = createSiteTextResolver(resources);
 
 export const AccessibilityProvider = ({ children }) => {
   const { user } = useAuth();
+  const { i18n } = useTranslation();
 
   // 1. ISL Enabled State
   // Initialized from user profile or local storage cache
@@ -47,6 +52,7 @@ export const AccessibilityProvider = ({ children }) => {
 
   // 3. Current Contextual Text to Sign
   const [currentSignText, setCurrentSignText] = useState("");
+  const [signPlaybackText, setSignPlaybackText] = useState("");
   const [currentContext, setCurrentContext] = useState("");
   const [isSigning, setIsSigning] = useState(false);
   const [activeToken, setActiveToken] = useState("");
@@ -59,6 +65,7 @@ export const AccessibilityProvider = ({ children }) => {
       if (!clean) return;
 
       setCurrentSignText(clean);
+      setSignPlaybackText(resolveSiteText(clean, i18n.language));
       if (options.context) setCurrentContext(options.context);
 
       // Auto-uncollapse avatar if it was collapsed and a high-priority prompt arrives
@@ -66,11 +73,12 @@ export const AccessibilityProvider = ({ children }) => {
         setIsAvatarCollapsed(false);
       }
     },
-    [islEnabled, isAvatarCollapsed]
+    [islEnabled, isAvatarCollapsed, i18n.language]
   );
 
   const clearSign = useCallback(() => {
     setCurrentSignText("");
+    setSignPlaybackText("");
     setCurrentContext("");
     setIsSigning(false);
     setActiveToken("");
@@ -83,6 +91,7 @@ export const AccessibilityProvider = ({ children }) => {
     isAvatarCollapsed,
     setIsAvatarCollapsed,
     currentSignText,
+    signPlaybackText,
     currentContext,
     requestSign,
     clearSign,

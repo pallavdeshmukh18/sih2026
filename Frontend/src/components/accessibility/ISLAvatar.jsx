@@ -1,13 +1,14 @@
+import { createHandClearance, applyHandClearance } from "./isl/handClearance.js";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { defaultPose } from "./isl/defaultPose.js";
+import { planText, compileGestures, createTransition, sampleTransition } from "./isl/playback.js";
 import * as alphabets from "./isl/alphabets.js";
 import * as words from "./isl/words.js";
 import { buildBoneMap } from "./isl/boneMapping.js";
 import {
   initRetargeting,
-  createCanonicalPose,
   getCanonicalRestPose,
   applyRetargetedPose,
 } from "./isl/retargeting.js";
@@ -22,8 +23,8 @@ import styles from "./ISLAvatar.module.css";
  * @param {Object} props
  * @param {string} [props.text] - Text to sign (word or fingerspelled sequence)
  * @param {boolean} [props.visible=true] - Whether the avatar card is visible
- * @param {number} [props.speed=0.08] - Joint rotation speed per tick (0.04 - 0.20)
- * @param {number} [props.pause=600] - Pause duration in ms between letters/gestures
+ * @param {number} [props.speed=0.08] - Playback rate (0.04 - 0.20)
+ * @param {number} [props.pause=180] - Hold duration in ms after each sign
  * @param {string} [props.modelUrl="/models/humanbot-colored.glb"] - Path to the avatar GLTF model
  * @param {string|number} [props.width="100%"] - Card width
  * @param {string|number} [props.height=380] - Canvas container height
@@ -35,7 +36,8 @@ export default function ISLAvatar({
   text = "",
   visible = true,
   speed = 0.08,
-  pause = 600,
+  pause = 180,
+  replayId = 0,
   modelUrl = "/models/humanbot-colored.glb",
   width = "100%",
   height = 380,
@@ -44,6 +46,8 @@ export default function ISLAvatar({
   onSignEnd,
 }) {
   const mountRef = useRef(null);
+  const callbacks = useRef({ onSignStart, onSignEnd });
+  useEffect(() => { callbacks.current = { onSignStart, onSignEnd }; }, [onSignStart, onSignEnd]);
   const runtimeRef = useRef({
     animations: [],
     characters: [],
@@ -72,147 +76,31 @@ export default function ISLAvatar({
     runtimeRef.current.pause = pause;
   }, [speed, pause]);
 
-const INDIC_TO_LATIN = {
-  'अ': 'A', 'आ': 'A', 'इ': 'I', 'ई': 'I', 'उ': 'U', 'ऊ': 'U', 'ऋ': 'R', 'ए': 'E', 'ऐ': 'AI', 'ओ': 'O', 'औ': 'AU',
-  'ा': 'A', 'ि': 'I', 'ी': 'I', 'ु': 'U', 'ू': 'U', 'ृ': 'R', 'े': 'E', 'ै': 'AI', 'ो': 'O', 'ौ': 'AU',
-  'ं': 'N', 'ः': 'H', 'ँ': 'N',
-  'क': 'K', 'ख': 'KH', 'ग': 'G', 'घ': 'GH', 'ङ': 'N',
-  'च': 'CH', 'छ': 'CH', 'ज': 'J', 'झ': 'JH', 'ञ': 'N',
-  'ट': 'T', 'ठ': 'TH', 'ड': 'D', 'ढ': 'DH', 'ण': 'N',
-  'त': 'T', 'थ': 'TH', 'द': 'D', 'ध': 'DH', 'न': 'N',
-  'प': 'P', 'फ': 'PH', 'ब': 'B', 'भ': 'BH', 'म': 'M',
-  'य': 'Y', 'र': 'R', 'ल': 'L', 'व': 'V',
-  'श': 'SH', 'ष': 'SH', 'स': 'S', 'ह': 'H',
-  'क्ष': 'KSH', 'त्र': 'TR', 'ज्ञ': 'GY',
-  '्': ''
-};
-
-function transliterateIndicPhonetic(text) {
-  if (!text) return "";
-  let out = "";
-  for (const ch of text) {
-    out += INDIC_TO_LATIN[ch] !== undefined ? INDIC_TO_LATIN[ch] : ch;
-  }
-  return out;
-}
-
-// Semantic mapping of common MediKiosk UI & clinical actions to validated ISL signs
-const KIOSK_CONCEPT_SIGNS = {
-  "WELCOME TO MEDIKIOSK": ["NAMASTE"],
-  "WELCOME": ["NAMASTE"],
-  "GREETING": ["NAMASTE"],
-  "HELLO": ["HELLO"],
-  "NAMASTE": ["NAMASTE"],
-  "APPOINTMENTS": ["TIME"],
-  "APPOINTMENT": ["TIME"],
-  "SCHEDULE": ["TIME"],
-  "TIME": ["TIME"],
-  "DOCTOR DIRECTORY": ["PERSON"],
-  "FIND YOUR DOCTOR": ["PERSON"],
-  "DOCTOR": ["PERSON"],
-  "DOCTORS": ["PERSON"],
-  "SPECIALIST": ["PERSON"],
-  "PERSON": ["PERSON"],
-  "CLINICAL ASSESSMENT": ["CARE"],
-  "AI HEALTH INTAKE ASSESSMENT": ["CARE"],
-  "ASSESSMENT": ["CARE"],
-  "CARE": ["CARE"],
-  "MEDICAL DOCUMENTS": ["HOME"],
-  "DIGITAL MEDICAL VAULT": ["HOME"],
-  "DOCUMENTS": ["HOME"],
-  "MEDICAL HISTORY": ["HOME"],
-  "HISTORY": ["HOME"],
-  "HOME": ["HOME"],
-  "MEDICAL ID": ["YOU"],
-  "ACCOUNT": ["YOU"],
-  "PROFILE": ["YOU"],
-  "YOU": ["YOU"],
-};
-
-  // Sign text function
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const sign = useCallback((inputText) => {
     const ref = runtimeRef.current;
-    if (!ref.avatar || !inputText) return;
-
-    // Transliterate any Indic (Devanagari) characters phonetically for ISL fingerspelling
-    const phonetic = transliterateIndicPhonetic(inputText);
-    const normalized = phonetic.trim().toUpperCase().replace(/[^\w\s]/g, " ");
-    if (!normalized) return;
-
-    // Reset any previous in-flight animation queue
-    if (ref.animFrameId) {
-      cancelAnimationFrame(ref.animFrameId);
-      ref.animFrameId = null;
-    }
-    if (ref.pauseTimer) {
-      clearTimeout(ref.pauseTimer);
-      ref.pauseTimer = null;
-    }
-    ref.flag = false;
-    ref.animations = [];
-    ref.pending = true;
-
-    // Cleanly restore skeleton to natural resting pose
-    if (ref.isRetargeted && ref.retargetData) {
-      ref.canonicalPose = getCanonicalRestPose();
-      applyRetargetedPose(ref.canonicalPose, ref.boneMap, ref.retargetData);
-    }
-
-    setIsSigning(true);
-    if (onSignStart) onSignStart(inputText);
-
-    // Resolve semantic concepts to validated ISL gesture sequences
-    let tokenList = [];
-    const directConcept = KIOSK_CONCEPT_SIGNS[normalized];
-    if (directConcept) {
-      tokenList = [...directConcept];
-    } else if (normalized.includes("WELCOME") || normalized.includes("NAMASTE") || normalized.includes("GOOD AFTERNOON") || normalized.includes("GOOD MORNING")) {
-      tokenList = ["NAMASTE"];
-    } else if (normalized.includes("APPOINTMENT") || normalized.includes("SCHEDULE")) {
-      tokenList = ["TIME"];
-    } else if (normalized.includes("DOCTOR")) {
-      tokenList = ["PERSON"];
-    } else if (normalized.includes("ASSESSMENT") || normalized.includes("SYMPTOM") || normalized.includes("TRIAGE")) {
-      tokenList = ["CARE"];
-    } else if (normalized.includes("DOCUMENT") || normalized.includes("VAULT") || normalized.includes("HISTORY")) {
-      tokenList = ["HOME"];
+    if (!ref.isLoaded) return;
+    cancelAnimationFrame(ref.animFrameId);
+    ref.transition = null;
+    ref.holdUntil = 0;
+    const plan = planText(inputText, words);
+    setNotice(plan.unsupported.length
+      ? `Cannot sign: ${plan.unsupported.join(" ")}. Please enter English text.`
+      : plan.spelled ? "Unknown words are fingerspelled; this is not a full ISL translation." : "");
+    ref.animations = compileGestures(plan.tokens, words, alphabets);
+    ref.pending = ref.animations.length > 0;
+    setIsSigning(ref.pending);
+    setCurrentToken("");
+    if (ref.pending) {
+      callbacks.current.onSignStart?.(inputText);
+      ref.animate(performance.now());
     } else {
-      tokenList = normalized.split(/\s+/).filter(Boolean);
+      // Clear/cancel requests also lower the hands smoothly.
+      ref.animations = [{ pose: getCanonicalRestPose(), hold: false }];
+      ref.animate(performance.now());
     }
-
-    for (const word of tokenList) {
-      if (typeof words[word] === "function") {
-        // Predefined word animation (e.g. TIME, HOME, PERSON, YOU)
-        ref.animations.push(["token", word]);
-        words[word](ref);
-      } else {
-        // Fallback to letter-by-letter ISL fingerspelling
-        const letters = word.split("");
-        for (let i = 0; i < letters.length; i++) {
-          const letter = letters[i];
-          if (typeof alphabets[letter] === "function") {
-            ref.animations.push(["token", letter]);
-            alphabets[letter](ref);
-          }
-        }
-      }
-    }
-
-    // Gracefully return avatar arms to natural resting pose (lowered by sides)
-    ref.animations.push([
-      ["mixamorigLeftArm", "rotation", "z", -Math.PI / 3, "-"],
-      ["mixamorigLeftForeArm", "rotation", "y", -Math.PI / 1.5, "-"],
-      ["mixamorigRightArm", "rotation", "z", Math.PI / 3, "+"],
-      ["mixamorigRightForeArm", "rotation", "y", Math.PI / 1.5, "+"],
-    ]);
-
-    if (ref.animations.length > 0) {
-      ref.pending = true;
-      ref.animate();
-    } else {
-      ref.pending = false;
-    }
-  }, [onSignStart]);
+  }, []);
 
   // Main Three.js setup
   useEffect(() => {
@@ -220,6 +108,10 @@ const KIOSK_CONCEPT_SIGNS = {
     if (!container) return;
 
     const ref = runtimeRef.current;
+    let disposed = false;
+    ref.isLoaded = false;
+    setIsLoading(true);
+    setError("");
     ref.animations = [];
     ref.characters = [];
     ref.flag = false;
@@ -230,16 +122,16 @@ const KIOSK_CONCEPT_SIGNS = {
     ref.scene = scene;
 
     // Ambient light for soft, clinical overall fill
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.35);
+    const ambientLight = new THREE.HemisphereLight(0xf4f7ff, 0x697584, 1.6);
     scene.add(ambientLight);
 
     // Key light from front-top-right for crisp facial, torso, and hand clarity
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.8);
+    const keyLight = new THREE.DirectionalLight(0xfff5eb, 2.4);
     keyLight.position.set(1.5, 3.5, 3.0);
     scene.add(keyLight);
 
     // Soft fill light from front-left with subtle MediKiosk brand tint
-    const fillLight = new THREE.DirectionalLight(0xccfbf1, 0.9);
+    const fillLight = new THREE.DirectionalLight(0xe9f2ff, 1.3);
     fillLight.position.set(-2.0, 2.0, 2.0);
     scene.add(fillLight);
 
@@ -265,8 +157,19 @@ const KIOSK_CONCEPT_SIGNS = {
     // 3. Renderer with transparent background
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(initialWidth, initialHeight, false);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(Math.max(window.devicePixelRatio, 1.5), 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const studio = new RoomEnvironment();
+    const environment = pmrem.fromScene(studio, 0.04);
+    scene.environment = environment.texture;
+    scene.environmentIntensity = 0.45;
+    studio.dispose();
+    pmrem.dispose();
+    renderer.domElement.setAttribute("role", "img");
+    renderer.domElement.setAttribute("aria-label", "3D Indian Sign Language avatar");
     renderer.domElement.className = styles.canvas;
     ref.renderer = renderer;
 
@@ -284,16 +187,16 @@ const KIOSK_CONCEPT_SIGNS = {
       const box = ref.modelBox;
       const size = box.getSize(new THREE.Vector3());
 
-      // Head margin: 10% of avatar height above head top for generous headroom
-      const targetTop = box.max.y + size.y * 0.10;
-      // Lower body boundary: upper legs / mid-thigh (approx 28% from feet)
-      const targetBottom = box.min.y + size.y * 0.28;
+      // Keep the face large with a small margin above the head.
+      const targetTop = box.max.y + size.y * 0.045;
+      // Frame the signing space from hips to head.
+      const targetBottom = box.min.y + size.y * 0.43;
       const targetHeight = targetTop - targetBottom;
       // Visual center focused comfortably at mid-chest
       const targetCenterY = (targetTop + targetBottom) / 2;
 
       // Horizontal target: ensures wide signing arm gestures stay within canvas bounds
-      const targetWidth = Math.max(size.x * 0.74, targetHeight * 0.88);
+      const targetWidth = Math.max(size.x * 1.12, targetHeight * 0.94);
 
       const fovRad = (camera.fov * Math.PI) / 180;
       const halfFovTan = Math.tan(fovRad / 2);
@@ -303,108 +206,51 @@ const KIOSK_CONCEPT_SIGNS = {
       const distH = (targetWidth / 2) / (halfFovTan * aspect);
 
       // Distance with 6% breathing margin
-      const cameraDist = Math.max(distV, distH) * 1.06;
+      const cameraDist = Math.max(distV, distH) * 1.04 + Math.max(0, box.max.z);
 
-      // Position camera centered horizontally with slight 4cm elevation for friendly perspective
-      camera.position.set(0, targetCenterY + 0.04, cameraDist);
+      // Front-on framing keeps two-handed signs readable.
+      camera.position.set(0, targetCenterY, cameraDist);
       camera.lookAt(0, targetCenterY, 0);
 
       ref.framing = { targetCenterY, cameraDist };
     };
 
-    // 4. Animation Frame Driver
-    ref.animate = () => {
-      if (ref.animations.length === 0) {
-        if (ref.animFrameId) {
-          cancelAnimationFrame(ref.animFrameId);
-          ref.animFrameId = null;
-        }
-        ref.pending = false;
-        setCurrentToken("");
-        setIsSigning(false);
-        if (ref.isRetargeted && ref.retargetData) {
-          ref.canonicalPose = getCanonicalRestPose();
-          applyRetargetedPose(ref.canonicalPose, ref.boneMap, ref.retargetData);
-          renderer.render(scene, camera);
-        }
-        if (onSignEnd) onSignEnd();
+    // A single clock drives synchronized joints. Holds occur at signs, not every keyframe.
+    ref.animate = (now) => {
+      if (disposed) return;
+      if (ref.holdUntil && now < ref.holdUntil) {
+        ref.animFrameId = requestAnimationFrame(ref.animate);
         return;
       }
-
-      ref.animFrameId = requestAnimationFrame(ref.animate);
-
-      if (ref.animations[0].length) {
-        if (!ref.flag) {
-          // Token update event for UI display
-          if (ref.animations[0][0] === "token" || ref.animations[0][0] === "add-text") {
-            const token = ref.animations[0][1];
-            setCurrentToken(token);
-            ref.animations.shift();
-          } else {
-            // Step bone rotations
-            if (ref.isRetargeted && ref.retargetData) {
-              // Retargeted branch for non-canonical humanoid rigs (e.g. HumanBot)
-              let anyChanged = false;
-              for (let i = 0; i < ref.animations[0].length; ) {
-                const [boneName, action, axis, limit, signDirection] = ref.animations[0][i];
-                if (!ref.canonicalPose[boneName]) {
-                  ref.canonicalPose[boneName] = { x: 0, y: 0, z: 0 };
-                }
-                const p = ref.canonicalPose[boneName];
-
-                if (signDirection === "+" && p[axis] < limit) {
-                  p[axis] += ref.speed;
-                  p[axis] = Math.min(p[axis], limit);
-                  anyChanged = true;
-                  i++;
-                } else if (signDirection === "-" && p[axis] > limit) {
-                  p[axis] -= ref.speed;
-                  p[axis] = Math.max(p[axis], limit);
-                  anyChanged = true;
-                  i++;
-                } else {
-                  ref.animations[0].splice(i, 1);
-                }
-              }
-              if (anyChanged) {
-                applyRetargetedPose(ref.canonicalPose, ref.boneMap, ref.retargetData);
-              }
-            } else {
-              // Canonical baseline branch for YBot (untouched direct Euler driver)
-              for (let i = 0; i < ref.animations[0].length; ) {
-                const [boneName, action, axis, limit, signDirection] = ref.animations[0][i];
-                const bone = ref.boneMap?.get(boneName) || ref.avatar?.getObjectByName(boneName);
-
-                if (!bone) {
-                  ref.animations[0].splice(i, 1);
-                  continue;
-                }
-
-                if (signDirection === "+" && bone[action][axis] < limit) {
-                  bone[action][axis] += ref.speed;
-                  bone[action][axis] = Math.min(bone[action][axis], limit);
-                  i++;
-                } else if (signDirection === "-" && bone[action][axis] > limit) {
-                  bone[action][axis] -= ref.speed;
-                  bone[action][axis] = Math.max(bone[action][axis], limit);
-                  i++;
-                } else {
-                  ref.animations[0].splice(i, 1);
-                }
-              }
-            }
-          }
+      if (!ref.transition) {
+        const step = ref.animations.shift();
+        if (!step) {
+          ref.pending = false;
+          ref.animFrameId = null;
+          setCurrentToken("");
+          setIsSigning(false);
+          callbacks.current.onSignEnd?.();
+          return;
         }
-      } else {
-        // Frame finished; pause before moving to the next keyframe step
-        ref.flag = true;
-        ref.pauseTimer = setTimeout(() => {
-          ref.flag = false;
-        }, ref.pause);
-        ref.animations.shift();
+        if (step.token) setCurrentToken(step.token);
+        ref.transition = createTransition(ref.canonicalPose, step.pose, now, ref.speed);
+        ref.transition.hold = step.hold;
       }
-
+      const done = sampleTransition(ref.transition, now, ref.canonicalPose);
+      if (ref.isRetargeted) {
+        applyRetargetedPose(ref.canonicalPose, ref.boneMap, ref.retargetData);
+      } else {
+        for (const [name, pose] of Object.entries(ref.canonicalPose)) {
+          if (name !== "mixamorigHips") ref.boneMap.get(name)?.rotation.set(pose.x, pose.y, pose.z);
+        }
+      }
+      applyHandClearance(ref.avatar, ref.handClearance);
       renderer.render(scene, camera);
+      if (done) {
+        ref.holdUntil = now + (ref.transition.hold ? ref.pause : 0);
+        ref.transition = null;
+      }
+      ref.animFrameId = requestAnimationFrame(ref.animate);
     };
 
     // 5. Load GLTF Avatar Model with Model Bounding Box Calculation
@@ -412,7 +258,15 @@ const KIOSK_CONCEPT_SIGNS = {
     loader.load(
       modelUrl,
       (gltf) => {
+        if (disposed) {
+          disposeScene(gltf.scene);
+          return;
+        }
         gltf.scene.traverse((child) => {
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          for (const material of materials) {
+            if (material?.map) material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+          }
           if (child.type === "SkinnedMesh") {
             child.frustumCulled = false;
           }
@@ -440,32 +294,42 @@ const KIOSK_CONCEPT_SIGNS = {
           applyRetargetedPose(ref.canonicalPose, boneMap, ref.retargetData);
         } else {
           ref.retargetData = null;
-          ref.canonicalPose = null;
+          ref.canonicalPose = getCanonicalRestPose();
+          for (const [name, pose] of Object.entries(ref.canonicalPose)) {
+            // Preserve the GLB root correction relative to its Armature.
+            if (name !== "mixamorigHips") boneMap.get(name)?.rotation.set(pose.x, pose.y, pose.z);
+          }
         }
 
         // Calculate accurate Box3 bounding box of model
         const box = new THREE.Box3().setFromObject(gltf.scene);
-        ref.modelBox = box;
+
 
         // Horizontally center model at x = 0
         const center = box.getCenter(new THREE.Vector3());
         gltf.scene.position.x = -center.x;
-        gltf.scene.position.z = 0;
+        gltf.scene.position.z -= center.z;
+        gltf.scene.updateMatrixWorld(true);
+        ref.modelBox = new THREE.Box3().setFromObject(gltf.scene);
 
         scene.add(ref.avatar);
+        ref.handClearance = createHandClearance(ref.avatar, boneMap);
+        applyHandClearance(ref.avatar, ref.handClearance);
 
         // Apply dynamic bounding box camera framing
         const currentW = container.clientWidth || initialWidth;
         const currentH = typeof height === "number" ? height : (container.clientHeight || initialHeight);
         applyFraming(currentW, currentH);
 
-        defaultPose(ref);
+
         ref.isLoaded = true;
         setIsLoading(false);
         renderer.render(scene, camera);
       },
       undefined,
       (err) => {
+        if (disposed) return;
+        setError("Avatar could not load. Reload to try again.");
         console.error("Failed to load ISL Avatar model:", err);
         setIsLoading(false);
       }
@@ -486,6 +350,10 @@ const KIOSK_CONCEPT_SIGNS = {
 
     // 7. Cleanup on unmount
     return () => {
+      disposed = true;
+      ref.isLoaded = false;
+      ref.avatar = null;
+      ref.transition = null;
       resizeObserver.disconnect();
       if (ref.animFrameId) cancelAnimationFrame(ref.animFrameId);
       if (ref.pauseTimer) clearTimeout(ref.pauseTimer);
@@ -497,32 +365,25 @@ const KIOSK_CONCEPT_SIGNS = {
         }
       }
 
-      scene.traverse((obj) => {
-        if (obj.geometry) obj.geometry.dispose();
-        if (obj.material) {
-          if (Array.isArray(obj.material)) {
-            obj.material.forEach((m) => m.dispose());
-          } else {
-            obj.material.dispose();
-          }
-        }
-      });
+      environment.dispose();
+      disposeScene(scene);
+      if (window.__islRuntime === ref) delete window.__islRuntime;
     };
-  }, [modelUrl, height, onSignEnd]);
+  }, [modelUrl, height, visible]);
 
   // Trigger signing when text prop changes
   useEffect(() => {
-    if (text && !isLoading && runtimeRef.current.isLoaded) {
+    if (!isLoading && runtimeRef.current.isLoaded) {
       sign(text);
     }
-  }, [text, isLoading, sign]);
+  }, [text, isLoading, sign, replayId]);
 
   if (!visible) return null;
 
   return (
     <div
       className={`${styles.avatarCard} ${className}`}
-      style={{ width }}
+      style={{ width, height }}
       data-testid="isl-avatar-card"
     >
       {/* Active State Badge */}
@@ -532,7 +393,7 @@ const KIOSK_CONCEPT_SIGNS = {
             isSigning ? styles.badgeDotActive : ""
           }`}
         />
-        <span>{isSigning ? "Signing..." : "ISL Ready"}</span>
+        <span>{error ? "Avatar unavailable" : isLoading ? "Loading..." : isSigning ? "Signing..." : "ISL Ready"}</span>
       </div>
 
       {/* Current Sign Token Display */}
@@ -550,12 +411,26 @@ const KIOSK_CONCEPT_SIGNS = {
         </div>
       )}
 
+      {(error || notice) && <p role="status" className={styles.notice}>{error || notice}</p>}
+
       {/* Canvas Mount Container */}
       <div
         ref={mountRef}
         className={styles.canvasWrapper}
-        style={{ height: typeof height === "number" ? `${height}px` : height }}
+
       />
     </div>
   );
+}
+
+function disposeScene(scene) {
+  scene.traverse((obj) => {
+    obj.geometry?.dispose();
+    const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const material of materials) {
+      if (!material) continue;
+      for (const value of Object.values(material)) if (value?.isTexture) value.dispose();
+      material.dispose();
+    }
+  });
 }

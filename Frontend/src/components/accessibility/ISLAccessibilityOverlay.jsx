@@ -15,6 +15,7 @@ export default function ISLAccessibilityOverlay() {
     isAvatarCollapsed,
     setIsAvatarCollapsed,
     currentSignText,
+    signPlaybackText,
     requestSign,
     isSigning,
     setIsSigning,
@@ -35,6 +36,7 @@ export default function ISLAccessibilityOverlay() {
 
   const handleSelectPreset = (word) => {
     setActivePreset(word);
+    setReplayKey((k) => k + 1);
     requestSign(word, { context: "quick_preset" });
   };
 
@@ -47,8 +49,13 @@ export default function ISLAccessibilityOverlay() {
   }, [setIsSigning]);
 
   // Only render if ISL is enabled and user is a patient
-  if (!islEnabled || !isPatient) {
-    return null;
+  if (!islEnabled) {
+    return <div className={styles.overlayContainer} data-isl-ignore="true">
+      <button className={`${styles.minimizedButton} ${styles.interactive}`}
+        onClick={() => setIslEnabled(true)} aria-label="Enable sign language assistance">
+        <Sparkles size={16} /> Sign language
+      </button>
+    </div>;
   }
 
   return (
@@ -56,6 +63,7 @@ export default function ISLAccessibilityOverlay() {
       className={`${styles.overlayContainer} ${
         hasVoiceGuide ? styles.overlayWithVoiceGuide : ""
       }`}
+      data-isl-ignore="true"
       aria-live="polite"
       data-testid="isl-accessibility-overlay"
     >
@@ -123,15 +131,15 @@ export default function ISLAccessibilityOverlay() {
           </div>
 
           {/* 3D Avatar Body */}
-          <div className={styles.avatarBody} style={{ height: "260px" }}>
+          <div className={styles.avatarBody} >
             <ISLAvatar
-              key={replayKey}
-              text={currentSignText}
+              replayId={replayKey}
+              text={signPlaybackText || currentSignText}
               visible={!isAvatarCollapsed}
-              height={260}
+              height="100%"
               width="100%"
               speed={0.09}
-              pause={600}
+              pause={180}
               onSignStart={handleSignStart}
               onSignEnd={handleSignEnd}
             />

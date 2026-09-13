@@ -1,19 +1,7 @@
+import { resources } from "./resources.js";
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import i18n from "i18next";
 import { initReactI18next, useTranslation } from "react-i18next";
-
-import en from "./locales/en.json";
-import hi from "./locales/hi.json";
-import mr from "./locales/mr.json";
-import gu from "./locales/gu.json";
-import bn from "./locales/bn.json";
-import ta from "./locales/ta.json";
-import te from "./locales/te.json";
-import kn from "./locales/kn.json";
-import ml from "./locales/ml.json";
-import pa from "./locales/pa.json";
-import or from "./locales/or.json";
-import as from "./locales/as.json";
 
 import { SUPPORTED_LANGUAGES, LANGUAGE_OPTIONS } from "./languages";
 import { useAuth } from "../context/AuthContext";
@@ -21,20 +9,6 @@ import { updatePatientProfile } from "../services/api";
 
 const STORAGE_KEY = "medikiosk_language";
 
-const resources = {
-  en: { translation: en },
-  hi: { translation: hi },
-  mr: { translation: mr },
-  gu: { translation: gu },
-  bn: { translation: bn },
-  ta: { translation: ta },
-  te: { translation: te },
-  kn: { translation: kn },
-  ml: { translation: ml },
-  pa: { translation: pa },
-  or: { translation: or },
-  as: { translation: as },
-};
 
 const savedLang = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
 const initialLanguage = savedLang && resources[savedLang] ? savedLang : "en";

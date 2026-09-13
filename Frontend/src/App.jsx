@@ -46,6 +46,8 @@ import ReceptionistPatients from "./pages/receptionist/ReceptionistPatients";
 // Accessibility Development Prototype
 import ISLAvatarTest from "./pages/accessibility/ISLAvatarTest";
 
+import ISLAccessibilityOverlay from "./components/accessibility/ISLAccessibilityOverlay";
+import ISLTextGuide from "./components/accessibility/ISLTextGuide";
 import "./App.css";
 
 function App() {
@@ -56,6 +58,8 @@ function App() {
           <Toaster position="top-right" toastOptions={{ style: { background: '#fff', color: '#111', borderRadius: '12px' } }} />
         <Router>
           <ScrollToTop />
+          <ISLTextGuide />
+          <ISLAccessibilityOverlay />
           <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<SignupPage />} />

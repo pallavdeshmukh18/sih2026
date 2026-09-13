@@ -251,9 +251,7 @@ export default function AccessibilityVoiceGuide() {
           if (prefActive && !isMuted) {
             speakText(extracted);
           }
-          if (islEnabled) {
-            requestSign(extracted, { context: "hover_target" });
-          }
+
         }, 450);
       }
     };

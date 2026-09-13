@@ -3,7 +3,6 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import AccessibilityVoiceGuide from '../../components/accessibility/AccessibilityVoiceGuide';
-import ISLAccessibilityOverlay from '../../components/accessibility/ISLAccessibilityOverlay';
 import styles from './DashboardLayout.module.css';
 import { useAuth } from '../../context/AuthContext';
 
@@ -22,7 +21,6 @@ const DashboardLayout = () => {
                 </main>
             </div>
             {isPatient && <AccessibilityVoiceGuide />}
-            {isPatient && <ISLAccessibilityOverlay />}
         </div>
     );
 };
