@@ -477,6 +477,31 @@ export async function getMedicalPassport(token, params = {}) {
 
 export const getMedicalId = getMedicalPassport;
 
+/** Fetch Authenticated Patient Graveyard Records */
+export async function getGraveyardItems(token) {
+    return apiRequest("/api/patient/graveyard", "GET", null, token);
+}
+
+/** Archive a Record into the Graveyard */
+export async function archiveGraveyardItem(sourceType, sourceId, reason, token) {
+    return apiRequest("/api/patient/graveyard/archive", "POST", { sourceType, sourceId, reason }, token);
+}
+
+/** Restore a Record from the Graveyard to Active History */
+export async function restoreGraveyardItem(sourceType, sourceId, token) {
+    return apiRequest("/api/patient/graveyard/restore", "POST", { sourceType, sourceId }, token);
+}
+
+/** Get Patient Graveyard Retention Policy */
+export async function getGraveyardPolicy(token) {
+    return apiRequest("/api/patient/graveyard/policy", "GET", null, token);
+}
+
+/** Update Patient Graveyard Retention Policy */
+export async function updateGraveyardPolicy(policy, token) {
+    return apiRequest("/api/patient/graveyard/policy", "PATCH", { policy }, token);
+}
+
 /** Get Document View / Download Signed URL */
 export async function getDocumentDownloadUrl(documentId, token) {
     return apiRequest(`/api/documents/${documentId}/url`, "GET", null, token);

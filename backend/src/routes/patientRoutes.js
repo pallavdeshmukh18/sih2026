@@ -1,12 +1,20 @@
 const express = require("express");
 const router = express.Router();
 const patientController = require("../controllers/patientController");
+const graveyardController = require("../controllers/graveyardController");
 const authenticateToken = require("../middleware/authMiddleware");
 const authorizeRoles = require("../middleware/rbacMiddleware");
 
 // All patient profile routes require JWT authentication and 'patient' role
 router.use(authenticateToken);
 router.use(authorizeRoles("patient"));
+
+// Graveyard routes
+router.get("/graveyard", graveyardController.getGraveyardItems);
+router.post("/graveyard/archive", graveyardController.archiveItem);
+router.post("/graveyard/restore", graveyardController.restoreItem);
+router.get("/graveyard/policy", graveyardController.getGraveyardPolicy);
+router.patch("/graveyard/policy", graveyardController.updateGraveyardPolicy);
 
 router.patch("/profile", patientController.updatePatientProfile);
 router.patch("/profile/onboarding", patientController.saveOnboardingPreferences);

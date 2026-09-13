@@ -158,16 +158,21 @@ async function getPatientUnifiedHistory(req, res, next) {
         }
 
         const patient = userRes.rows[0];
+        const includeArchived = req.query.includeArchived === "true";
+        const graveyardClause = (sourceType, idCol = "id") => {
+            if (includeArchived) return "";
+            return `AND ${idCol} NOT IN (SELECT source_id FROM patient_graveyard_items WHERE patient_id = $1 AND source_type = '${sourceType}')`;
+        };
 
         // 2. Fetch Medical History (conditions, allergies, surgeries, family history)
         const medHistoryRes = await pool.query(
-            `SELECT * FROM medical_history WHERE patient_id = $1 ORDER BY created_at DESC;`,
+            `SELECT * FROM medical_history WHERE patient_id = $1 ${graveyardClause('medical_history')} ORDER BY created_at DESC;`,
             [patientId]
         );
 
         // 3. Fetch Clinical Intake Sessions
         const sessionsRes = await pool.query(
-            `SELECT * FROM clinical_sessions WHERE patient_id = $1 ORDER BY created_at DESC;`,
+            `SELECT * FROM clinical_sessions WHERE patient_id = $1 ${graveyardClause('clinical_session')} ORDER BY created_at DESC;`,
             [patientId]
         );
 
@@ -177,7 +182,7 @@ async function getPatientUnifiedHistory(req, res, next) {
              FROM documents d
              LEFT JOIN document_ocr o ON d.id = o.document_id
              LEFT JOIN ai_summaries s ON d.id = s.document_id
-             WHERE d.patient_id = $1 AND ${documentConsentSql('d', '$2')}
+             WHERE d.patient_id = $1 AND ${documentConsentSql('d', '$2')} ${graveyardClause('document', 'd.id')}
              ORDER BY d.created_at DESC;`,
             [patientId, req.user.id]
         );
@@ -188,7 +193,7 @@ async function getPatientUnifiedHistory(req, res, next) {
              FROM consultations c
              JOIN appointments a ON c.appointment_id = a.id
              JOIN users u ON a.doctor_id = u.id
-             WHERE a.patient_id = $1
+             WHERE a.patient_id = $1 ${graveyardClause('consultation', 'c.id')}
              ORDER BY c.created_at DESC;`,
             [patientId]
         );

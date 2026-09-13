@@ -29,6 +29,27 @@ pool.query(`ALTER TABLE patient_profiles ADD COLUMN IF NOT EXISTS blood_group VA
         console.warn("patient_profiles blood_group check:", err.message);
     });
 
+// Ensure graveyard table and policy column exist
+pool.query(`
+    CREATE TABLE IF NOT EXISTS patient_graveyard_items (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        patient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        source_type VARCHAR(30) NOT NULL CHECK (source_type IN ('document', 'medical_history', 'clinical_session', 'consultation')),
+        source_id UUID NOT NULL,
+        archived_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        archive_mode VARCHAR(20) NOT NULL DEFAULT 'manual' CHECK (archive_mode IN ('manual', 'automatic')),
+        archived_reason TEXT,
+        archived_by UUID NOT NULL REFERENCES users(id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT uq_patient_source UNIQUE (patient_id, source_type, source_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_graveyard_lookup ON patient_graveyard_items (patient_id, source_type, source_id);
+    CREATE INDEX IF NOT EXISTS idx_graveyard_patient ON patient_graveyard_items (patient_id, archived_at DESC);
+    ALTER TABLE patient_profiles ADD COLUMN IF NOT EXISTS graveyard_retention_policy VARCHAR(20) DEFAULT '1_year';
+`).catch((err) => {
+    console.warn("patient_graveyard startup check:", err.message);
+});
+
 pool.on("error", (err) => {
     console.error("Unexpected PostgreSQL error:", err);
 });

@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const graveyardController = require("./graveyardController");
 
 const ALLOWED_LANGUAGES = [
     "en", "hi", "mr", "gu", "bn", "ta", "te", "kn", "ml", "pa", "or", "as"
@@ -271,6 +272,9 @@ async function getPatientMedicalHistory(req, res, next) {
     try {
         const patientId = req.user.id;
 
+        // Run auto-archival check if retention policy configured
+        await graveyardController.runAutoArchival(patientId);
+
         // 1. Fetch Patient Demographics & Profile
         const userRes = await pool.query(
             `SELECT u.id, u.first_name, u.last_name, u.email, u.phone,
@@ -295,6 +299,7 @@ async function getPatientMedicalHistory(req, res, next) {
             `SELECT id, category, condition, description, diagnosed_at, status, notes, created_at
              FROM medical_history
              WHERE patient_id = $1
+               AND id NOT IN (SELECT source_id FROM patient_graveyard_items WHERE patient_id = $1 AND source_type = 'medical_history')
              ORDER BY COALESCE(diagnosed_at, created_at::date) DESC;`,
             [patientId]
         );
@@ -338,6 +343,7 @@ async function getPatientMedicalHistory(req, res, next) {
              JOIN users u ON a.doctor_id = u.id
              LEFT JOIN doctor_profiles dp ON u.id = dp.user_id
              WHERE a.patient_id = $1
+               AND c.id NOT IN (SELECT source_id FROM patient_graveyard_items WHERE patient_id = $1 AND source_type = 'consultation')
              ORDER BY c.created_at DESC;`,
             [patientId]
         );
@@ -362,6 +368,7 @@ async function getPatientMedicalHistory(req, res, next) {
                 `SELECT id, chief_complaint, status, summary, conversation_history, current_state, created_at, updated_at
                  FROM clinical_sessions
                  WHERE patient_id = $1
+                   AND id NOT IN (SELECT source_id FROM patient_graveyard_items WHERE patient_id = $1 AND source_type = 'clinical_session')
                  ORDER BY created_at DESC;`,
                 [patientId]
             );
@@ -373,6 +380,7 @@ async function getPatientMedicalHistory(req, res, next) {
                     `SELECT id, chief_complaint, status, summary, current_state, created_at, updated_at
                      FROM clinical_sessions
                      WHERE patient_id = $1
+                       AND id NOT IN (SELECT source_id FROM patient_graveyard_items WHERE patient_id = $1 AND source_type = 'clinical_session')
                      ORDER BY created_at DESC;`,
                     [patientId]
                 );
@@ -447,6 +455,7 @@ async function getPatientMedicalHistory(req, res, next) {
              LEFT JOIN document_ocr o ON d.id = o.document_id
              LEFT JOIN ai_summaries s ON d.id = s.document_id
              WHERE d.patient_id = $1
+               AND d.id NOT IN (SELECT source_id FROM patient_graveyard_items WHERE patient_id = $1 AND source_type = 'document')
              ORDER BY d.created_at DESC;`,
             [patientId]
         );
@@ -793,6 +802,7 @@ async function getPatientMedicalId(req, res, next) {
             `SELECT id, category, condition, description, diagnosed_at, status, notes, created_at, updated_at
              FROM medical_history
              WHERE patient_id = $1
+               AND id NOT IN (SELECT source_id FROM patient_graveyard_items WHERE patient_id = $1 AND source_type = 'medical_history')
              ORDER BY COALESCE(diagnosed_at, created_at::date) DESC;`,
             [patientId]
         );
@@ -806,6 +816,7 @@ async function getPatientMedicalId(req, res, next) {
              LEFT JOIN document_ocr o ON d.id = o.document_id
              LEFT JOIN ai_summaries s ON d.id = s.document_id
              WHERE d.patient_id = $1
+               AND d.id NOT IN (SELECT source_id FROM patient_graveyard_items WHERE patient_id = $1 AND source_type = 'document')
              ORDER BY d.created_at DESC;`,
             [patientId]
         );
@@ -821,6 +832,7 @@ async function getPatientMedicalId(req, res, next) {
              JOIN users u ON a.doctor_id = u.id
              LEFT JOIN doctor_profiles dp ON u.id = dp.user_id
              WHERE a.patient_id = $1
+               AND c.id NOT IN (SELECT source_id FROM patient_graveyard_items WHERE patient_id = $1 AND source_type = 'consultation')
              ORDER BY COALESCE(c.started_at, c.created_at) DESC;`,
             [patientId]
         );
@@ -831,6 +843,7 @@ async function getPatientMedicalId(req, res, next) {
             `SELECT id, consultation_type, chief_complaint, status, summary, current_state, created_at, updated_at
              FROM clinical_sessions
              WHERE patient_id = $1
+               AND id NOT IN (SELECT source_id FROM patient_graveyard_items WHERE patient_id = $1 AND source_type = 'clinical_session')
              ORDER BY created_at DESC;`,
             [patientId]
         );
