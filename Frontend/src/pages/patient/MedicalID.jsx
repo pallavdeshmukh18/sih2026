@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
+import { useAccessibility } from "../../context/AccessibilityContext";
 import { getMedicalId, generatePatientQrToken, getConnectedDoctors, revokeDoctorAccess } from "../../services/api";
 import { transliterateName, translateClinicalTerm } from "../../utils/transliterate";
 import { SUPPORTED_LANGUAGES } from "../../constants/onboardingData";
@@ -20,7 +21,14 @@ const formatDate = (value, fallback = "Not recorded") => {
 export default function MedicalID() {
   const { token } = useAuth();
   const { t, language } = useLanguage();
+  const { islEnabled, requestSign } = useAccessibility();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (islEnabled) {
+      requestSign("Medical ID", { context: "medical_id_header" });
+    }
+  }, [islEnabled, requestSign]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

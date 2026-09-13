@@ -7,6 +7,7 @@ import {
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../i18n";
+import { useAccessibility } from "../context/AccessibilityContext";
 import { getPatientAppointments, uploadMedicalDocument, cancelAppointment } from "../services/api";
 import { formatDoctorName, transliterateName } from "../utils/transliterate";
 import careImage from "../assets/indian-care-dashboard.png";
@@ -32,12 +33,14 @@ const healthTips = [
 export default function PatientDashboard() {
   const { user, token } = useAuth();
   const { language, t } = useLanguage();
+  const { islEnabled, requestSign } = useAccessibility();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [appointments, setAppointments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [tipIndex, setTipIndex] = useState(0);
   const [selectedAppt, setSelectedAppt] = useState(null);
+
 
   const fetchAppointments = () => {
     if (!token) return;

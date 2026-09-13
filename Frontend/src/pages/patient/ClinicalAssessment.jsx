@@ -43,6 +43,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useLanguage } from "../../i18n";
+import { useAccessibility } from "../../context/AccessibilityContext";
 import heroImage from "../../assets/teleconsult-hero.png";
 import VoiceOrb from "../../components/voice/VoiceOrb";
 import styles from "./ClinicalAssessment.module.css";
@@ -110,6 +111,7 @@ const getDynamicOptions = (question, language = "en") => {
 export default function ClinicalAssessment() {
   const { user, token } = useAuth();
   const { t, currentLanguage } = useLanguage();
+  const { islEnabled, requestSign } = useAccessibility();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -124,6 +126,17 @@ export default function ClinicalAssessment() {
 
   const [sessionId, setSessionId] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState("");
+
+  // Auto-feed clinical questions or header to ISL avatar
+  useEffect(() => {
+    if (islEnabled) {
+      if (currentQuestion) {
+        requestSign(currentQuestion, { context: "clinical_question" });
+      } else {
+        requestSign("Clinical Assessment", { context: "clinical_header" });
+      }
+    }
+  }, [currentQuestion, islEnabled, requestSign]);
   const [options, setOptions] = useState([]);
   const [conversationHistory, setConversationHistory] = useState([]);
   const [customAnswerText, setCustomAnswerText] = useState("");

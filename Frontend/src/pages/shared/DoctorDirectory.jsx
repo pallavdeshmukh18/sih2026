@@ -5,6 +5,7 @@ import { Building2, Calendar, CheckCircle, ChevronDown, Heart, MapPin, Search, S
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
+import { useAccessibility } from "../../context/AccessibilityContext";
 import { createAppointment, fetchPublicDoctors } from "../../services/api";
 import { formatDoctorName, translateClinicalTerm, translateDepartment } from "../../utils/transliterate";
 import heroImage from "../../assets/doctor-directory-hero.png";
@@ -15,6 +16,7 @@ export default function DoctorDirectory() {
   const { token, user } = useAuth();
   const canBookAppointments = user?.role === "patient";
   const { t, language } = useLanguage();
+  const { islEnabled, requestSign } = useAccessibility();
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -29,6 +31,12 @@ export default function DoctorDirectory() {
   const [reason, setReason] = useState("General Clinical Consultation");
   const [notes, setNotes] = useState("");
   const [booking, setBooking] = useState(false);
+
+  useEffect(() => {
+    if (islEnabled) {
+      requestSign("Doctor Directory", { context: "doctor_directory_header" });
+    }
+  }, [islEnabled, requestSign]);
 
   const specialtiesList = [
     { key: "All Specialties", label: t("doctors.allSpecialties", "All Specialties") },
@@ -55,6 +63,9 @@ export default function DoctorDirectory() {
   }, [doctors, query, specialty]);
 
   const openBooking = (doctor) => {
+    if (islEnabled && doctor?.name) {
+      requestSign(doctor.name, { context: "doctor_selected" });
+    }
     navigate(`/patient/assessment?doctorId=${doctor.id}`);
   };
 

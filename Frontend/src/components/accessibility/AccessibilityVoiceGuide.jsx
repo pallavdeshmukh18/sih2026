@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Volume2, VolumeX, Sparkles, Loader2, Stethoscope, ChevronDown, ChevronUp, Bot } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
+import { useAccessibility } from "../../context/AccessibilityContext";
 import { synthesizeTTS } from "../../services/api";
 import styles from "./AccessibilityVoiceGuide.module.css";
 
@@ -137,6 +138,7 @@ export default function AccessibilityVoiceGuide() {
 
   // Check if Voice Guidance preference is active
   const prefActive = user?.onboarding?.accessibilityPreference === "voice_guidance";
+  const { islEnabled, requestSign } = useAccessibility();
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -216,7 +218,7 @@ export default function AccessibilityVoiceGuide() {
 
   // Attach global event listeners for mouseover and focusin
   useEffect(() => {
-    if (!prefActive || isMuted) {
+    if ((!prefActive && !islEnabled) || user?.role !== "patient") {
       stopAudio();
       return;
     }
@@ -233,18 +235,27 @@ export default function AccessibilityVoiceGuide() {
       const extracted = extractTargetText(interactiveEl);
       if (!extracted) return;
 
-      // Duplicate suppression: if already speaking/synthesized this exact text, skip
-      if (lastSpokenTextRef.current === extracted && (isSpeaking || isLoadingAudio)) {
-        return;
+      // Provide to Audio Voiceover and/or ISL Avatar if enabled with 450ms hover debounce
+      if ((prefActive && !isMuted) || islEnabled) {
+        // Duplicate suppression: if already speaking/signing this exact text, skip
+        if (lastSpokenTextRef.current === extracted && (isSpeaking || isLoadingAudio)) {
+          return;
+        }
+
+        if (prefActive && !isMuted) {
+          stopAudio();
+        }
+
+        // Apply 450ms hover debounce before triggering speech / sign
+        debounceTimerRef.current = setTimeout(() => {
+          if (prefActive && !isMuted) {
+            speakText(extracted);
+          }
+          if (islEnabled) {
+            requestSign(extracted, { context: "hover_target" });
+          }
+        }, 450);
       }
-
-      // Interrupt existing speech immediately
-      stopAudio();
-
-      // Apply 450ms hover debounce before synthesizing
-      debounceTimerRef.current = setTimeout(() => {
-        speakText(extracted);
-      }, 450);
     };
 
     const handleMouseOver = (e) => {
@@ -275,7 +286,7 @@ export default function AccessibilityVoiceGuide() {
       document.removeEventListener("mouseout", handleMouseOut, true);
       stopAudio();
     };
-  }, [prefActive, isMuted, language, token]);
+  }, [prefActive, islEnabled, isMuted, language, token, requestSign, user?.role]);
 
   // Clean up audio resources on unmount
   useEffect(() => {

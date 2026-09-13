@@ -1487,7 +1487,7 @@ async function getMe(req, res) {
             `SELECT u.id, u.first_name, u.last_name, u.role, u.login_method, u.email, u.phone, u.created_by_doctor_id,
                     u.profile_photo_path,
                     p.date_of_birth, p.gender, p.abha_id,
-                    p.state, p.preferred_language, p.interaction_mode, p.accessibility_preference,
+                    p.state, p.preferred_language, p.interaction_mode, p.accessibility_preference, p.isl_enabled,
                     d.registration_number, d.specialization, d.department AS doctor_department, d.verification_status
              FROM users u
              LEFT JOIN patient_profiles p ON u.id = p.user_id
@@ -1539,6 +1539,7 @@ async function getMe(req, res) {
                 preferredLanguage: row.preferred_language,
                 interactionMode: row.interaction_mode,
                 accessibilityPreference: row.accessibility_preference,
+                islEnabled: Boolean(row.isl_enabled || row.accessibility_preference === 'sign_language'),
                 completed: isCompleted
             } : null,
         });
