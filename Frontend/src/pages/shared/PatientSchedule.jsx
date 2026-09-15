@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Bell, CalendarDays, ChevronLeft, ChevronRight, Clock3, FileText, MapPin, PlusCircle, Stethoscope, Users, X } from "lucide-react";
+import { ArrowRight, Bell, CalendarDays, ChevronLeft, ChevronRight, Clock3, FileText, MapPin, PlusCircle, Stethoscope, Users, Video, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
@@ -11,9 +11,18 @@ import heroImage from "../../assets/schedule-hero.png";
 import styles from "./PatientSchedule.module.css";
 
 const fallbackAppointments = [
-  { id: "sample-1", scheduled_at: "2026-10-15T10:00:00", doctor_first_name: "Sarah", doctor_last_name: "Jenkins", specialization: "Cardiology", location: "MediKiosk Clinic, Mumbai" },
-  { id: "sample-2", scheduled_at: "2026-10-22T14:30:00", doctor_first_name: "Robert", doctor_last_name: "Miles", specialization: "Dental consultation", location: "Apollo Hospitals, Navi Mumbai" },
+  { id: "sample-1", scheduled_at: "2026-10-15T10:00:00", doctor_first_name: "Sarah", doctor_last_name: "Jenkins", specialization: "Cardiology", appointment_type: "in_person", location: "MediKiosk Clinic, Mumbai" },
+  { id: "sample-2", scheduled_at: "2026-10-22T14:30:00", doctor_first_name: "Robert", doctor_last_name: "Miles", specialization: "Dental consultation", appointment_type: "teleconsultation", location: "Apollo Hospitals, Navi Mumbai" },
 ];
+
+const getApptDate = (app) => {
+  const val = app?.scheduled_at || app?.scheduledAt;
+  const d = val ? new Date(val) : new Date();
+  return isNaN(d.getTime()) ? new Date() : d;
+};
+
+const isTeleconsult = (app) => ["video", "teleconsultation", "virtual"].includes((app?.appointmentType || app?.appointment_type)?.toLowerCase());
+
 const dateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const sameMonth = (left, right) => left.getMonth() === right.getMonth() && left.getFullYear() === right.getFullYear();
 const formatTime = (value) => new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -46,9 +55,9 @@ export default function PatientSchedule() {
     getPatientAppointments(token).then((response) => {
       if (!active || !response.success || !Array.isArray(response.appointments)) return;
       setAppointments(response.appointments);
-      const firstUpcoming = [...response.appointments].sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))[0];
+      const firstUpcoming = [...response.appointments].sort((a, b) => getApptDate(a) - getApptDate(b))[0];
       if (firstUpcoming) {
-        const date = new Date(firstUpcoming.scheduled_at);
+        const date = getApptDate(firstUpcoming);
         setMonth(new Date(date.getFullYear(), date.getMonth(), 1));
         setSelectedDate(date);
       }
@@ -61,8 +70,19 @@ export default function PatientSchedule() {
   const eventsByDate = useMemo(() => {
     const grouped = {};
     displayedAppointments.forEach((appointment) => {
-      const key = dateKey(new Date(appointment.scheduled_at));
-      (grouped[key] ||= []).push({ ...appointment, kind: "appointment" });
+      const d = getApptDate(appointment);
+      const key = dateKey(d);
+      const tele = isTeleconsult(appointment);
+      (grouped[key] ||= []).push({
+        ...appointment,
+        scheduled_at: appointment.scheduled_at || appointment.scheduledAt,
+        doctor_first_name: appointment.doctor?.firstName || appointment.doctor_first_name || appointment.doctorFirstName || "Doctor",
+        doctor_last_name: appointment.doctor?.lastName || appointment.doctor_last_name || appointment.doctorLastName || "",
+        specialization: appointment.doctor?.specialization || appointment.specialization || "General consultation",
+        location: appointment.location || "MediKiosk Clinic, Mumbai",
+        kind: "appointment",
+        isTeleconsult: tele
+      });
     });
     reminders.forEach((reminder) => {
       const key = dateKey(new Date(reminder.scheduled_at));
@@ -70,8 +90,22 @@ export default function PatientSchedule() {
     });
     return grouped;
   }, [displayedAppointments, reminders]);
+
   const selectedEvents = eventsByDate[dateKey(selectedDate)] || [];
-  const upcoming = useMemo(() => [...displayedAppointments].sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)).slice(0, 3), [displayedAppointments]);
+  const upcoming = useMemo(() => {
+    return [...displayedAppointments]
+      .map(app => ({
+        ...app,
+        scheduled_at: app.scheduled_at || app.scheduledAt,
+        doctor_first_name: app.doctor?.firstName || app.doctor_first_name || app.doctorFirstName || "Doctor",
+        doctor_last_name: app.doctor?.lastName || app.doctor_last_name || app.doctorLastName || "",
+        specialization: app.doctor?.specialization || app.specialization || "General consultation",
+        location: app.location || "MediKiosk Clinic, Mumbai",
+        isTeleconsult: isTeleconsult(app)
+      }))
+      .sort((a, b) => getApptDate(a) - getApptDate(b))
+      .slice(0, 4);
+  }, [displayedAppointments]);
 
   const changeMonth = (offset) => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
   const goToday = () => { const today = new Date(); setMonth(new Date(today.getFullYear(), today.getMonth(), 1)); setSelectedDate(today); };
@@ -142,8 +176,12 @@ export default function PatientSchedule() {
                 >
                   <span>{date.getDate()}</span>
                   {dayEvents.slice(0, 2).map((entry) => (
-                    <small className={entry.kind === "reminder" ? styles.reminderEvent : ""} key={entry.id}>
-                      {entry.kind === "reminder" ? entry.title : translateClinicalTerm(entry.specialization, "specializations", language) || t("appointments.inPerson", "Appointment")}
+                    <small className={entry.kind === "reminder" ? styles.reminderEvent : entry.isTeleconsult ? styles.teleconsultEvent : ""} key={entry.id}>
+                      {entry.kind === "reminder"
+                        ? entry.title
+                        : entry.isTeleconsult
+                          ? `📹 ${translateClinicalTerm(entry.specialization, "specializations", language) || "Teleconsult"}`
+                          : translateClinicalTerm(entry.specialization, "specializations", language) || t("appointments.inPerson", "Appointment")}
                       <i>{formatTime(entry.scheduled_at)}</i>
                     </small>
                   ))}
@@ -157,9 +195,30 @@ export default function PatientSchedule() {
       <aside className={styles.sideColumn}>
         <section className={styles.selectedDay}>
           <span><CalendarDays /></span>
-          <div>
+          <div style={{ width: "100%" }}>
             <h2>{selectedDate.toLocaleDateString(language || "en", { day: "numeric", month: "long", year: "numeric" })}</h2>
             <p>{selectedEvents.length ? `${selectedEvents.length} ${t("schedule.eventsScheduled", "scheduled care events")}.` : t("schedule.noConsultationsDay", "No appointments scheduled for this day.")}</p>
+            {selectedEvents.length > 0 && (
+              <div style={{ marginTop: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                {selectedEvents.map(evt => (
+                  <div key={evt.id} style={{ fontSize: "11px", background: "rgba(255,255,255,0.7)", padding: "6px 8px", borderRadius: "6px" }}>
+                    <div style={{ fontWeight: 600, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>{evt.kind === "reminder" ? `🔔 ${evt.title}` : formatDoctorName({ firstName: evt.doctor_first_name, lastName: evt.doctor_last_name }, language)}</span>
+                      <span style={{ fontSize: "10px", color: "#64748b" }}>{formatTime(evt.scheduled_at)}</span>
+                    </div>
+                    {evt.isTeleconsult && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); navigate(`/patient/teleconsult${evt.id ? `?appointmentId=${evt.id}` : ''}`); }}
+                        className={styles.joinCallBtn}
+                      >
+                        <Video size={11} /> Join Video Call
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
         <section className={styles.upcoming}>
@@ -168,11 +227,12 @@ export default function PatientSchedule() {
             <button onClick={() => navigate("/patient/appointments")}>{t("dashboard.viewAll", "View All")} <ArrowRight /></button>
           </header>
           {upcoming.map((appointment) => {
-            const date = new Date(appointment.scheduled_at);
+            const date = getApptDate(appointment);
             return (
-              <button
+              <div
                 className={styles.appointment}
                 key={appointment.id}
+                style={{ cursor: "pointer" }}
                 onClick={() => { setSelectedDate(date); setMonth(new Date(date.getFullYear(), date.getMonth(), 1)); }}
               >
                 <time>
@@ -182,10 +242,27 @@ export default function PatientSchedule() {
                 <span>
                   <b>{formatDoctorName({ firstName: appointment.doctor_first_name, lastName: appointment.doctor_last_name }, language)}</b>
                   <small>{translateClinicalTerm(appointment.specialization, "specializations", language) || t("dashboard.generalPhysician", "General consultation")}</small>
-                  <em><MapPin />{translateClinicalTerm(appointment.location, "locations", language) || t("dashboard.clinicDefault", "MediKiosk Clinic")}</em>
+                  {appointment.isTeleconsult ? (
+                    <div style={{ marginTop: "4px" }}>
+                      <span className={styles.teleconsultBadge}><Video size={10} /> Video Consultation</span>
+                    </div>
+                  ) : (
+                    <em><MapPin />{translateClinicalTerm(appointment.location, "locations", language) || t("dashboard.clinicDefault", "MediKiosk Clinic")}</em>
+                  )}
                 </span>
-                <i><Clock3 />{formatTime(appointment.scheduled_at)}</i>
-              </button>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+                  <i><Clock3 />{formatTime(appointment.scheduled_at)}</i>
+                  {appointment.isTeleconsult && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/patient/teleconsult${appointment.id ? `?appointmentId=${appointment.id}` : ''}`); }}
+                      className={styles.joinCallBtn}
+                    >
+                      <Video size={11} /> Join
+                    </button>
+                  )}
+                </div>
+              </div>
             );
           })}
         </section>
@@ -230,3 +307,4 @@ export default function PatientSchedule() {
     </AnimatePresence>
   </motion.main>;
 }
+

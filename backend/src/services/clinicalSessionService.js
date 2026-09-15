@@ -286,6 +286,274 @@ async function startSessionCore({
 }
 
 /**
+ * Helper: Adaptive Clinical Intake Question & Entity Progression (ML Fallback Engine)
+ */
+function getAdaptiveClinicalTurn({ currentState = {}, chiefComplaint = "your condition", patientText = "", language = "en", consultationType = "allopathic" }) {
+    const history = currentState.conversation_history || [];
+    const patientTurns = history.filter(m => m.role === "patient");
+    const turnCount = patientTurns.length; // Number of patient responses prior to this turn
+
+    const lang = (language || "en").toLowerCase();
+    const lowerText = (patientText || "").toLowerCase().trim();
+
+    // Check if patient indicated completion / nothing more
+    const completionPhrases = [
+        "nothing else", "no other", "none", "no", "nothing", "ready", "done", "that's all", "that is all",
+        "ready for summary", "summary", "બસ આટલું", "काही नाही", "कुछ नहीं", "बस इतना ही", "नहीं", "नाही", "ના"
+    ];
+    const isExplicitDone = completionPhrases.some(p => lowerText === p || lowerText.startsWith(p));
+
+    // Entity extraction heuristics
+    const entities = [...(currentState.clinical_entities || [])];
+    const redFlags = [...(currentState.red_flags || [])];
+
+    // Check red flags
+    const redFlagKeywords = [
+        { term: "chest pain", flag: "Chest pain / potential cardiac distress" },
+        { term: "breathing difficulty", flag: "Shortness of breath / respiratory distress" },
+        { term: "shortness of breath", flag: "Shortness of breath / respiratory distress" },
+        { term: "unconscious", flag: "Loss of consciousness / syncope" },
+        { term: "severe bleeding", flag: "Severe active bleeding" },
+        { term: "high fever", flag: "High grade persistent fever" },
+        { term: "seizure", flag: "Neurological event / seizure" },
+        { term: "सीने में दर्द", flag: "Chest pain / potential cardiac distress" },
+        { term: "सांस", flag: "Shortness of breath / respiratory distress" },
+        { term: "छातीत दुखणे", flag: "Chest pain / potential cardiac distress" },
+    ];
+    redFlagKeywords.forEach(({ term, flag }) => {
+        if (lowerText.includes(term) && !redFlags.includes(flag)) {
+            redFlags.push(flag);
+        }
+    });
+
+    if (isExplicitDone || turnCount >= 4) {
+        entities.push({ field: "intake_status", value: "Patient completed clinical intake questionnaire", confidence: "High" });
+        return {
+            next_question: "",
+            options: [],
+            extracted_entities: entities,
+            red_flags: redFlags,
+            is_complete: true,
+        };
+    }
+
+    if (turnCount === 0) {
+        // Turn 1: Severity question
+        entities.push({ field: "duration_onset", value: patientText, confidence: "High" });
+        const questions = {
+            hi: "आपकी तकलीफ कितनी गंभीर है (हल्की, मध्यम, या तेज), और क्या इससे आपकी दिनचर्या प्रभावित हो रही है?",
+            mr: "तुमचा त्रास किती तीव्र आहे (कमी, मध्यम, किंवा जास्त), आणि यामुळे तुमच्या दैनंदिन कामांवर परिणाम होत आहे का?",
+            gu: "તમારી તકલીફ કેટલી ગંભીર છે (હળવી, મધ્યમ, કે તીવ્ર), અને શું તેનાથી તમારી દિનચર્યા પર અસર પડી રહી છે?",
+            en: "How severe is your discomfort (mild, moderate, or severe), and how does it affect your daily activities?"
+        };
+        const optionsMap = {
+            hi: [
+                { id: "sev_mild", label: "हल्की - सामान्य काम कर पा रहे हैं" },
+                { id: "sev_mod", label: "मध्यम - परेशानी हो रही है" },
+                { id: "sev_severe", label: "गंभीर - काम करने में बहुत कठिनाई" }
+            ],
+            mr: [
+                { id: "sev_mild", label: "कमी / सौम्य त्रास" },
+                { id: "sev_mod", label: "मध्यम त्रास होतोय" },
+                { id: "sev_severe", label: "जास्त / दैनंदिन कामात अडचण" }
+            ],
+            gu: [
+                { id: "sev_mild", label: "હળવી તકલીફ" },
+                { id: "sev_mod", label: "મધ્યમ તકલીફ" },
+                { id: "sev_severe", label: "તીવ્ર / કામ કરવામાં મુશ્કેલી" }
+            ],
+            en: [
+                { id: "sev_mild", label: "Mild - manageable" },
+                { id: "sev_mod", label: "Moderate - noticeable discomfort" },
+                { id: "sev_severe", label: "Severe - difficulty doing daily tasks" }
+            ]
+        };
+        return {
+            next_question: questions[lang] || questions.en,
+            options: optionsMap[lang] || optionsMap.en,
+            extracted_entities: entities,
+            red_flags: redFlags,
+            is_complete: false,
+        };
+    }
+
+    if (turnCount === 1) {
+        // Turn 2: Associated Symptoms question
+        entities.push({ field: "severity_impact", value: patientText, confidence: "High" });
+        const questions = {
+            hi: "क्या आपको बुखार, सिरदर्द, बदन दर्द, उल्टी/जी मिचलाना, या सांस लेने में तकलीफ जैसे कोई अन्य लक्षण भी हैं?",
+            mr: "तुम्हाला ताप, डोकेदुखी, अंगदुखी, मळमळ किंवा श्वास घेण्यास त्रास यासारखी इतर कोणतीही लक्षणे आहेत का?",
+            gu: "શું તમને તાવ, માથાનો દુખાવો, શરીરનો દુખાવો, ઉલટી અથવા શ્વાસ લેવામાં તકલીફ જેવા અન્ય લક્ષણો છે?",
+            en: "Are you experiencing any other symptoms, such as fever, headache, body ache, nausea, or breathing difficulty?"
+        };
+        const optionsMap = {
+            hi: [
+                { id: "sym_none", label: "कोई अन्य लक्षण नहीं" },
+                { id: "sym_fever", label: "बुखार / कमजोरी" },
+                { id: "sym_headache", label: "सिरदर्द / जी मिचलाना" },
+                { id: "sym_breath", label: "सांस फूलना / सीने में भारीपन" }
+            ],
+            mr: [
+                { id: "sym_none", label: "इतर कोणतीही लक्षणे नाहीत" },
+                { id: "sym_fever", label: "ताप / अशक्तपणा" },
+                { id: "sym_headache", label: "डोकेदुखी / मळमळ" },
+                { id: "sym_breath", label: "श्वास घेण्यास त्रास / छातीत जडपणा" }
+            ],
+            gu: [
+                { id: "sym_none", label: "કોઈ અન્ય લક્ષણો નથી" },
+                { id: "sym_fever", label: "તાવ / નબળાઈ" },
+                { id: "sym_headache", label: "માથાનો દુખાવો / ઉલટી જેવું" },
+                { id: "sym_breath", label: "શ્વાસ લેવામાં તકલીફ / છાતીમાં દબાણ" }
+            ],
+            en: [
+                { id: "sym_none", label: "No other symptoms" },
+                { id: "sym_fever", label: "Fever / Body weakness" },
+                { id: "sym_headache", label: "Headache / Nausea" },
+                { id: "sym_breath", label: "Shortness of breath / Chest discomfort" }
+            ]
+        };
+        return {
+            next_question: questions[lang] || questions.en,
+            options: optionsMap[lang] || optionsMap.en,
+            extracted_entities: entities,
+            red_flags: redFlags,
+            is_complete: false,
+        };
+    }
+
+    if (turnCount === 2) {
+        // Turn 3: Existing Medical Conditions / Medications
+        entities.push({ field: "associated_symptoms", value: patientText, confidence: "High" });
+        const questions = {
+            hi: "क्या आपको पहले से कोई बीमारी है (जैसे शुगर/डायबिटीज, बीपी, अस्थमा) या आप कोई नियमित दवाइयां ले रहे हैं?",
+            mr: "तुम्हाला आधीपासून काही आजार आहे का (उदा. मधुमेह, बीपी, दमा) किंवा तुम्ही कोणतीही नियमित औषधे घेत आहात का?",
+            gu: "શું તમને પહેલાથી કોઈ બીમારી છે (જેમ કે ડાયાબિટીસ, બીપી, અસ્થમા) અથવા તમે કોઈ નિયમિત દવાઓ લઈ રહ્યા છો?",
+            en: "Do you have any existing medical conditions (such as diabetes, blood pressure, asthma) or are you currently taking any regular medicines?"
+        };
+        const optionsMap = {
+            hi: [
+                { id: "med_none", label: "कोई पुरानी बीमारी या दवा नहीं" },
+                { id: "med_bp_sugar", label: "शुगर / बीपी की समस्या है" },
+                { id: "med_current", label: "नियमित दवाइयां ले रहे हैं" }
+            ],
+            mr: [
+                { id: "med_none", label: "कोणताही जुना आजार किंवा औषधे नाहीत" },
+                { id: "med_bp_sugar", label: "मधुमेह / बीपी चा त्रास आहे" },
+                { id: "med_current", label: "नियमित औषधे सुरू आहेत" }
+            ],
+            gu: [
+                { id: "med_none", label: "કોઈ જૂની બીમારી કે દવા નથી" },
+                { id: "med_bp_sugar", label: "ડાયાબિટીસ / બીપી છે" },
+                { id: "med_current", label: "નિયમિત દવાઓ ચાલુ છે" }
+            ],
+            en: [
+                { id: "med_none", label: "No past conditions or medicines" },
+                { id: "med_bp_sugar", label: "Have Diabetes / High Blood Pressure" },
+                { id: "med_current", label: "Currently taking prescription medicines" }
+            ]
+        };
+        return {
+            next_question: questions[lang] || questions.en,
+            options: optionsMap[lang] || optionsMap.en,
+            extracted_entities: entities,
+            red_flags: redFlags,
+            is_complete: false,
+        };
+    }
+
+    // Turn 3 -> Turn 4: Final detail confirmation
+    entities.push({ field: "past_history_medications", value: patientText, confidence: "High" });
+    const questions = {
+        hi: "क्या कोई अन्य विशेष बात या लक्षण है जो आप डॉक्टर को बताना चाहते हैं?",
+        mr: "डॉक्टरांना सांगण्यासारखा इतर काही विशेष तपशील किंवा लक्षणे आहेत का?",
+        gu: "ડોક્ટરને જણાવવા માટે અન્ય કોઈ ખાસ વિગત કે લક્ષણ છે?",
+        en: "Are there any other specific details or symptoms you would like to mention for the doctor?"
+    };
+    const optionsMap = {
+        hi: [
+            { id: "fin_none", label: "बस इतना ही, सारांश देखें" },
+            { id: "fin_urgent", label: "मुझे जल्द से जल्द डॉक्टर से मिलना है" }
+        ],
+        mr: [
+            { id: "fin_none", label: "काही नाही, सारांश दाखवा" },
+            { id: "fin_urgent", label: "मला लवकरात लवकर तपासणी हवी आहे" }
+        ],
+        gu: [
+            { id: "fin_none", label: "બસ આટલું જ, સારાંશ જુઓ" },
+            { id: "fin_urgent", label: "મને તાત્કાલિક સલાહ જોઈએ છે" }
+        ],
+        en: [
+            { id: "fin_none", label: "Nothing else, ready for summary" },
+            { id: "fin_urgent", label: "I need consultation as soon as possible" }
+        ]
+    };
+    return {
+        next_question: questions[lang] || questions.en,
+        options: optionsMap[lang] || optionsMap.en,
+        extracted_entities: entities,
+        red_flags: redFlags,
+        is_complete: false,
+    };
+}
+
+/**
+ * Helper: Generate Rich Structured Clinical Intake Markdown Summary
+ */
+function generateStructuredIntakeSummary(session, currentState) {
+    const chiefComplaint = session?.chief_complaint || "General Health Concern";
+    const lang = session?.language || "en";
+    const type = session?.consultation_type === "ayush" ? "AYUSH (Ayurveda/Yoga/Unani/Siddha/Homeopathy)" : "Allopathic (Modern Clinical)";
+    const entities = currentState?.clinical_entities || [];
+    const redFlags = currentState?.red_flags || [];
+    const history = currentState?.conversation_history || [];
+
+    const lines = [];
+    lines.push(`# Clinical Intake & AI Triage Summary`);
+    lines.push(`- **Chief Complaint**: ${chiefComplaint}`);
+    lines.push(`- **Consultation Pathway**: ${type}`);
+    lines.push(`- **Intake Language**: ${lang.toUpperCase()}`);
+    lines.push(`- **Triage Urgency**: ${redFlags.length > 0 ? "🔴 HIGH PRIORITY / URGENT ATTENTION" : "🟢 Standard Outpatient"}`);
+
+    if (redFlags.length > 0) {
+        lines.push(`\n### ⚠️ Critical Alerts / Red Flags`);
+        redFlags.forEach(rf => lines.push(`- 🚨 **${rf}**`));
+    }
+
+    if (entities.length > 0) {
+        lines.push(`\n### 📋 Extracted Clinical Entities`);
+        entities.forEach(e => lines.push(`- **${(e.field || "Observation").replace(/_/g, " ")}**: ${e.value}`));
+    }
+
+    if (history.length > 0) {
+        lines.push(`\n### 💬 Intake Q&A Progression`);
+        let currentQ = "";
+        history.forEach(item => {
+            if (item.role === "system") {
+                currentQ = item.content;
+            } else if (item.role === "patient" || item.role === "user") {
+                if (currentQ) {
+                    lines.push(`- **Q**: *${currentQ}*\n  **A**: ${item.content}`);
+                    currentQ = "";
+                } else {
+                    lines.push(`- **Patient Response**: ${item.content}`);
+                }
+            }
+        });
+    }
+
+    lines.push(`\n### 🩺 Clinical Recommendations`);
+    if (session?.consultation_type === "ayush") {
+        lines.push(`- Review patient's Prakriti / Dosha balance and Dashavidha Pariksha findings.`);
+        lines.push(`- Recommend personalized herbal formulations and dietary (Ahara-Vihara) modifications.`);
+    } else {
+        lines.push(`- Perform focused physical examination based on ${chiefComplaint}.`);
+        lines.push(`- Evaluate symptom progression and order diagnostic investigations if indicated.`);
+    }
+
+    return lines.join("\n");
+}
+
+/**
  * 2. Process Text Intake Turn Core Logic
  */
 async function processTextTurnCore({ sessionId, patientId = null, patientText }) {
@@ -325,12 +593,13 @@ async function processTextTurnCore({ sessionId, patientId = null, patientText })
         );
     } catch (aiErr) {
         console.warn("[ML FALLBACK] Clinical AI fallback for text turn:", aiErr.message);
-        clinicalAiResult = {
-            next_question: "Are there any other details you would like to mention?",
-            extracted_entities: [{ field: "text_response", value: patientText, confidence: "High" }],
-            red_flags: [],
-            is_complete: false,
-        };
+        clinicalAiResult = getAdaptiveClinicalTurn({
+            currentState: session.current_state,
+            chiefComplaint: session.chief_complaint,
+            patientText,
+            language: session.language,
+            consultationType: session.consultation_type,
+        });
     }
 
     // 2. Update session state
@@ -369,7 +638,8 @@ async function processTextTurnCore({ sessionId, patientId = null, patientText })
             const summaryRes = await mlService.summarizeClinicalSession(sessionId, null, currentState);
             finalSummary = summaryRes.summary || "";
         } catch (sumErr) {
-            console.error("[ML FALLBACK] Auto-summarization failed:", sumErr.message);
+            console.error("[ML FALLBACK] Auto-summarization fallback:", sumErr.message);
+            finalSummary = generateStructuredIntakeSummary(session, currentState);
         }
     }
 
@@ -418,7 +688,7 @@ async function finalizeSessionCore({ sessionId, patientId = null, documentData =
         summaryText = summaryRes.summary || "";
     } catch (sumErr) {
         console.warn("[ML FALLBACK] Summarization fallback:", sumErr.message);
-        summaryText = `# Clinical Intake Summary\n\n**Chief Complaint**: ${session.chief_complaint}\n**Language**: ${session.language}\n**Status**: Intake completed.`;
+        summaryText = generateStructuredIntakeSummary(session, session.current_state);
     }
 
     // 2. Mark session completed and save summary in PostgreSQL
@@ -503,5 +773,8 @@ module.exports = {
     finalizeSessionCore,
     getSessionByIdCore,
     determineRequiredSpecialization,
+    getAdaptiveClinicalTurn,
+    generateStructuredIntakeSummary,
 };
+
 

@@ -196,6 +196,31 @@ export async function fetchPatientUnifiedHistory(patientId, token) {
     return apiRequest(`/api/doctor/patient/${patientId}/unified-history`, "GET", null, token);
 }
 
+/** Update Doctor Professional Profile */
+export async function updateDoctorProfile(profileData, token) {
+    return apiRequest("/api/doctor/profile", "PATCH", profileData, token);
+}
+
+/** Submit Patient Review for a Doctor */
+export async function submitDoctorReview(doctorId, reviewData, token) {
+    return apiRequest(`/api/doctor/${doctorId}/reviews`, "POST", reviewData, token);
+}
+
+/** Fetch Public Reviews & Aggregate Ratings for a Doctor */
+export async function fetchDoctorReviews(doctorId, token) {
+    return apiRequest(`/api/doctor/${doctorId}/reviews`, "GET", null, token);
+}
+
+/** Fetch Authenticated Doctor's Own Reviews */
+export async function fetchMyDoctorReviews(token) {
+    return apiRequest("/api/doctor/reviews/me", "GET", null, token);
+}
+
+/** Fetch Authenticated Patient's Submitted Doctor Reviews */
+export async function fetchMySubmittedReviews(token) {
+    return apiRequest("/api/doctor/reviews/my-submissions", "GET", null, token);
+}
+
 /** Confirm & Record Doctor Consultation Diagnosis & Notes */
 export async function confirmConsultation(appointmentId, consultationData, token) {
     return apiRequest(`/api/doctor/consultations/${appointmentId}/confirm`, "POST", consultationData, token);
@@ -417,8 +442,16 @@ export async function getClinicalSession(sessionId, token) {
 }
 
 /** Finalize Clinical Intake Session */
-export async function finalizeClinicalSession(sessionId, documentData = null, token) {
-    return apiRequest(`/api/sessions/${sessionId}/finalize`, "POST", { documentData }, token);
+export async function finalizeClinicalSession(sessionId, tokenOrDocData = null, optionalToken = null) {
+    let documentData = null;
+    let authToken = optionalToken;
+    if (typeof tokenOrDocData === "string" && !optionalToken) {
+        authToken = tokenOrDocData;
+    } else {
+        documentData = tokenOrDocData;
+        authToken = optionalToken;
+    }
+    return apiRequest(`/api/sessions/${sessionId}/finalize`, "POST", { documentData }, authToken);
 }
 
 /** Delete Clinical Intake Session */

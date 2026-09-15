@@ -4,6 +4,8 @@ const {
     startSessionCore,
     processTextTurnCore,
     finalizeSessionCore,
+    getAdaptiveClinicalTurn,
+    generateStructuredIntakeSummary,
 } = require("../services/clinicalSessionService");
 
 /**
@@ -116,12 +118,13 @@ async function processVoiceTurn(req, res, next) {
             clinicalAiResult = await mlService.respondClinicalSession(sessionId, patientText, session.current_state);
         } catch (aiErr) {
             console.warn("[ML FALLBACK] Clinical AI fallback for voice turn:", aiErr.message);
-            clinicalAiResult = {
-                next_question: "Could you tell me if you have any other associated symptoms?",
-                extracted_entities: [{ field: "response", value: patientText, confidence: "Medium" }],
-                red_flags: [],
-                is_complete: false,
-            };
+            clinicalAiResult = getAdaptiveClinicalTurn({
+                currentState: session.current_state,
+                chiefComplaint: session.chief_complaint,
+                patientText,
+                language: session.language,
+                consultationType: session.consultation_type,
+            });
         }
 
         // 3. Synthesize speech for next question via Sarvam Bulbul TTS
@@ -167,6 +170,7 @@ async function processVoiceTurn(req, res, next) {
                 finalSummary = summaryRes.summary || "";
             } catch (sumErr) {
                 console.error("[ML FALLBACK] Auto-summarization failed for voice turn:", sumErr.message);
+                finalSummary = generateStructuredIntakeSummary(session, currentState);
             }
         }
 
@@ -291,6 +295,7 @@ async function finalizeSession(req, res, next) {
             success: true,
             message: "Clinical intake session finalized and summarized.",
             session: result.session,
+            summary: result.summary,
         });
     } catch (error) {
         if (error.statusCode) {

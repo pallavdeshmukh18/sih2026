@@ -7,6 +7,12 @@ const authorizeRoles = require("../middleware/rbacMiddleware");
 // All doctor routes require authentication
 router.use(authenticateToken);
 
+// Reviews & Ratings routes
+router.get("/reviews/me", authorizeRoles("doctor"), doctorController.getMyDoctorReviews);
+router.get("/reviews/my-submissions", authorizeRoles("patient"), doctorController.getMySubmittedReviews);
+router.get("/:doctorId/reviews", doctorController.getDoctorReviews);
+router.post("/:doctorId/reviews", authorizeRoles("patient"), doctorController.submitDoctorReview);
+
 // Queue and consultation confirmation require 'doctor' role
 router.get("/directory", doctorController.getPublicDoctors);
 router.patch("/profile", authorizeRoles("doctor"), doctorController.updateOwnProfile);

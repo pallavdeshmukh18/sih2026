@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  AlertCircle, ArrowRight, Camera, Check, CheckCircle, Clock, Copy, ExternalLink, KeyRound,
-  Mail, MapPin, MessageSquare, Pencil, Phone, RefreshCw, Save, ShieldCheck, X
+  AlertCircle, ArrowRight, Award, Building2, Camera, Check, CheckCircle, Clock, Copy, ExternalLink, KeyRound,
+  Mail, MapPin, MessageSquare, Pencil, Phone, RefreshCw, Save, ShieldCheck, Star, Stethoscope, Video, X
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
@@ -11,7 +11,8 @@ import { useLanguage } from "../../i18n";
 import { INDIAN_STATES_AND_UTS, SUPPORTED_LANGUAGES } from "../../constants/onboardingData";
 import {
   generateWhatsAppToken, getWhatsAppMe, unlinkWhatsApp,
-  requestPhoneLink, updatePatientProfile, verifyPhoneLink, uploadProfilePhoto
+  requestPhoneLink, updatePatientProfile, updateDoctorProfile,
+  fetchMyDoctorReviews, verifyPhoneLink, uploadProfilePhoto
 } from "../../services/api";
 import { transliterateName } from "../../utils/transliterate";
 import accountBanner from "../../assets/patient-gateway-banner.png";
@@ -19,8 +20,48 @@ import styles from "./Account.module.css";
 
 const MEDIKIOSK_WHATSAPP_LINK = "https://wa.me/919579543836?text=hello%20medikiosk";
 
+const DOCTOR_SPECIALTIES = [
+  "General Medicine",
+  "Cardiology",
+  "Pediatrics",
+  "Dermatology",
+  "Orthopedics",
+  "Neurology",
+  "Gynecology & Obstetrics",
+  "ENT (Otolaryngology)",
+  "Ophthalmology",
+  "Psychiatry",
+  "Emergency Medicine",
+  "General Surgery",
+  "Oncology",
+  "Radiology",
+  "Urology",
+  "Endocrinology",
+  "Gastroenterology",
+  "Pulmonology",
+];
+
+const DOCTOR_DEPARTMENTS = [
+  "General Medicine",
+  "Cardiovascular Sciences",
+  "Pediatrics & Neonatology",
+  "Dermatology & Cosmetology",
+  "Orthopedics & Joint Replacement",
+  "Neurosciences",
+  "Obstetrics & Gynecology",
+  "ENT & Head-Neck Surgery",
+  "Ophthalmology & Eye Care",
+  "Psychiatry & Behavioral Health",
+  "Emergency & Critical Care",
+  "Surgical Sciences",
+  "Oncology & Cancer Care",
+  "Radiology & Imaging",
+  "Clinical Care",
+];
+
 export default function Account() {
   const { user, token, refreshUser } = useAuth();
+  const isDoctor = user?.role === "doctor";
   const { language, changeLanguage, t } = useLanguage();
   const location = useLocation();
   const whatsappCardRef = useRef(null);
@@ -29,9 +70,17 @@ export default function Account() {
   const [saving, setSaving] = useState(false);
   const [photo, setPhoto] = useState(user?.profilePhotoUrl || "");
   const [photoUploading, setPhotoUploading] = useState(false);
+
+  // Form State
   const [form, setForm] = useState(() => ({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
+    email: user?.email || "",
+    // Doctor Specific Fields
+    registrationNumber: user?.profile?.registrationNumber || "",
+    specialization: user?.profile?.specialization || "General Medicine",
+    department: user?.profile?.department || "General Medicine",
+    // Patient Specific Fields
     dateOfBirth: user?.profile?.dateOfBirth ? new Date(user.profile.dateOfBirth).toISOString().split("T")[0] : "",
     gender: user?.profile?.gender || "",
     bloodGroup: user?.profile?.bloodGroup || user?.profile?.blood_group || "",
@@ -40,6 +89,17 @@ export default function Account() {
     interactionMode: user?.onboarding?.interactionMode || "voice_touch",
     accessibilityPreference: user?.onboarding?.accessibilityPreference || "none",
   }));
+
+  // Doctor Reviews State
+  const [reviewsData, setReviewsData] = useState({
+    averageRating: 5.0,
+    totalReviews: 0,
+    breakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+    reviews: [],
+  });
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewFilter, setReviewFilter] = useState("all"); // 'all' | 'in_person' | 'teleconsultation'
+
   const [phoneModal, setPhoneModal] = useState(false);
   const [phoneStep, setPhoneStep] = useState(1);
   const [phone, setPhone] = useState("");
@@ -70,6 +130,30 @@ export default function Account() {
       return () => clearTimeout(timer);
     }
   }, [location.pathname, location.search]);
+
+  // Fetch Doctor Reviews if user is Doctor
+  useEffect(() => {
+    if (isDoctor && token) {
+      setReviewsLoading(true);
+      fetchMyDoctorReviews(token)
+        .then((res) => {
+          if (res && res.success) {
+            setReviewsData({
+              averageRating: res.averageRating || 5.0,
+              totalReviews: res.totalReviews || 0,
+              breakdown: res.breakdown || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+              reviews: res.reviews || [],
+            });
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load doctor reviews:", err);
+        })
+        .finally(() => {
+          setReviewsLoading(false);
+        });
+    }
+  }, [isDoctor, token]);
 
   // Fetch WhatsApp linking status on mount / token change
   useEffect(() => {
@@ -201,6 +285,10 @@ export default function Account() {
         ...prev,
         firstName: user?.firstName || "",
         lastName: user?.lastName || "",
+        email: user?.email || "",
+        registrationNumber: user?.profile?.registrationNumber || "",
+        specialization: user?.profile?.specialization || "General Medicine",
+        department: user?.profile?.department || "General Medicine",
         dateOfBirth: user?.profile?.dateOfBirth ? new Date(user.profile.dateOfBirth).toISOString().split("T")[0] : "",
         gender: user?.profile?.gender || "",
         bloodGroup: user?.profile?.bloodGroup || user?.profile?.blood_group || "",
@@ -215,9 +303,12 @@ export default function Account() {
   }, [user?.profilePhotoUrl]);
 
   const update = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
-  const initials = `${user?.firstName?.[0] || "P"}${user?.lastName?.[0] || ""}`.toUpperCase();
+  const initials = `${user?.firstName?.[0] || (isDoctor ? "D" : "P")}${user?.lastName?.[0] || (isDoctor ? "R" : "")}`.toUpperCase();
   const rawFullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ");
-  const fullName = rawFullName ? transliterateName(rawFullName, language) : t("account.patient", "Patient");
+  const fullName = isDoctor
+    ? (rawFullName ? `Dr. ${rawFullName}` : "Dr. Practitioner")
+    : (rawFullName ? transliterateName(rawFullName, language) : t("account.patient", "Patient"));
+
   const displayDate = user?.profile?.dateOfBirth
     ? new Date(user.profile.dateOfBirth).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
     : t("account.notProvided", "Not provided");
@@ -226,21 +317,35 @@ export default function Account() {
     event.preventDefault();
     setSaving(true);
     try {
-      await updatePatientProfile({
-        firstName: form.firstName,
-        lastName: form.lastName,
-        dateOfBirth: form.dateOfBirth || null,
-        gender: form.gender || null,
-        bloodGroup: form.bloodGroup || null,
-        state: form.state,
-        preferredLanguage: form.preferredLanguage,
-        interactionMode: form.interactionMode,
-        accessibilityPreference: form.accessibilityPreference,
-      }, token);
-      changeLanguage(form.preferredLanguage);
-      await refreshUser();
-      setEditing(false);
-      toast.success(t("account.profileUpdated", "Profile updated successfully."));
+      if (isDoctor) {
+        await updateDoctorProfile({
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: form.email,
+          registrationNumber: form.registrationNumber,
+          specialization: form.specialization,
+          department: form.department,
+        }, token);
+        await refreshUser();
+        setEditing(false);
+        toast.success("Doctor practice profile updated successfully.");
+      } else {
+        await updatePatientProfile({
+          firstName: form.firstName,
+          lastName: form.lastName,
+          dateOfBirth: form.dateOfBirth || null,
+          gender: form.gender || null,
+          bloodGroup: form.bloodGroup || null,
+          state: form.state,
+          preferredLanguage: form.preferredLanguage,
+          interactionMode: form.interactionMode,
+          accessibilityPreference: form.accessibilityPreference,
+        }, token);
+        changeLanguage(form.preferredLanguage);
+        await refreshUser();
+        setEditing(false);
+        toast.success(t("account.profileUpdated", "Profile updated successfully."));
+      }
     } catch (error) {
       toast.error(error.message || t("account.profileUpdateError", "Unable to update your profile."));
     } finally {
@@ -324,169 +429,443 @@ export default function Account() {
     }
   };
 
+  // Filtered Doctor Reviews
+  const filteredReviews = useMemo(() => {
+    if (reviewFilter === "all") return reviewsData.reviews;
+    return reviewsData.reviews.filter((r) => {
+      const ct = r.consultationType?.toLowerCase();
+      if (reviewFilter === "teleconsultation") {
+        return ct === "teleconsultation" || ct === "video" || ct === "virtual";
+      }
+      return ct === "in_person" || !ct;
+    });
+  }, [reviewsData.reviews, reviewFilter]);
+
   return (
     <div className={`${styles.page} workspacePage`}>
       <header className={styles.hero}>
         <div>
-          <span>{t("account.badge", "My account")}</span>
-          <h1>{t("account.title", "Your Information")}</h1>
-          <p>{t("account.subtitle", "Keep your details up to date for a smoother healthcare experience.")}</p>
+          <span>{isDoctor ? "Doctor Portal" : t("account.badge", "My account")}</span>
+          <h1>{isDoctor ? "Practice & Profile Details" : t("account.title", "Your Information")}</h1>
+          <p>
+            {isDoctor
+              ? "Manage your credentials, medical registration, specialization, and review patient ratings."
+              : t("account.subtitle", "Keep your details up to date for a smoother healthcare experience.")}
+          </p>
         </div>
-        <blockquote>{t("account.quote", "“A healthier you,\na brighter tomorrow.”")}</blockquote>
+        <blockquote>
+          {isDoctor
+            ? "“Dedicated to healing,\ncommitted to care.”"
+            : t("account.quote", "“A healthier you,\na brighter tomorrow.”")}
+        </blockquote>
         <img src={accountBanner} alt="" aria-hidden="true" />
       </header>
 
       <div className={styles.grid}>
         <div className={styles.mainCol}>
+          {/* Main Profile Details Card */}
           <section className={styles.detailsCard}>
-          <div className={styles.cardTitle}>
-            <h2>{t("account.profileDetails", "Profile Details")}</h2>
-            <button onClick={() => setEditing((value) => !value)}>
-              {editing ? <X /> : <Pencil />}
-              {editing ? t("account.cancel", "Cancel") : t("account.edit", "Edit")}
-            </button>
-          </div>
-
-          <div className={styles.identity}>
-            <div className={styles.avatar}>{photo ? <img src={photo} alt={fullName} /> : initials}</div>
-            <div>
-              <div className={styles.nameRow}>
-                <h3>{fullName}</h3>
-                <span>{user?.role === "patient" || !user?.role ? t("account.patient", "Patient") : user.role}</span>
-              </div>
-              <p>
-                <Mail /> {user?.email || t("account.noEmail", "No email linked")}
-                <i />
-                <Phone /> {user?.phone || t("account.noPhone", "No phone linked")}
-              </p>
-              <p>
-                <MapPin /> {user?.onboarding?.state ? `${user.onboarding.state}, India` : "India"}
-              </p>
+            <div className={styles.cardTitle}>
+              <h2>{isDoctor ? "Doctor Credentials & Profile" : t("account.profileDetails", "Profile Details")}</h2>
+              <button onClick={() => setEditing((value) => !value)}>
+                {editing ? <X /> : <Pencil />}
+                {editing ? t("account.cancel", "Cancel") : t("account.edit", "Edit")}
+              </button>
             </div>
-          </div>
 
-          <AnimatePresence mode="wait" initial={false}>
-            {editing ? (
-              <motion.form key="edit" className={styles.editForm} onSubmit={saveProfile} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <label>
-                  {t("account.firstName", "First name")}
-                  <input name="firstName" value={form.firstName} onChange={update} required />
-                </label>
-                <label>
-                  {t("account.lastName", "Last name")}
-                  <input name="lastName" value={form.lastName} onChange={update} />
-                </label>
-                <label>
-                  {t("account.dob", "Date of birth")}
-                  <input type="date" name="dateOfBirth" value={form.dateOfBirth} onChange={update} />
-                </label>
-                <label>
-                  {t("account.gender", "Gender")}
-                  <select name="gender" value={form.gender} onChange={update}>
-                    <option value="">{t("account.selectGender", "Select gender")}</option>
-                    <option value="Male">{t("account.male", "Male")}</option>
-                    <option value="Female">{t("account.female", "Female")}</option>
-                    <option value="Other">{t("account.other", "Other")}</option>
-                  </select>
-                </label>
-                <label>
-                  {t("account.bloodGroup", "Blood Group")}
-                  <select name="bloodGroup" value={form.bloodGroup} onChange={update}>
-                    <option value="">{t("account.selectBloodGroup", "Select blood group")}</option>
-                    {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bg) => (
-                      <option key={bg} value={bg}>{bg}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  {t("account.state", "State")}
-                  <select name="state" value={form.state} onChange={update}>
-                    <option value="">{t("account.selectState", "Select State or UT")}</option>
-                    {INDIAN_STATES_AND_UTS.map((state) => <option key={state.name} value={state.name}>{state.name}</option>)}
-                  </select>
-                </label>
-                <label>
-                  {t("account.language", "Language")}
-                  <select name="preferredLanguage" value={form.preferredLanguage} onChange={update}>
-                    {SUPPORTED_LANGUAGES.map((item) => (
-                      <option key={item.code} value={item.code}>
-                        {item.name} ({item.nativeName})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  {t("account.interactionMode", "Interaction Mode")}
-                  <select name="interactionMode" value={form.interactionMode} onChange={update}>
-                    <option value="voice_touch">{t("account.voiceTouch", "Voice + Touch Screen")}</option>
-                    <option value="voice">{t("account.voiceOnly", "Voice Only")}</option>
-                    <option value="touch">{t("account.touchOnly", "Touch Screen Only")}</option>
-                  </select>
-                </label>
-                <label>
-                  {t("account.accessibilityPreference", "Accessibility Preference")}
-                  <select name="accessibilityPreference" value={form.accessibilityPreference} onChange={update}>
-                    <option value="none">{t("account.standardInterface", "Standard Interface")}</option>
-                    <option value="large_text">{t("account.largerText", "Larger Text")}</option>
-                    <option value="voice_guidance">{t("account.audioVoiceover", "Audio Voiceover")}</option>
-                    <option value="hearing_assistance">{t("account.visualHighlights", "Visual Highlights")}</option>
-                    <option value="sign_language">{t("account.indianSignLanguage", "Indian Sign Language")}</option>
-                  </select>
-                </label>
-                <button className={styles.save} disabled={saving}>
-                  <Save /> {saving ? t("account.saving", "Saving…") : t("account.saveChanges", "Save Changes")}
-                </button>
-              </motion.form>
-            ) : (
-              <motion.dl key="view" className={styles.information} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <div>
-                  <dt>{t("account.fullName", "Full Name")}</dt>
-                  <dd>{fullName}</dd>
+            <div className={styles.identity}>
+              <div className={styles.avatar}>{photo ? <img src={photo} alt={fullName} /> : initials}</div>
+              <div>
+                <div className={styles.nameRow}>
+                  <h3>{fullName}</h3>
+                  {isDoctor ? (
+                    <span style={{ background: "#dcfce7", color: "#15803d", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      <CheckCircle size={12} /> {user?.profile?.verificationStatus === "verified" ? "Verified Doctor" : "Medical Practitioner"}
+                    </span>
+                  ) : (
+                    <span>{user?.role === "patient" || !user?.role ? t("account.patient", "Patient") : user.role}</span>
+                  )}
                 </div>
-                <div>
-                  <dt>{t("account.dob", "Date of Birth")}</dt>
-                  <dd>{displayDate}</dd>
-                </div>
-                <div>
-                  <dt>{t("account.gender", "Gender")}</dt>
-                  <dd>{user?.profile?.gender ? t(`account.${user.profile.gender.toLowerCase()}`, user.profile.gender) : t("account.notProvided", "Not provided")}</dd>
-                </div>
-                <div>
-                  <dt>{t("account.bloodGroup", "Blood Group")}</dt>
-                  <dd>{user?.profile?.bloodGroup || user?.profile?.blood_group || form.bloodGroup || t("account.notProvided", "Not provided")}</dd>
-                </div>
-                <div>
-                  <dt>{t("account.phoneNumber", "Phone Number")}</dt>
-                  <dd>
-                    {user?.phone || t("account.notLinked", "Not linked")}
-                    {user?.phoneVerified && <span><CheckCircle /> {t("account.verified", "Verified")}</span>}
-                    <button onClick={openPhoneModal}>{user?.phone ? t("account.change", "Change") : t("account.linkPhone", "Link phone")}</button>
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t("account.emailAddress", "Email Address")}</dt>
-                  <dd>{user?.email || t("account.notLinked", "Not linked")}</dd>
-                </div>
-                <div>
-                  <dt>{t("account.address", "Address")}</dt>
-                  <dd>{user?.onboarding?.state ? `${user.onboarding.state}, India` : "India"}</dd>
-                </div>
-                <div>
-                  <dt>{t("account.language", "Language")}</dt>
-                  <dd>{SUPPORTED_LANGUAGES.find((item) => item.code === (user?.onboarding?.preferredLanguage || language))?.name || "English"}</dd>
-                </div>
-                <div>
-                  <dt>{t("account.interactionMode", "Interaction Mode")}</dt>
-                  <dd>{user?.onboarding?.interactionMode === "voice" ? t("account.voiceOnly", "Voice Only") : user?.onboarding?.interactionMode === "touch" ? t("account.touchOnly", "Touch Screen Only") : t("account.voiceTouch", "Voice + Touch Screen")}</dd>
-                </div>
-                <div>
-                  <dt>{t("account.accessibilityPreference", "Accessibility Preference")}</dt>
-                  <dd>{user?.onboarding?.accessibilityPreference === "large_text" ? t("account.largerText", "Larger Text") : user?.onboarding?.accessibilityPreference === "voice_guidance" ? t("account.audioVoiceover", "Audio Voiceover") : user?.onboarding?.accessibilityPreference === "hearing_assistance" ? t("account.visualHighlights", "Visual Highlights") : user?.onboarding?.accessibilityPreference === "sign_language" ? t("account.indianSignLanguage", "Indian Sign Language") : t("account.standardInterface", "Standard Interface")}</dd>
-                </div>
-              </motion.dl>
-            )}
-          </AnimatePresence>
+                <p>
+                  <Mail /> {user?.email || t("account.noEmail", "No email linked")}
+                  <i />
+                  <Phone /> {user?.phone || t("account.noPhone", "No phone linked")}
+                </p>
+                <p>
+                  {isDoctor ? (
+                    <>
+                      <Stethoscope /> {user?.profile?.specialization || "General Medicine"} • {user?.profile?.department || "Clinical Care"}
+                    </>
+                  ) : (
+                    <>
+                      <MapPin /> {user?.onboarding?.state ? `${user.onboarding.state}, India` : "India"}
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <AnimatePresence mode="wait" initial={false}>
+              {editing ? (
+                isDoctor ? (
+                  /* DOCTOR EDIT FORM */
+                  <motion.form key="edit-doc" className={styles.editForm} onSubmit={saveProfile} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <label>
+                      First Name
+                      <input name="firstName" value={form.firstName} onChange={update} required />
+                    </label>
+                    <label>
+                      Last Name
+                      <input name="lastName" value={form.lastName} onChange={update} />
+                    </label>
+                    <label>
+                      Email Address
+                      <input type="email" name="email" value={form.email} onChange={update} required />
+                    </label>
+                    <label>
+                      Medical Registration Number (MCI/NMC)
+                      <input name="registrationNumber" value={form.registrationNumber} onChange={update} placeholder="e.g., MCI-87261" required />
+                    </label>
+                    <label>
+                      Specialization
+                      <select name="specialization" value={form.specialization} onChange={update} required>
+                        {DOCTOR_SPECIALTIES.map((spec) => (
+                          <option key={spec} value={spec}>{spec}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Clinical Department
+                      <select name="department" value={form.department} onChange={update} required>
+                        {DOCTOR_DEPARTMENTS.map((dept) => (
+                          <option key={dept} value={dept}>{dept}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <button className={styles.save} disabled={saving} style={{ gridColumn: "1 / -1" }}>
+                      <Save /> {saving ? "Saving Credentials…" : "Save Doctor Profile"}
+                    </button>
+                  </motion.form>
+                ) : (
+                  /* PATIENT EDIT FORM */
+                  <motion.form key="edit-patient" className={styles.editForm} onSubmit={saveProfile} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <label>
+                      {t("account.firstName", "First name")}
+                      <input name="firstName" value={form.firstName} onChange={update} required />
+                    </label>
+                    <label>
+                      {t("account.lastName", "Last name")}
+                      <input name="lastName" value={form.lastName} onChange={update} />
+                    </label>
+                    <label>
+                      {t("account.dob", "Date of birth")}
+                      <input type="date" name="dateOfBirth" value={form.dateOfBirth} onChange={update} />
+                    </label>
+                    <label>
+                      {t("account.gender", "Gender")}
+                      <select name="gender" value={form.gender} onChange={update}>
+                        <option value="">{t("account.selectGender", "Select gender")}</option>
+                        <option value="Male">{t("account.male", "Male")}</option>
+                        <option value="Female">{t("account.female", "Female")}</option>
+                        <option value="Other">{t("account.other", "Other")}</option>
+                      </select>
+                    </label>
+                    <label>
+                      {t("account.bloodGroup", "Blood Group")}
+                      <select name="bloodGroup" value={form.bloodGroup} onChange={update}>
+                        <option value="">{t("account.selectBloodGroup", "Select blood group")}</option>
+                        {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((bg) => (
+                          <option key={bg} value={bg}>{bg}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      {t("account.state", "State")}
+                      <select name="state" value={form.state} onChange={update}>
+                        <option value="">{t("account.selectState", "Select State or UT")}</option>
+                        {INDIAN_STATES_AND_UTS.map((state) => <option key={state.name} value={state.name}>{state.name}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      {t("account.language", "Language")}
+                      <select name="preferredLanguage" value={form.preferredLanguage} onChange={update}>
+                        {SUPPORTED_LANGUAGES.map((item) => (
+                          <option key={item.code} value={item.code}>
+                            {item.name} ({item.nativeName})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      {t("account.interactionMode", "Interaction Mode")}
+                      <select name="interactionMode" value={form.interactionMode} onChange={update}>
+                        <option value="voice_touch">{t("account.voiceTouch", "Voice + Touch Screen")}</option>
+                        <option value="voice">{t("account.voiceOnly", "Voice Only")}</option>
+                        <option value="touch">{t("account.touchOnly", "Touch Screen Only")}</option>
+                      </select>
+                    </label>
+                    <label>
+                      {t("account.accessibilityPreference", "Accessibility Preference")}
+                      <select name="accessibilityPreference" value={form.accessibilityPreference} onChange={update}>
+                        <option value="none">{t("account.standardInterface", "Standard Interface")}</option>
+                        <option value="large_text">{t("account.largerText", "Larger Text")}</option>
+                        <option value="voice_guidance">{t("account.audioVoiceover", "Audio Voiceover")}</option>
+                        <option value="hearing_assistance">{t("account.visualHighlights", "Visual Highlights")}</option>
+                        <option value="sign_language">{t("account.indianSignLanguage", "Indian Sign Language")}</option>
+                      </select>
+                    </label>
+                    <button className={styles.save} disabled={saving}>
+                      <Save /> {saving ? t("account.saving", "Saving…") : t("account.saveChanges", "Save Changes")}
+                    </button>
+                  </motion.form>
+                )
+              ) : (
+                isDoctor ? (
+                  /* DOCTOR VIEW DETAILS */
+                  <motion.dl key="view-doc" className={styles.information} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <div>
+                      <dt>Practitioner Name</dt>
+                      <dd>{fullName}</dd>
+                    </div>
+                    <div>
+                      <dt>Medical Reg. Number</dt>
+                      <dd>
+                        <strong>{user?.profile?.registrationNumber || form.registrationNumber || "Not provided"}</strong>
+                        <span><ShieldCheck size={14} /> National Medical Register</span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Specialization</dt>
+                      <dd>{user?.profile?.specialization || form.specialization || "General Medicine"}</dd>
+                    </div>
+                    <div>
+                      <dt>Clinical Department</dt>
+                      <dd>{user?.profile?.department || form.department || "Clinical Care"}</dd>
+                    </div>
+                    <div>
+                      <dt>Verification Status</dt>
+                      <dd>
+                        <span style={{ marginLeft: 0, padding: "3px 10px", borderRadius: "6px", background: "#dcfce7", color: "#166534", fontWeight: "700" }}>
+                          ✓ {user?.profile?.verificationStatus === "verified" ? "Verified & Certified Medical Practitioner" : "Pending Document Verification"}
+                        </span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Phone Number</dt>
+                      <dd>
+                        {user?.phone || t("account.notLinked", "Not linked")}
+                        {user?.phoneVerified && <span><CheckCircle /> {t("account.verified", "Verified")}</span>}
+                        <button onClick={openPhoneModal}>{user?.phone ? t("account.change", "Change") : t("account.linkPhone", "Link phone")}</button>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Email Address</dt>
+                      <dd>{user?.email || t("account.notLinked", "Not linked")}</dd>
+                    </div>
+                  </motion.dl>
+                ) : (
+                  /* PATIENT VIEW DETAILS */
+                  <motion.dl key="view-patient" className={styles.information} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <div>
+                      <dt>{t("account.fullName", "Full Name")}</dt>
+                      <dd>{fullName}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("account.dob", "Date of Birth")}</dt>
+                      <dd>{displayDate}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("account.gender", "Gender")}</dt>
+                      <dd>{user?.profile?.gender ? t(`account.${user.profile.gender.toLowerCase()}`, user.profile.gender) : t("account.notProvided", "Not provided")}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("account.bloodGroup", "Blood Group")}</dt>
+                      <dd>{user?.profile?.bloodGroup || user?.profile?.blood_group || form.bloodGroup || t("account.notProvided", "Not provided")}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("account.phoneNumber", "Phone Number")}</dt>
+                      <dd>
+                        {user?.phone || t("account.notLinked", "Not linked")}
+                        {user?.phoneVerified && <span><CheckCircle /> {t("account.verified", "Verified")}</span>}
+                        <button onClick={openPhoneModal}>{user?.phone ? t("account.change", "Change") : t("account.linkPhone", "Link phone")}</button>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{t("account.emailAddress", "Email Address")}</dt>
+                      <dd>{user?.email || t("account.notLinked", "Not linked")}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("account.address", "Address")}</dt>
+                      <dd>{user?.onboarding?.state ? `${user.onboarding.state}, India` : "India"}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("account.language", "Language")}</dt>
+                      <dd>{SUPPORTED_LANGUAGES.find((item) => item.code === (user?.onboarding?.preferredLanguage || language))?.name || "English"}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("account.interactionMode", "Interaction Mode")}</dt>
+                      <dd>{user?.onboarding?.interactionMode === "voice" ? t("account.voiceOnly", "Voice Only") : user?.onboarding?.interactionMode === "touch" ? t("account.touchOnly", "Touch Screen Only") : t("account.voiceTouch", "Voice + Touch Screen")}</dd>
+                    </div>
+                    <div>
+                      <dt>{t("account.accessibilityPreference", "Accessibility Preference")}</dt>
+                      <dd>{user?.onboarding?.accessibilityPreference === "large_text" ? t("account.largerText", "Larger Text") : user?.onboarding?.accessibilityPreference === "voice_guidance" ? t("account.audioVoiceover", "Audio Voiceover") : user?.onboarding?.accessibilityPreference === "hearing_assistance" ? t("account.visualHighlights", "Visual Highlights") : user?.onboarding?.accessibilityPreference === "sign_language" ? t("account.indianSignLanguage", "Indian Sign Language") : t("account.standardInterface", "Standard Interface")}</dd>
+                    </div>
+                  </motion.dl>
+                )
+              )}
+            </AnimatePresence>
           </section>
+
+          {/* DOCTOR REVIEWS & PATIENT FEEDBACK SECTION (Visible on Doctor Profile) */}
+          {isDoctor && (
+            <section className={styles.reviewsCard}>
+              <div className={styles.cardTitle}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ background: "#fef3c7", color: "#d97706", padding: "8px", borderRadius: "10px", display: "grid", placeItems: "center" }}>
+                    <Star size={20} fill="#d97706" />
+                  </div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: "17px", fontWeight: "700", color: "#0f172a" }}>
+                      Patient Reviews & Ratings
+                    </h2>
+                    <p style={{ margin: "3px 0 0 0", fontSize: "12px", color: "#64748b" }}>
+                      Ratings and feedback submitted by patients after completed consultations.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Rating Overview Summary */}
+              <div className={styles.ratingOverview}>
+                <div className={styles.scoreBlock}>
+                  <div className={styles.scoreNumber}>{reviewsData.averageRating.toFixed(1)}</div>
+                  <div className={styles.scoreStars}>
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        size={18}
+                        fill={s <= Math.round(reviewsData.averageRating) ? "#eab308" : "none"}
+                        color={s <= Math.round(reviewsData.averageRating) ? "#eab308" : "#cbd5e1"}
+                      />
+                    ))}
+                  </div>
+                  <div className={styles.scoreCount}>
+                    Based on {reviewsData.totalReviews} verified {reviewsData.totalReviews === 1 ? "review" : "reviews"}
+                  </div>
+                </div>
+
+                <div className={styles.breakdownBlock}>
+                  {[5, 4, 3, 2, 1].map((stars) => {
+                    const count = reviewsData.breakdown?.[stars] || 0;
+                    const pct = reviewsData.totalReviews > 0 ? (count / reviewsData.totalReviews) * 100 : 0;
+                    return (
+                      <div key={stars} className={styles.barRow}>
+                        <span>{stars} ★</span>
+                        <div className={styles.barTrack}>
+                          <div className={styles.barFill} style={{ width: `${pct}%` }} />
+                        </div>
+                        <span style={{ textAlign: "right", color: "#94a3b8" }}>{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Filter Tabs */}
+              <div className={styles.filterTabs}>
+                <button
+                  type="button"
+                  className={`${styles.filterTab} ${reviewFilter === "all" ? styles.filterTabActive : ""}`}
+                  onClick={() => setReviewFilter("all")}
+                >
+                  All Reviews ({reviewsData.reviews.length})
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.filterTab} ${reviewFilter === "in_person" ? styles.filterTabActive : ""}`}
+                  onClick={() => setReviewFilter("in_person")}
+                >
+                  In-Person Visits
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.filterTab} ${reviewFilter === "teleconsultation" ? styles.filterTabActive : ""}`}
+                  onClick={() => setReviewFilter("teleconsultation")}
+                >
+                  Virtual Teleconsults
+                </button>
+              </div>
+
+              {/* Reviews List */}
+              {reviewsLoading ? (
+                <div style={{ padding: "30px", textAlign: "center", color: "#64748b" }}>
+                  <RefreshCw size={18} className={styles.spinning} style={{ marginRight: "8px" }} />
+                  Loading patient reviews...
+                </div>
+              ) : filteredReviews.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <Star size={36} />
+                  <p style={{ margin: 0, fontWeight: "600" }}>No patient reviews in this category yet.</p>
+                  <small style={{ color: "#94a3b8" }}>
+                    Verified patient reviews will appear here automatically when consultations are completed.
+                  </small>
+                </div>
+              ) : (
+                <div className={styles.reviewsList}>
+                  {filteredReviews.map((review) => (
+                    <article key={review.id} className={styles.reviewItem}>
+                      <div className={styles.reviewTop}>
+                        <div className={styles.reviewerMeta}>
+                          <div className={styles.reviewerAvatar}>{review.patientInitials || "P"}</div>
+                          <div>
+                            <div className={styles.reviewerName}>
+                              {review.patientName || "Verified Patient"}
+                              {review.isVerifiedPatient && (
+                                <span className={styles.verifiedBadge}>
+                                  <CheckCircle size={10} /> Verified Patient
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className={styles.reviewStars}>
+                          {[1, 2, 3, 4, 5].map((st) => (
+                            <Star
+                              key={st}
+                              size={15}
+                              fill={st <= review.rating ? "#eab308" : "none"}
+                              color={st <= review.rating ? "#eab308" : "#cbd5e1"}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {review.reviewTitle && <h4 className={styles.reviewTitle}>{review.reviewTitle}</h4>}
+                      <p className={styles.reviewText}>{review.reviewText}</p>
+
+                      <div className={styles.reviewFooter}>
+                        <span
+                          className={`${styles.consultTypeTag} ${
+                            review.consultationType === "teleconsultation" ? styles.consultVirtual : styles.consultInPerson
+                          }`}
+                        >
+                          {review.consultationType === "teleconsultation" ? <Video size={11} /> : <Stethoscope size={11} />}
+                          {review.consultationType === "teleconsultation" ? "Virtual Consultation" : "In-Person Consultation"}
+                        </span>
+                        <span>
+                          {new Date(review.createdAt).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {/* WhatsApp Integration Card */}
           <section
@@ -507,7 +886,9 @@ export default function Account() {
                     {t("account.whatsappIntegration", "WhatsApp Integration")}
                   </h2>
                   <p style={{ margin: "3px 0 0 0", fontSize: "12px", color: "#64748b" }}>
-                    {t("account.whatsappDesc", "Connect your WhatsApp account to use the MediKiosk patient assistant through WhatsApp.")}
+                    {isDoctor
+                      ? "Connect your WhatsApp to receive real-time notifications for patient appointments and triage summaries."
+                      : t("account.whatsappDesc", "Connect your WhatsApp account to use the MediKiosk patient assistant through WhatsApp.")}
                   </p>
                 </div>
               </div>
@@ -557,7 +938,9 @@ export default function Account() {
                         )}
                       </p>
                       <div style={{ marginTop: "12px", fontSize: "13px", color: "#334155", background: "#ffffff", padding: "12px 16px", borderRadius: "10px", border: "1px solid #bbf7d0", lineHeight: "1.6" }}>
-                        📱 {t("account.whatsappUseInstructions", "You can now use MediKiosk directly through WhatsApp.")}
+                        📱 {isDoctor
+                          ? "You are connected to MediKiosk WhatsApp alerts for appointments and triage notifications."
+                          : t("account.whatsappUseInstructions", "You can now use MediKiosk directly through WhatsApp.")}
                         <br />
                         {t("account.whatsappSendHello", "Send hello medikiosk to start.")}
                         <div style={{ marginTop: "10px" }}>
@@ -620,7 +1003,9 @@ export default function Account() {
                       🔗 {t("account.linkWhatsApp", "Link WhatsApp")}
                     </div>
                     <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b" }}>
-                      {t("account.whatsappDesc", "Connect your WhatsApp account to use the MediKiosk patient assistant through WhatsApp.")}
+                      {isDoctor
+                        ? "Connect your WhatsApp account to receive live patient triage alerts and consultation notifications."
+                        : t("account.whatsappDesc", "Connect your WhatsApp account to use the MediKiosk patient assistant through WhatsApp.")}
                     </p>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
@@ -819,10 +1204,10 @@ export default function Account() {
 
         <aside className={styles.side}>
           <section className={styles.photoCard}>
-            <h2>{t("account.profilePhoto", "Profile Photo")}</h2>
+            <h2>{isDoctor ? "Doctor Photo" : t("account.profilePhoto", "Profile Photo")}</h2>
             <div className={styles.photo}>{photo ? <img src={photo} alt={fullName} /> : initials}</div>
-            <h3>{t("account.addProfilePhoto", "Add a profile photo")}</h3>
-            <p>{t("account.photoDesc", "A recognizable photo helps healthcare providers.")}</p>
+            <h3>{isDoctor ? "Professional Doctor Photo" : t("account.addProfilePhoto", "Add a profile photo")}</h3>
+            <p>{isDoctor ? "A clear profile photo builds trust with patients during consultations." : t("account.photoDesc", "A recognizable photo helps healthcare providers.")}</p>
             <label aria-disabled={photoUploading}>
               {photoUploading ? <RefreshCw className={styles.spin} /> : <Camera />} {photoUploading ? "Uploading…" : t("account.uploadPhoto", "Upload Photo")}
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoUpload} disabled={photoUploading} />
@@ -831,8 +1216,12 @@ export default function Account() {
           <section className={styles.security}>
             <ShieldCheck />
             <div>
-              <h3>{t("account.securityTitle", "Your Information is Secure")}</h3>
-              <p>{t("account.securityDesc", "We use industry-standard encryption to keep your data safe and private.")}</p>
+              <h3>{isDoctor ? "Certified Medical Credentials" : t("account.securityTitle", "Your Information is Secure")}</h3>
+              <p>
+                {isDoctor
+                  ? "Your medical practice credentials and consultation records are encrypted and protected under healthcare standards."
+                  : t("account.securityDesc", "We use industry-standard encryption to keep your data safe and private.")}
+              </p>
               <a href="#privacy">{t("account.learnMore", "Learn more")} <ArrowRight /></a>
             </div>
           </section>

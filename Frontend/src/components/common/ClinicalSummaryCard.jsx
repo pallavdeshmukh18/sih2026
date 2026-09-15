@@ -2,6 +2,7 @@ import React from "react";
 import { Download, FileText, AlertTriangle, CheckCircle2, Sparkles, Stethoscope } from "lucide-react";
 import { downloadSummaryPDF } from "../../utils/pdfGenerator";
 import toast from "react-hot-toast";
+import ClinicalSummaryRenderer from "./ClinicalSummaryRenderer";
 
 export default function ClinicalSummaryCard({
   summary = "",
@@ -284,8 +285,8 @@ export default function ClinicalSummaryCard({
             )}
 
             {/* Formatted Summary Content */}
-            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px" }}>
-              {renderFormattedText(cleanedSummaryText)}
+            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px" }}>
+              <ClinicalSummaryRenderer summary={cleanedSummaryText} />
             </div>
           </>
         );

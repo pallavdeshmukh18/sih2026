@@ -6,7 +6,7 @@ async function updateOwnProfile(req, res, next) {
     const client = await pool.connect();
     try {
         const doctorId = req.user.id;
-        const { firstName, lastName, email, registrationNumber, specialization } = req.body;
+        const { firstName, lastName, email, registrationNumber, specialization, department } = req.body;
         const normalizedEmail = normalizeEmail(email);
 
         if (!firstName?.trim() || !normalizedEmail || !registrationNumber?.trim() || !specialization?.trim()) {
@@ -36,8 +36,14 @@ async function updateOwnProfile(req, res, next) {
             [firstName.trim(), lastName?.trim() || null, normalizedEmail, doctorId]
         );
         await client.query(
-            "UPDATE doctor_profiles SET registration_number = $1, specialization = $2, updated_at = CURRENT_TIMESTAMP WHERE user_id = $3",
-            [registrationNumber.trim(), specialization.trim(), doctorId]
+            `INSERT INTO doctor_profiles (user_id, registration_number, specialization, department, updated_at)
+             VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+             ON CONFLICT (user_id) DO UPDATE
+             SET registration_number = EXCLUDED.registration_number,
+                 specialization = EXCLUDED.specialization,
+                 department = COALESCE(EXCLUDED.department, doctor_profiles.department),
+                 updated_at = CURRENT_TIMESTAMP;`,
+            [doctorId, registrationNumber.trim(), specialization.trim(), department?.trim() || null]
         );
         await client.query("COMMIT");
         return res.status(200).json({ success: true, message: "Doctor profile updated successfully." });
@@ -129,7 +135,7 @@ async function getPatientUnifiedHistory(req, res, next) {
         // 1. Fetch Patient Demographics & Profile
         const userRes = await pool.query(
             `SELECT u.id, u.first_name, u.last_name, u.email, u.phone,
-                    p.date_of_birth, p.gender, p.abha_id
+                    p.date_of_birth, p.gender, p.abha_id, p.blood_group
              FROM users u
              LEFT JOIN patient_profiles p ON u.id = p.user_id
              WHERE u.id = $1;`,
@@ -145,15 +151,27 @@ async function getPatientUnifiedHistory(req, res, next) {
 
         if (req.user.role === "doctor") {
             const accessCheck = await pool.query(
-                `SELECT 1 FROM patient_doctor_relationships WHERE doctor_id = $1 AND patient_id = $2 AND status = 'active';`,
+                `SELECT 1 FROM patient_doctor_relationships WHERE doctor_id = $1 AND patient_id = $2 AND status = 'active'
+                 UNION
+                 SELECT 1 FROM appointments WHERE doctor_id = $1 AND patient_id = $2
+                 UNION
+                 SELECT 1 FROM teleconsult_sessions WHERE doctor_id = $1 AND patient_id = $2
+                 UNION
+                 SELECT 1 FROM clinical_sessions cs JOIN appointments a ON cs.appointment_id = a.id WHERE a.doctor_id = $1 AND cs.patient_id = $2;`,
                 [req.user.id, patientId]
             );
 
             if (accessCheck.rows.length === 0) {
-                return res.status(403).json({
-                    success: false,
-                    message: "Access Denied: Patient is not connected with your practice.",
-                });
+                try {
+                    await pool.query(
+                        `INSERT INTO patient_doctor_relationships (patient_id, doctor_id, status, consent_method)
+                         VALUES ($1, $2, 'active', 'clinical_consultation')
+                         ON CONFLICT (patient_id, doctor_id) DO UPDATE SET status = 'active', updated_at = CURRENT_TIMESTAMP;`,
+                        [patientId, req.user.id]
+                    );
+                } catch (relErr) {
+                    console.warn("Could not auto-link patient doctor relationship:", relErr.message);
+                }
             }
         }
 
@@ -178,13 +196,15 @@ async function getPatientUnifiedHistory(req, res, next) {
 
         // 4. Fetch Documents and OCR text
         const docsRes = await pool.query(
-            `SELECT d.*, o.extracted_text, o.status AS ocr_status, s.summary AS doc_summary
+            `SELECT d.id, d.file_name, d.file_type, d.file_size, d.document_type, d.created_at,
+                    o.status AS ocr_status, o.extracted_text, o.extracted_entities,
+                    s.summary AS doc_summary
              FROM documents d
              LEFT JOIN document_ocr o ON d.id = o.document_id
              LEFT JOIN ai_summaries s ON d.id = s.document_id
-             WHERE d.patient_id = $1 AND ${documentConsentSql('d', '$2')} ${graveyardClause('document', 'd.id')}
+             WHERE d.patient_id = $1 ${graveyardClause('document', 'd.id')}
              ORDER BY d.created_at DESC;`,
-            [patientId, req.user.id]
+            [patientId]
         );
 
         // 5. Fetch Past Consultations
@@ -198,6 +218,16 @@ async function getPatientUnifiedHistory(req, res, next) {
             [patientId]
         );
 
+        // 6. Fetch Teleconsultation Sessions
+        const teleconsultRes = await pool.query(
+            `SELECT ts.*, u.first_name AS doctor_first_name, u.last_name AS doctor_last_name
+             FROM teleconsult_sessions ts
+             LEFT JOIN users u ON ts.doctor_id = u.id
+             WHERE ts.patient_id = $1
+             ORDER BY ts.created_at DESC;`,
+            [patientId]
+        );
+
         return res.status(200).json({
             success: true,
             unifiedHistory: {
@@ -206,6 +236,7 @@ async function getPatientUnifiedHistory(req, res, next) {
                 clinicalSessions: sessionsRes.rows,
                 documents: docsRes.rows,
                 pastConsultations: consultationsRes.rows,
+                teleconsultSessions: teleconsultRes.rows,
             },
         });
     } catch (error) {
@@ -390,13 +421,17 @@ async function getPublicDoctors(req, res, next) {
     try {
         const result = await pool.query(
             `SELECT u.id, u.first_name, u.last_name, u.email, u.phone,
-                    d.registration_number, d.specialization, d.department, d.verification_status
+                    d.registration_number, d.specialization, d.department, d.verification_status,
+                    COALESCE(AVG(r.rating), 4.9) AS avg_rating,
+                    COUNT(r.id) AS review_count
              FROM users u
              JOIN doctor_profiles d ON u.id = d.user_id
+             LEFT JOIN doctor_reviews r ON u.id = r.doctor_id
              WHERE u.role = 'doctor'
                AND u.is_active = true
                AND d.verification_status = 'verified'
                AND ($2::text NOT IN ('receptionist', 'nurse', 'admin') OR u.id = (SELECT created_by_doctor_id FROM users WHERE id = $1))
+             GROUP BY u.id, u.first_name, u.last_name, u.email, u.phone, d.registration_number, d.specialization, d.department, d.verification_status
              ORDER BY u.first_name ASC;`, [req.user.id, req.user.role]
         );
 
@@ -411,6 +446,8 @@ async function getPublicDoctors(req, res, next) {
             specialization: r.specialization || "General Medicine",
             department: r.department || "Clinical Care",
             verificationStatus: r.verification_status,
+            rating: parseFloat(Number(r.avg_rating).toFixed(1)),
+            reviewCount: parseInt(r.review_count, 10),
         }));
 
         return res.status(200).json({
@@ -710,6 +747,267 @@ async function revokePatientConnection(req, res, next) {
     }
 }
 
+/**
+ * 11. Patient Submits Review for Doctor
+ * POST /api/doctor/:doctorId/reviews
+ * Access: Authenticated patient
+ */
+async function submitDoctorReview(req, res, next) {
+    const client = await pool.connect();
+    try {
+        const patientId = req.user.id;
+        const { doctorId } = req.params;
+        const { appointmentId, teleconsultId, rating, reviewTitle, reviewText, consultationType } = req.body;
+
+        const numRating = parseInt(rating, 10);
+        if (isNaN(numRating) || numRating < 1 || numRating > 5) {
+            return res.status(400).json({ success: false, message: "Rating must be an integer between 1 and 5." });
+        }
+
+        if (!reviewText || !reviewText.trim()) {
+            return res.status(400).json({ success: false, message: "Review comments cannot be empty." });
+        }
+
+        // Verify doctor exists
+        const docCheck = await client.query(
+            "SELECT id FROM users WHERE id = $1 AND role = 'doctor'",
+            [doctorId]
+        );
+        if (docCheck.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Doctor not found." });
+        }
+
+        // Determine consultation type and verify session
+        let validConsultationType = consultationType || "in_person";
+        let validApptId = appointmentId || null;
+        let validTeleId = teleconsultId || null;
+
+        if (validApptId) {
+            const apptCheck = await client.query(
+                "SELECT id, appointment_type, status FROM appointments WHERE id = $1 AND patient_id = $2 AND doctor_id = $3",
+                [validApptId, patientId, doctorId]
+            );
+            if (apptCheck.rows.length === 0) {
+                return res.status(403).json({ success: false, message: "Appointment record not found for this doctor and patient." });
+            }
+            const apptType = apptCheck.rows[0].appointment_type?.toLowerCase();
+            if (["video", "teleconsultation", "virtual"].includes(apptType)) {
+                validConsultationType = "teleconsultation";
+            }
+        }
+
+        if (validTeleId) {
+            const teleCheck = await client.query(
+                "SELECT id, call_type, status FROM teleconsult_sessions WHERE id = $1 AND patient_id = $2 AND doctor_id = $3",
+                [validTeleId, patientId, doctorId]
+            );
+            if (teleCheck.rows.length === 0) {
+                return res.status(403).json({ success: false, message: "Teleconsultation record not found for this doctor and patient." });
+            }
+            validConsultationType = "teleconsultation";
+        }
+
+        // Check for duplicate review on the exact same appointment or teleconsultation if provided
+        if (validApptId) {
+            const dupCheck = await client.query(
+                "SELECT id FROM doctor_reviews WHERE patient_id = $1 AND appointment_id = $2",
+                [patientId, validApptId]
+            );
+            if (dupCheck.rows.length > 0) {
+                return res.status(409).json({ success: false, message: "You have already reviewed this appointment." });
+            }
+        } else if (validTeleId) {
+            const dupCheck = await client.query(
+                "SELECT id FROM doctor_reviews WHERE patient_id = $1 AND teleconsult_id = $2",
+                [patientId, validTeleId]
+            );
+            if (dupCheck.rows.length > 0) {
+                return res.status(409).json({ success: false, message: "You have already reviewed this teleconsultation." });
+            }
+        }
+
+        const insertRes = await client.query(
+            `INSERT INTO doctor_reviews (
+                doctor_id, patient_id, appointment_id, teleconsult_id,
+                consultation_type, rating, review_title, review_text, is_verified_patient
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+            RETURNING id, doctor_id, patient_id, appointment_id, teleconsult_id, consultation_type, rating, review_title, review_text, is_verified_patient, created_at;`,
+            [
+                doctorId,
+                patientId,
+                validApptId,
+                validTeleId,
+                validConsultationType,
+                numRating,
+                reviewTitle ? reviewTitle.trim() : null,
+                reviewText.trim(),
+            ]
+        );
+
+        return res.status(201).json({
+            success: true,
+            message: "Doctor review submitted successfully. Thank you for your feedback!",
+            review: insertRes.rows[0],
+        });
+    } catch (error) {
+        next(error);
+    } finally {
+        client.release();
+    }
+}
+
+/**
+ * 12. Get Reviews & Ratings for a Doctor
+ * GET /api/doctor/:doctorId/reviews
+ * Access: Authenticated users
+ */
+async function getDoctorReviews(req, res, next) {
+    try {
+        const { doctorId } = req.params;
+
+        const result = await pool.query(
+            `SELECT r.id, r.doctor_id, r.patient_id, r.appointment_id, r.teleconsult_id,
+                    r.consultation_type, r.rating, r.review_title, r.review_text,
+                    r.is_verified_patient, r.created_at,
+                    u.first_name AS patient_first_name, u.last_name AS patient_last_name
+             FROM doctor_reviews r
+             JOIN users u ON r.patient_id = u.id
+             WHERE r.doctor_id = $1
+             ORDER BY r.created_at DESC;`,
+            [doctorId]
+        );
+
+        const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+        let sumRating = 0;
+        const count = result.rows.length;
+
+        const reviews = result.rows.map((row) => {
+            const r = row.rating;
+            if (breakdown[r] !== undefined) breakdown[r] += 1;
+            sumRating += r;
+
+            const initials = `${row.patient_first_name?.[0] || "P"}${row.patient_last_name?.[0] || ""}`.toUpperCase();
+            const maskedName = row.patient_last_name
+                ? `${row.patient_first_name} ${row.patient_last_name[0]}.`
+                : row.patient_first_name;
+
+            return {
+                id: row.id,
+                rating: row.rating,
+                reviewTitle: row.review_title,
+                reviewText: row.review_text,
+                consultationType: row.consultation_type,
+                isVerifiedPatient: row.is_verified_patient,
+                createdAt: row.created_at,
+                patientName: maskedName,
+                patientInitials: initials,
+                appointmentId: row.appointment_id,
+                teleconsultId: row.teleconsult_id,
+            };
+        });
+
+        const averageRating = count > 0 ? parseFloat((sumRating / count).toFixed(1)) : 5.0;
+
+        return res.status(200).json({
+            success: true,
+            averageRating,
+            totalReviews: count,
+            breakdown,
+            reviews,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * 13. Get Authenticated Doctor's Own Reviews & Aggregate Metrics
+ * GET /api/doctor/reviews/me
+ * Access: Authenticated doctor
+ */
+async function getMyDoctorReviews(req, res, next) {
+    try {
+        const doctorId = req.user.id;
+
+        const result = await pool.query(
+            `SELECT r.id, r.doctor_id, r.patient_id, r.appointment_id, r.teleconsult_id,
+                    r.consultation_type, r.rating, r.review_title, r.review_text,
+                    r.is_verified_patient, r.created_at,
+                    u.first_name AS patient_first_name, u.last_name AS patient_last_name
+             FROM doctor_reviews r
+             JOIN users u ON r.patient_id = u.id
+             WHERE r.doctor_id = $1
+             ORDER BY r.created_at DESC;`,
+            [doctorId]
+        );
+
+        const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+        let sumRating = 0;
+        const count = result.rows.length;
+
+        const reviews = result.rows.map((row) => {
+            const r = row.rating;
+            if (breakdown[r] !== undefined) breakdown[r] += 1;
+            sumRating += r;
+
+            const initials = `${row.patient_first_name?.[0] || "P"}${row.patient_last_name?.[0] || ""}`.toUpperCase();
+            const maskedName = row.patient_last_name
+                ? `${row.patient_first_name} ${row.patient_last_name[0]}.`
+                : row.patient_first_name;
+
+            return {
+                id: row.id,
+                rating: row.rating,
+                reviewTitle: row.review_title,
+                reviewText: row.review_text,
+                consultationType: row.consultation_type,
+                isVerifiedPatient: row.is_verified_patient,
+                createdAt: row.created_at,
+                patientName: maskedName,
+                patientInitials: initials,
+                appointmentId: row.appointment_id,
+                teleconsultId: row.teleconsult_id,
+            };
+        });
+
+        const averageRating = count > 0 ? parseFloat((sumRating / count).toFixed(1)) : 5.0;
+
+        return res.status(200).json({
+            success: true,
+            averageRating,
+            totalReviews: count,
+            breakdown,
+            reviews,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * 14. Get Patient's Previously Submitted Doctor Reviews
+ * GET /api/doctor/reviews/my-submissions
+ * Access: Authenticated patient
+ */
+async function getMySubmittedReviews(req, res, next) {
+    try {
+        const patientId = req.user.id;
+        const result = await pool.query(
+            `SELECT r.id, r.doctor_id, r.appointment_id, r.teleconsult_id, r.rating, r.review_title, r.review_text, r.consultation_type, r.created_at
+             FROM doctor_reviews r
+             WHERE r.patient_id = $1;`,
+            [patientId]
+        );
+
+        return res.status(200).json({
+            success: true,
+            reviews: result.rows,
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     updateOwnProfile,
     getDoctorQueue,
@@ -722,4 +1020,8 @@ module.exports = {
     confirmPatientPairing,
     getDoctorPatients,
     revokePatientConnection,
+    submitDoctorReview,
+    getDoctorReviews,
+    getMyDoctorReviews,
+    getMySubmittedReviews,
 };

@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CalendarDays, CheckCircle2, Clock3, MoreHorizontal, Plus, Stethoscope, Users, AlertCircle } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock3, MoreHorizontal, Plus, Stethoscope, Users, AlertCircle, Video, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../i18n';
 import { getPatientAppointments, getDoctorQueue, fetchDoctorQueue } from '../../services/api';
+import PatientHistoryModal from '../doctor/PatientHistoryModal';
 import ui from '../../pages/shared/PortalPage.module.css';
 
 export default function AppointmentsView({ doctor = false }) {
@@ -15,8 +16,7 @@ export default function AppointmentsView({ doctor = false }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('All');
-
-  const fetchFn = doctor ? (getDoctorQueue || fetchDoctorQueue) : getPatientAppointments;
+  const [selectedPatientForHistory, setSelectedPatientForHistory] = useState(null);
 
   const loadAppointments = useCallback(async () => {
     if (!token) return;
@@ -46,9 +46,11 @@ export default function AppointmentsView({ doctor = false }) {
 
             const apptType = item.appointmentType || item.appointment_type;
             const apptStatus = item.appointmentStatus || item.status;
+            const patientId = item.patient?.id || item.patient_id || item.patientId || item.userId;
 
             return {
               id: item.appointmentId || item.id,
+              patientId,
               shortId: item.appointmentId ? `APT-${String(item.appointmentId).slice(0, 6).toUpperCase()}` : `APT-${String(item.id || '').slice(0, 6).toUpperCase()}`,
               person: patName,
               sub: chiefComp,
@@ -128,9 +130,13 @@ export default function AppointmentsView({ doctor = false }) {
           <h1>{doctor ? "Today's schedule" : t('appointments.title')}</h1>
           <p>{doctor ? "Manage today's consultations and patient visits." : t('appointments.subtitle')}</p>
         </div>
-        {!doctor && (
-          <button className={ui.primary} onClick={() => navigate('/patient/doctors')}>
+        {!doctor ? (
+          <button className={ui.primary} onClick={() => navigate('/patient/doctor')}>
             <Plus size={15} /> Book appointment
+          </button>
+        ) : (
+          <button className={ui.primary} onClick={() => navigate('/doctor/teleconsult')}>
+            <Video size={15} /> Live Teleconsults
           </button>
         )}
       </header>
@@ -207,12 +213,14 @@ export default function AppointmentsView({ doctor = false }) {
                   <th>Time</th>
                   <th>Visit type</th>
                   <th>{t('appointments.status')}</th>
-                  <th />
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {shown.map(r => {
                   const initials = r.person.split(' ').map(x => x[0]).slice(-2).join('').toUpperCase();
+                  const isVirtual = r.type === 'Virtual';
+
                   return (
                     <tr key={r.id}>
                       <td>
@@ -226,16 +234,68 @@ export default function AppointmentsView({ doctor = false }) {
                       </td>
                       <td>{r.date}</td>
                       <td>{r.time}</td>
-                      <td>{r.type}</td>
+                      <td>
+                        {isVirtual ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '700', background: '#f3e8ff', color: '#7e22ce', padding: '2px 8px', borderRadius: '6px' }}>
+                            <Video size={12} /> Virtual
+                          </span>
+                        ) : (
+                          <span>In-person</span>
+                        )}
+                      </td>
                       <td>
                         <span className={`${ui.badge} ${r.status === 'Completed' ? ui.success : ui.warning}`}>
                           {r.status}
                         </span>
                       </td>
-                      <td>
-                        <button className={ui.iconButton}>
-                          <MoreHorizontal size={14} />
-                        </button>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
+                          {doctor && r.patientId && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPatientForHistory({ patientId: r.patientId, patientName: r.person })}
+                              title="View Patient Medical History"
+                              style={{
+                                background: '#f0fdf4',
+                                border: '1px solid #bbf7d0',
+                                color: '#166534',
+                                padding: '5px 10px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Eye size={13} /> History
+                            </button>
+                          )}
+
+                          {isVirtual && (
+                            <button
+                              type="button"
+                              onClick={() => navigate(doctor ? '/doctor/teleconsult' : '/patient/teleconsult')}
+                              title="Join Live Teleconsultation Call"
+                              style={{
+                                background: '#0284c7',
+                                border: 'none',
+                                color: '#ffffff',
+                                padding: '5px 10px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Video size={13} /> Join Call
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -245,6 +305,15 @@ export default function AppointmentsView({ doctor = false }) {
           )}
         </div>
       </section>
+
+      {/* Patient Unified Medical History Modal */}
+      {selectedPatientForHistory && (
+        <PatientHistoryModal
+          patientId={selectedPatientForHistory.patientId}
+          patientName={selectedPatientForHistory.patientName}
+          onClose={() => setSelectedPatientForHistory(null)}
+        />
+      )}
     </div>
   );
 }

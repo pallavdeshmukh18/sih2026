@@ -8,6 +8,7 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Plus, 
+  Star,
   Stethoscope, 
   User, 
   MessageSquare, 
@@ -28,9 +29,11 @@ import {
   joinTeleconsultSession, 
   fetchPublicDoctors, 
   fetchTeleconsultMessages, 
-  sendTeleconsultMessage 
+  sendTeleconsultMessage,
+  fetchMySubmittedReviews
 } from "../../services/api";
 import TeleconsultRoom from "../../components/teleconsult/TeleconsultRoom";
+import DoctorReviewModal from "../../components/patient/DoctorReviewModal";
 import styles from "./PatientTeleconsult.module.css";
 
 export default function PatientTeleconsult() {
@@ -59,6 +62,10 @@ export default function PatientTeleconsult() {
   const [chatInput, setChatInput] = useState("");
   const [isSendingChat, setIsSendingChat] = useState(false);
 
+  // Review Modal State
+  const [reviewedTeleIds, setReviewedTeleIds] = useState(new Set());
+  const [reviewModalSession, setReviewModalSession] = useState(null);
+
   // Load patient teleconsultation sessions
   const loadSessions = useCallback(async (background = false) => {
     if (!token) return;
@@ -69,6 +76,12 @@ export default function PatientTeleconsult() {
       if (res && res.sessions) {
         setSessions(res.sessions);
       }
+      fetchMySubmittedReviews(token).then((revRes) => {
+        if (revRes && Array.isArray(revRes.reviews)) {
+          const ids = new Set(revRes.reviews.map((r) => r.teleconsult_id).filter(Boolean));
+          setReviewedTeleIds(ids);
+        }
+      }).catch(() => {});
     } catch (err) {
       console.error("Failed to load teleconsult sessions:", err);
       setError("Unable to load teleconsultation history. Please check your connection.");
@@ -212,9 +225,18 @@ export default function PatientTeleconsult() {
         isDoctor={false}
         token={token}
         onCallEnded={() => {
+          const endedSession = activeCallSession;
           setActiveCallSession(null);
           loadSessions();
           toast.success("Consultation finished successfully.");
+          // Prompt patient review for doctor right after the call!
+          if (endedSession?.peer) {
+            setReviewModalSession({
+              id: endedSession.sessionId,
+              doctor: endedSession.peer,
+              callType: endedSession.callType || "video",
+            });
+          }
         }}
       />
     );
@@ -463,9 +485,41 @@ export default function PatientTeleconsult() {
                         </span>
                       </td>
                       <td>
-                        <button className={styles.more} onClick={() => handleOpenChat(session)}>
-                          <MessageSquare />
-                        </button>
+                        <div style={{ display: "inline-flex", alignItems: "center" }}>
+                          {isCompleted && (
+                            reviewedTeleIds.has(session.id) ? (
+                              <span style={{ color: "#16a34a", fontSize: "11px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "3px", marginRight: "6px" }}>
+                                <CheckCircle2 size={12} /> Reviewed
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setReviewModalSession(session)}
+                                style={{
+                                  background: "#fef3c7",
+                                  border: "1px solid #fde68a",
+                                  color: "#b45309",
+                                  padding: "4px 8px",
+                                  borderRadius: "6px",
+                                  fontSize: "11px",
+                                  fontWeight: "700",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "3px",
+                                  marginRight: "6px",
+                                  whiteSpace: "nowrap"
+                                }}
+                                title="Rate & Review Doctor"
+                              >
+                                <Star size={12} fill="#b45309" /> Rate
+                              </button>
+                            )
+                          )}
+                          <button className={styles.more} onClick={() => handleOpenChat(session)} title="View Chat Transcript">
+                            <MessageSquare />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -690,6 +744,30 @@ export default function PatientTeleconsult() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Doctor Review Modal */}
+      {reviewModalSession && (
+        <DoctorReviewModal
+          isOpen={!!reviewModalSession}
+          onClose={() => setReviewModalSession(null)}
+          doctor={{
+            id: reviewModalSession.doctor?.id || reviewModalSession.doctor_id,
+            name: reviewModalSession.doctor?.name || `Dr. ${reviewModalSession.doctor?.firstName || ""} ${reviewModalSession.doctor?.lastName || ""}`.trim(),
+            firstName: reviewModalSession.doctor?.firstName,
+            lastName: reviewModalSession.doctor?.lastName,
+            specialization: reviewModalSession.doctor?.specialization,
+            department: reviewModalSession.doctor?.department,
+          }}
+          teleconsultId={reviewModalSession.id}
+          consultationType="teleconsultation"
+          onReviewSubmitted={() => {
+            if (reviewModalSession?.id) {
+              setReviewedTeleIds((prev) => new Set([...prev, reviewModalSession.id]));
+            }
+            loadSessions();
+          }}
+        />
+      )}
     </div>
   );
 }
