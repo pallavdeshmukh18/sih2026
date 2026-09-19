@@ -179,6 +179,7 @@ async function getPatientDocuments(req, res, next) {
              LEFT JOIN ai_summaries s ON d.id = s.document_id
              WHERE d.patient_id = $1
                AND ($3 = 'patient' OR ($3 = 'doctor' AND ${documentConsentSql('d', '$2')}))
+               AND d.id NOT IN (SELECT source_id FROM patient_graveyard_items WHERE patient_id = $1 AND source_type = 'document')
              ORDER BY d.created_at DESC;`,
             [targetPatientId, req.user.id, req.user.role]
         );
@@ -350,6 +351,7 @@ async function searchDocuments(req, res, next) {
              LEFT JOIN document_ocr o ON d.id = o.document_id
              LEFT JOIN ai_summaries s ON d.id = s.document_id
              WHERE d.patient_id = $1
+               AND d.id NOT IN (SELECT source_id FROM patient_graveyard_items WHERE patient_id = $1 AND source_type = 'document')
              ORDER BY d.created_at DESC;`,
             [patientId]
         );

@@ -262,7 +262,7 @@ export default function MedicalIdCard() {
         </span>
 
         <button
-          onClick={() => navigate("/patient/medical-id")}
+          onClick={() => navigate("/patient/medical-passport")}
           style={{
             background: "#0d9488",
             color: "#ffffff",
@@ -278,7 +278,7 @@ export default function MedicalIdCard() {
             boxShadow: "0 4px 12px rgba(13, 148, 136, 0.2)",
           }}
         >
-          {t("medicalId.viewMedicalId") || "View Medical ID →"}
+          {t("medicalPassport.viewMedicalPassport") || "View Medical Passport →"}
         </button>
       </div>
     </div>

@@ -24,7 +24,8 @@
     "react-dom": "^19.2.8",
     "react-hot-toast": "^2.6.0",
     "react-i18next": "^15.4.3",
-    "react-router-dom": "^7.18.3"
+    "react-router-dom": "^7.18.3",
+    "three": "^0.186.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

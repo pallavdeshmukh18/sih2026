@@ -1,0 +1,456 @@
+/* ==========================================================================
+   Clinical Summary Renderer Component Styles
+   ========================================================================== */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #1e293b;
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Top Intake Header & Meta Card
+   -------------------------------------------------------------------------- */
+.headerCard {
+  background: linear-gradient(135deg, #f8fafc 0%, #f0fdfa 100%);
+  border: 1px solid #ccfbf1;
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.headerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.headerTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f766e;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+}
+
+.triageBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.triageUrgent {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  box-shadow: 0 0 0 1px #fee2e2;
+  animation: pulseAlert 2.5s infinite;
+}
+
+.triageStandard {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+@keyframes pulseAlert {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0);
+  }
+}
+
+.metaTagsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.metaTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-weight: 500;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+}
+
+.metaTag strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.pathwayAyush {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.pathwayAllopathic {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+  color: #0369a1;
+}
+
+.chiefComplaintHighlight {
+  font-size: 13.5px;
+  color: #0f172a;
+  font-weight: 600;
+  background: #ffffff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #99f6e4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   Critical Alerts / Red Flags
+   -------------------------------------------------------------------------- */
+.redFlagSection {
+  background: #fff5f5;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #dc2626;
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.redFlagHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #991b1b;
+}
+
+.redFlagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.redFlagChip {
+  background: #ffffff;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* --------------------------------------------------------------------------
+   Extracted Clinical Entities Grid
+   -------------------------------------------------------------------------- */
+.entitiesSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f766e;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.entitiesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.entityCard {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.entityCard:hover {
+  border-color: #99f6e4;
+  background: #ffffff;
+}
+
+.entityLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.entityValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+/* --------------------------------------------------------------------------
+   Intake Q&A Progression Timeline
+   -------------------------------------------------------------------------- */
+.qaSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.qaHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.qaToggleBtn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0d9488;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.qaToggleBtn:hover {
+  background: #f0fdfa;
+}
+
+.qaList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.qaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #edf2f7;
+  border-radius: 10px;
+  position: relative;
+}
+
+.qaQuestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.qaBadgeQ {
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.qaAnswer {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f766e;
+  background: #f0fdfa;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccfbf1;
+  line-height: 1.4;
+  margin-left: 12px;
+}
+
+.qaBadgeA {
+  background: #0d9488;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* --------------------------------------------------------------------------
+   Clinical Recommendations
+   -------------------------------------------------------------------------- */
+.recommendationsSection {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recommendationsList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recommendationItem {
+  font-size: 12.5px;
+  color: #334155;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+.recIcon {
+  color: #0d9488;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+/* --------------------------------------------------------------------------
+   Generic Markdown Fallback Styles
+   -------------------------------------------------------------------------- */
+.markdownBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.mdHeading1, .mdHeading2, .mdHeading3 {
+  font-weight: 700;
+  color: #0f766e;
+  margin: 10px 0 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mdHeading1 {
+  font-size: 15px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 4px;
+}
+
+.mdHeading2 {
+  font-size: 14px;
+}
+
+.mdHeading3 {
+  font-size: 13px;
+}
+
+.mdParagraph {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.mdList {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mdListItem {
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.mdKvRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.mdKvKey {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.mdKvVal {
+  color: #334155;
+}
+
+/* --------------------------------------------------------------------------
+   Empty State
+   -------------------------------------------------------------------------- */
+.emptyState {
+  font-size: 13px;
+  color: #64748b;
+  font-style: italic;
+  padding: 12px;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px dashed #cbd5e1;
+}

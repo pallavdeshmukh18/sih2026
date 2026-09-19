@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../../context/AuthContext";
+import toast from "react-hot-toast";
 import {
   startClinicalSession,
   sendClinicalTextTurn,
@@ -39,12 +40,15 @@ import {
   Square,
   Stethoscope,
   User,
+  Video,
   X,
   Zap,
 } from "lucide-react";
 import { useLanguage } from "../../i18n";
+import { useAccessibility } from "../../context/AccessibilityContext";
 import heroImage from "../../assets/teleconsult-hero.png";
 import VoiceOrb from "../../components/voice/VoiceOrb";
+import ClinicalSummaryRenderer from "../../components/common/ClinicalSummaryRenderer";
 import styles from "./ClinicalAssessment.module.css";
 
 const base64ToAudioBlob = (base64) => {
@@ -110,6 +114,7 @@ const getDynamicOptions = (question, language = "en") => {
 export default function ClinicalAssessment() {
   const { user, token } = useAuth();
   const { t, currentLanguage } = useLanguage();
+  const { islEnabled, requestSign } = useAccessibility();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -124,6 +129,17 @@ export default function ClinicalAssessment() {
 
   const [sessionId, setSessionId] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState("");
+
+  // Auto-feed clinical questions or header to ISL avatar
+  useEffect(() => {
+    if (islEnabled) {
+      if (currentQuestion) {
+        requestSign(currentQuestion, { context: "clinical_question" });
+      } else {
+        requestSign("Clinical Assessment", { context: "clinical_header" });
+      }
+    }
+  }, [currentQuestion, islEnabled, requestSign]);
   const [options, setOptions] = useState([]);
   const [conversationHistory, setConversationHistory] = useState([]);
   const [customAnswerText, setCustomAnswerText] = useState("");
@@ -518,7 +534,7 @@ export default function ClinicalAssessment() {
     setError(null);
 
     try {
-      const res = await finalizeClinicalSession(sessionId, token);
+      const res = await finalizeClinicalSession(sessionId, null, token);
       if (res.success) {
         setIsCompleted(true);
         const finalSummary = res.summary || (res.session && res.session.summary) || "Assessment completed successfully.";
@@ -552,7 +568,13 @@ export default function ClinicalAssessment() {
         sessionId,
       }, token);
       setShowBookingModal(false);
-      navigate("/patient/dashboard?bookingSuccess=1");
+      const isVideo = bookingType === "video" || bookingType === "teleconsultation";
+      toast.success(
+        isVideo
+          ? "Teleconsultation booked successfully! Your clinical intake assessment is attached."
+          : "Appointment booked successfully! Your clinical intake assessment is attached."
+      );
+      navigate("/patient/appointments?bookingSuccess=1");
     } catch (bookingError) {
       setError(bookingError.message || "Failed to book appointment. Please try again.");
     } finally {
@@ -1033,21 +1055,38 @@ export default function ClinicalAssessment() {
               </p>
 
               {summary && (
-                <div className={styles.summaryBox}>
-                  <strong>{t("assessment.viewSummary", "Clinical Intake Summary for Doctor:")}</strong>
-                  <p>{summary}</p>
+                <div style={{ marginTop: "16px", textAlign: "left", width: "100%" }}>
+                  <ClinicalSummaryRenderer summary={summary} />
                 </div>
               )}
 
-              <div className={styles.completionActions}>
+              <div className={styles.completionActions} style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginTop: "20px" }}>
                 {!appointmentIdFromUrl ? (
-                  <button
-                    onClick={() => setShowBookingModal(true)}
-                    className={styles.startBtn}
-                    style={{ width: "auto", padding: "0 24px" }}
-                  >
-                    {targetDoctor ? `Book with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Book an Appointment"}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        setBookingType("in_person");
+                        setShowBookingModal(true);
+                      }}
+                      className={styles.startBtn}
+                      style={{ width: "auto", padding: "0 22px", background: "#087b6d" }}
+                    >
+                      <Stethoscope size={16} />
+                      {targetDoctor ? `Book In-Person with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Book In-Person Visit"}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setBookingType("video");
+                        setShowBookingModal(true);
+                      }}
+                      className={styles.startBtn}
+                      style={{ width: "auto", padding: "0 22px", background: "#0284c7" }}
+                    >
+                      <Video size={16} />
+                      {targetDoctor ? `Book Teleconsult with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Book Teleconsultation (Video Call)"}
+                    </button>
+                  </>
                 ) : (
                   <button
                     onClick={() => navigate("/patient/appointments")}
@@ -1059,14 +1098,15 @@ export default function ClinicalAssessment() {
                 )}
                 <button
                   onClick={() => navigate("/patient/dashboard")}
-                  className={styles.startBtn}
-                  style={{ width: "auto", padding: "0 24px" }}
+                  className={styles.secondaryBtn}
+                  style={{ width: "auto", padding: "0 20px" }}
                 >
                   {t("assessment.returnDashboard", "Return to Dashboard")}
                 </button>
                 <button
                   onClick={() => navigate("/patient/history")}
                   className={styles.secondaryBtn}
+                  style={{ width: "auto", padding: "0 20px" }}
                 >
                   {t("navigation.history", "View History")}
                 </button>
@@ -1107,7 +1147,7 @@ export default function ClinicalAssessment() {
           <div className={styles.sideCard}>
             <div className={styles.sideCardHeader}>
               <h3>{t("assessment.profileSnapshot", "Your Medical Profile")}</h3>
-              <button type="button" onClick={() => navigate("/patient/medical-id")}>{t("common.view", "View")}</button>
+              <button type="button" onClick={() => navigate("/patient/medical-passport")}>{t("common.view", "View")}</button>
             </div>
             <div className={styles.profileMini}>
               <div className={styles.miniItem}>
@@ -1138,8 +1178,9 @@ export default function ClinicalAssessment() {
       {showBookingModal && (
         <div className={styles.bookingOverlay} role="dialog" aria-modal="true" aria-label="Book an appointment">
           <form className={styles.bookingModal} onSubmit={handleCreateBooking}>
-            <h2>Book an Appointment</h2>
+            <h2>{bookingType === "video" ? "Book Teleconsultation Call" : "Book Clinical Appointment"}</h2>
             <p>{targetDoctor ? `Booking with Dr. ${targetDoctor.firstName} ${targetDoctor.lastName}` : "Choose a convenient time for your consultation."}</p>
+            
             <label>
               Select doctor
               <select value={selectedDoctorId} onChange={(event) => setSelectedDoctorId(event.target.value)} required>
@@ -1151,20 +1192,73 @@ export default function ClinicalAssessment() {
                 ))}
               </select>
             </label>
+
+            <label>
+              Consultation Mode
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "6px" }}>
+                <button
+                  type="button"
+                  onClick={() => setBookingType("in_person")}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "10px",
+                    border: bookingType === "in_person" ? "2px solid #087b6d" : "1px solid #e2e8f0",
+                    background: bookingType === "in_person" ? "#f0fdf4" : "#ffffff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontWeight: "600",
+                    fontSize: "13px",
+                    color: bookingType === "in_person" ? "#087b6d" : "#475569",
+                    textAlign: "left"
+                  }}
+                >
+                  <Stethoscope size={16} />
+                  <span>In-Person Visit</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBookingType("video")}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "10px",
+                    border: bookingType === "video" ? "2px solid #0284c7" : "1px solid #e2e8f0",
+                    background: bookingType === "video" ? "#f0f9ff" : "#ffffff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontWeight: "600",
+                    fontSize: "13px",
+                    color: bookingType === "video" ? "#0284c7" : "#475569",
+                    textAlign: "left"
+                  }}
+                >
+                  <Video size={16} />
+                  <span>Teleconsult Video</span>
+                </button>
+              </div>
+            </label>
+
             <label>
               Date and time
               <input type="datetime-local" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} required />
             </label>
-            <label>
-              Consultation type
-              <select value={bookingType} onChange={(event) => setBookingType(event.target.value)}>
-                <option value="in_person">In-person consultation</option>
-                <option value="video">Teleconsultation</option>
-              </select>
-            </label>
+
+            {bookingType === "video" && (
+              <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: "10px", padding: "10px 14px", fontSize: "12px", color: "#0369a1", display: "flex", alignItems: "center", gap: "8px" }}>
+                <Video size={16} />
+                <span>A secure encrypted teleconsultation room will be created and visible on your Care Schedule.</span>
+              </div>
+            )}
+
             <div className={styles.bookingActions}>
               <button type="button" className={styles.secondaryBtn} onClick={() => setShowBookingModal(false)}>Cancel</button>
-              <button type="submit" className={styles.startBtn} disabled={bookingSubmitting}>{bookingSubmitting ? "Booking..." : "Confirm Booking"}</button>
+              <button type="submit" className={styles.startBtn} disabled={bookingSubmitting} style={{ background: bookingType === "video" ? "#0284c7" : "#087b6d" }}>
+                {bookingSubmitting ? "Booking..." : bookingType === "video" ? "Confirm Teleconsultation" : "Confirm Appointment"}
+              </button>
             </div>
           </form>
         </div>

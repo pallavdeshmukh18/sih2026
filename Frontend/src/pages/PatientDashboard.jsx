@@ -7,6 +7,7 @@ import {
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../i18n";
+import { useAccessibility } from "../context/AccessibilityContext";
 import { getPatientAppointments, uploadMedicalDocument, cancelAppointment } from "../services/api";
 import { formatDoctorName, transliterateName } from "../utils/transliterate";
 import careImage from "../assets/indian-care-dashboard.png";
@@ -32,12 +33,14 @@ const healthTips = [
 export default function PatientDashboard() {
   const { user, token } = useAuth();
   const { language, t } = useLanguage();
+  const { islEnabled, requestSign } = useAccessibility();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [appointments, setAppointments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [tipIndex, setTipIndex] = useState(0);
   const [selectedAppt, setSelectedAppt] = useState(null);
+
 
   const fetchAppointments = () => {
     if (!token) return;
@@ -332,7 +335,7 @@ export default function PatientDashboard() {
               <h2>{t("dashboard.quickActions", "Quick Actions")}</h2>
             </div>
             <div className={styles.quickActions}>
-              <button onClick={() => navigate("/patient/medical-id")}><Share2 /><span>{t("dashboard.shareRecords", "Share Records")}</span></button>
+              <button onClick={() => navigate("/patient/medical-passport")}><Share2 /><span>{t("dashboard.shareRecords", "Share Records")}</span></button>
               <button onClick={() => navigate("/patient/documents")}><Download /><span>{t("dashboard.downloadSummary", "Download Summary")}</span></button>
               <button onClick={() => navigate("/patient/assessment")}><Activity /><span>{t("dashboard.addVitals", "Add Vitals")}</span></button>
               <button onClick={() => navigate("/patient/history")}><ShieldCheck /><span>{t("dashboard.insuranceClaims", "Insurance Claims")}</span></button>

@@ -4,6 +4,7 @@ import { FileText, AlertTriangle, Activity, Pill, Clock, Edit3, Save, CheckCircl
 import { useAuth } from '../../context/AuthContext';
 import { confirmConsultation } from '../../services/api';
 import toast from 'react-hot-toast';
+import ClinicalSummaryRenderer from '../common/ClinicalSummaryRenderer';
 
 const ClinicalSummary = ({ patient, onConsultationCompleted }) => {
     const { token } = useAuth();
@@ -142,9 +143,7 @@ const ClinicalSummary = ({ patient, onConsultationCompleted }) => {
                             onChange={(e) => setSummary(e.target.value)}
                         />
                     ) : (
-                        <p style={{ lineHeight: '1.6', color: 'var(--color-dark)', margin: 0 }}>
-                            {summary}
-                        </p>
+                        <ClinicalSummaryRenderer summary={summary} />
                     )}
                 </div>
 

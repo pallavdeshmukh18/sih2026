@@ -45,6 +45,10 @@ const Sidebar = ({ onHoverChange, collapsed = false }) => {
                                 <Users size={20} />
                                 <span>Walk-In Registration</span>
                             </NavLink>
+                            <NavLink to="/receptionist/insurance" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                                <ShieldCheck size={20} />
+                                <span>Shared Insurance</span>
+                            </NavLink>
                         </>
                     )}
 
@@ -54,10 +58,16 @@ const Sidebar = ({ onHoverChange, collapsed = false }) => {
                     </NavLink>
                     
                     {role === 'doctor' && (
-                        <NavLink to="/doctor/patients" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                            <Users size={20} />
-                            <span>Patients</span>
-                        </NavLink>
+                        <>
+                            <NavLink to="/doctor/patients" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                                <Users size={20} />
+                                <span>Patients</span>
+                            </NavLink>
+                            <NavLink to="/doctor/insurance" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                                <ShieldCheck size={20} />
+                                <span>Shared Insurance</span>
+                            </NavLink>
+                        </>
                     )}
 
                     {role === 'patient' && (
@@ -66,9 +76,9 @@ const Sidebar = ({ onHoverChange, collapsed = false }) => {
                                 <Stethoscope size={20} />
                                 <span>{t('navigation.assessment', 'Clinical Assessment')}</span>
                             </NavLink>
-                            <NavLink to="/patient/medical-id" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                            <NavLink to="/patient/medical-passport" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                                 <ShieldCheck size={20} />
-                                <span>{t('medicalId.title') || 'Medical ID'}</span>
+                                <span>{t('medicalPassport.title', 'Medical Passport')}</span>
                             </NavLink>
                             <NavLink to="/patient/history" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                                 <FileText size={20} />

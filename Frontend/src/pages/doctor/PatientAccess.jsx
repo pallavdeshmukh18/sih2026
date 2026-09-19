@@ -1,16 +1,26 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, FileSearch, ShieldCheck, CheckCircle2, Search, MoreVertical, Plus, QrCode, X, Loader2, AlertCircle, UserCheck, Key, RefreshCw, Trash2, Camera } from 'lucide-react';
+import { Lock, FileSearch, ShieldCheck, CheckCircle2, Search, MoreVertical, Plus, QrCode, X, Loader2, AlertCircle, UserCheck, Key, RefreshCw, Trash2, Camera, Eye, FileText, Sparkles } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useAuth } from '../../context/AuthContext';
 import { getDoctorPatients, previewPatientPairing, confirmPatientPairing, revokePatientConnection } from '../../services/api';
+import PatientHistoryModal from '../../components/doctor/PatientHistoryModal';
 
 const PatientAccess = () => {
     const { token } = useAuth();
+    const [searchParams] = useSearchParams();
+    const urlPatientId = searchParams.get('patientId') || searchParams.get('patient');
+
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Patient History Modal State
+    const [selectedPatientForHistory, setSelectedPatientForHistory] = useState(
+        urlPatientId ? { patientId: urlPatientId, patientName: 'Patient' } : null
+    );
 
     // Modal state
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -36,6 +46,12 @@ const PatientAccess = () => {
             const res = await getDoctorPatients(token);
             if (res.success && Array.isArray(res.patients)) {
                 setPatients(res.patients);
+                if (urlPatientId) {
+                    const match = res.patients.find(p => String(p.id) === String(urlPatientId) || String(p.patientId) === String(urlPatientId) || String(p.userId) === String(urlPatientId));
+                    if (match) {
+                        setSelectedPatientForHistory({ patientId: urlPatientId, patientName: match.patientName });
+                    }
+                }
             } else {
                 setPatients([]);
             }
@@ -281,46 +297,64 @@ const PatientAccess = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredPatients.map((pt) => (
-                                            <tr key={pt.id || pt.relationshipId} style={{ borderBottom: "1px solid var(--color-border)" }}>
-                                                <td style={{ padding: "16px 24px" }}>
-                                                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                                        <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "600", color: "#166534", fontSize: "14px" }}>
-                                                            {pt.firstName?.charAt(0)}{(pt.lastName || pt.patientName?.split(' ')[1])?.charAt(0)}
+                                        {filteredPatients.map((pt) => {
+                                            const patientId = pt.patientId || pt.id || pt.userId;
+                                            return (
+                                                <tr 
+                                                    key={pt.id || pt.relationshipId} 
+                                                    style={{ borderBottom: "1px solid var(--color-border)", cursor: "pointer", transition: "background 0.15s" }}
+                                                    onClick={() => setSelectedPatientForHistory({ patientId, patientName: pt.patientName })}
+                                                    onMouseEnter={(e) => e.currentTarget.style.background = "#f8fafc"}
+                                                    onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+                                                >
+                                                    <td style={{ padding: "16px 24px" }}>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                                            <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "600", color: "#166534", fontSize: "14px" }}>
+                                                                {pt.firstName?.charAt(0)}{(pt.lastName || pt.patientName?.split(' ')[1])?.charAt(0)}
+                                                            </div>
+                                                            <div>
+                                                                <div style={{ fontWeight: "600", fontSize: "14px", color: "var(--color-dark)" }}>{pt.patientName}</div>
+                                                                <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>{pt.medicalId}</div>
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <div style={{ fontWeight: "600", fontSize: "14px", color: "var(--color-dark)" }}>{pt.patientName}</div>
-                                                            <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>{pt.medicalId}</div>
+                                                    </td>
+                                                    <td style={{ padding: "16px 24px", fontSize: "14px", color: "var(--color-dark)" }}>{pt.gender}</td>
+                                                    <td style={{ padding: "16px 24px", fontSize: "14px", color: "var(--color-dark)" }}>{pt.age} yrs</td>
+                                                    <td style={{ padding: "16px 24px", fontSize: "14px", color: "var(--color-dark)" }}>{pt.lastVisit}</td>
+                                                    <td style={{ padding: "16px 24px" }}>
+                                                        <span style={{ 
+                                                            background: pt.status === 'Granted' ? "#dcfce7" : "#fef9c3", 
+                                                            color: pt.status === 'Granted' ? "#166534" : "#854d0e", 
+                                                            padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600",
+                                                            display: "inline-flex", alignItems: "center", gap: "4px"
+                                                        }}>
+                                                            {pt.status === 'Granted' && <CheckCircle2 size={12} />}
+                                                            {pt.status}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: "16px 24px", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
+                                                        <div style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
+                                                            <button 
+                                                                onClick={() => setSelectedPatientForHistory({ patientId, patientName: pt.patientName })}
+                                                                title="View Patient Medical History & Clinical Triage"
+                                                                style={{ background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "5px" }}
+                                                            >
+                                                                <Eye size={13} /> View History
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => handleRevoke(pt.id)}
+                                                                disabled={revokingId === pt.id}
+                                                                title="Revoke Access"
+                                                                style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fee2e2", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                                                            >
+                                                                <Trash2 size={13} />
+                                                                {revokingId === pt.id ? "Revoking..." : "Revoke"}
+                                                            </button>
                                                         </div>
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: "16px 24px", fontSize: "14px", color: "var(--color-dark)" }}>{pt.gender}</td>
-                                                <td style={{ padding: "16px 24px", fontSize: "14px", color: "var(--color-dark)" }}>{pt.age} yrs</td>
-                                                <td style={{ padding: "16px 24px", fontSize: "14px", color: "var(--color-dark)" }}>{pt.lastVisit}</td>
-                                                <td style={{ padding: "16px 24px" }}>
-                                                    <span style={{ 
-                                                        background: pt.status === 'Granted' ? "#dcfce7" : "#fef9c3", 
-                                                        color: pt.status === 'Granted' ? "#166534" : "#854d0e", 
-                                                        padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600",
-                                                        display: "inline-flex", alignItems: "center", gap: "4px"
-                                                    }}>
-                                                        {pt.status === 'Granted' && <CheckCircle2 size={12} />}
-                                                        {pt.status}
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding: "16px 24px", textAlign: "right" }}>
-                                                    <button 
-                                                        onClick={() => handleRevoke(pt.id)}
-                                                        disabled={revokingId === pt.id}
-                                                        title="Revoke Access"
-                                                        style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fee2e2", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                                                    >
-                                                        <Trash2 size={13} />
-                                                        {revokingId === pt.id ? "Revoking..." : "Revoke"}
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             )}
@@ -514,6 +548,15 @@ const PatientAccess = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Patient Unified Medical History & AI Triage Modal */}
+            {selectedPatientForHistory && (
+                <PatientHistoryModal
+                    patientId={selectedPatientForHistory.patientId}
+                    patientName={selectedPatientForHistory.patientName}
+                    onClose={() => setSelectedPatientForHistory(null)}
+                />
+            )}
         </div>
     );
 };

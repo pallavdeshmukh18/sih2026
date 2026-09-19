@@ -138,6 +138,10 @@ export default function PatientOnboarding() {
                 document.body.classList.remove("larger-text-mode");
             }
 
+            if (accessibility === "sign_language") {
+                localStorage.setItem("medikiosk_isl_enabled", "true");
+            }
+
             // Refresh user context so onboarding.completed becomes true
             await refreshUser();
 
@@ -412,6 +416,22 @@ export default function PatientOnboarding() {
                                         <div className={styles.optionText}>
                                             <span className={styles.optionTitle}>{t("onboarding.hearingAssistance")}</span>
                                             <span className={styles.optionDesc}>{t("onboarding.hearingAssistanceDesc")}</span>
+                                        </div>
+                                    </button>
+
+                                    {/* Option E: Indian Sign Language */}
+                                    <button
+                                        type="button"
+                                        className={`${styles.optionCard} ${accessibility === "sign_language" ? styles.optionCardSelected : ""}`}
+                                        onClick={() => { setAccessibility("sign_language"); setError(""); }}
+                                        data-testid="onboarding-opt-sign-language"
+                                    >
+                                        <div className={styles.iconCircle}>
+                                            <Sparkles size={24} />
+                                        </div>
+                                        <div className={styles.optionText}>
+                                            <span className={styles.optionTitle}>{t("accessibility.indianSignLanguage", "Indian Sign Language")}</span>
+                                            <span className={styles.optionDesc}>{t("accessibility.indianSignLanguageDesc", "Show a 3D avatar that signs instructions and information")}</span>
                                         </div>
                                     </button>
                                 </div>

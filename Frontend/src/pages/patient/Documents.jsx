@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
+import { useAccessibility } from "../../context/AccessibilityContext";
 import {
   askDocumentQuestion,
   deleteMedicalDocument,
@@ -63,11 +64,18 @@ export default function Documents() {
   const { user, token } = useAuth();
   const patientId = user?.id;
   const { currentLanguage, t } = useLanguage();
+  const { islEnabled, requestSign } = useAccessibility();
   const fileInputRef = useRef(null);
   const scanInputRef = useRef(null);
   const aiInputRef = useRef(null);
   const recordsSectionRef = useRef(null);
   const [documents, setDocuments] = useState([]);
+
+  useEffect(() => {
+    if (islEnabled) {
+      requestSign("Medical Documents", { context: "documents_header" });
+    }
+  }, [islEnabled, requestSign]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [uploadState, setUploadState] = useState("idle");
@@ -193,6 +201,9 @@ export default function Documents() {
 
     setUploadState("uploading");
     setUploadMessage("Uploading and securely processing your document…");
+    if (islEnabled) {
+      requestSign("Uploading document", { context: "documents_upload" });
+    }
     const formData = new FormData();
     formData.append("file", file);
     formData.append("patientId", patientId);
@@ -203,6 +214,9 @@ export default function Documents() {
       if (!response.success) throw new Error(response.message || "Upload failed.");
       setUploadState("success");
       setUploadMessage("Document uploaded successfully.");
+      if (islEnabled) {
+        requestSign("Document uploaded successfully", { context: "documents_success" });
+      }
       await fetchDocuments(false);
       window.setTimeout(() => setUploadState("idle"), 3500);
     } catch (uploadError) {

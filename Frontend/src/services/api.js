@@ -196,6 +196,31 @@ export async function fetchPatientUnifiedHistory(patientId, token) {
     return apiRequest(`/api/doctor/patient/${patientId}/unified-history`, "GET", null, token);
 }
 
+/** Update Doctor Professional Profile */
+export async function updateDoctorProfile(profileData, token) {
+    return apiRequest("/api/doctor/profile", "PATCH", profileData, token);
+}
+
+/** Submit Patient Review for a Doctor */
+export async function submitDoctorReview(doctorId, reviewData, token) {
+    return apiRequest(`/api/doctor/${doctorId}/reviews`, "POST", reviewData, token);
+}
+
+/** Fetch Public Reviews & Aggregate Ratings for a Doctor */
+export async function fetchDoctorReviews(doctorId, token) {
+    return apiRequest(`/api/doctor/${doctorId}/reviews`, "GET", null, token);
+}
+
+/** Fetch Authenticated Doctor's Own Reviews */
+export async function fetchMyDoctorReviews(token) {
+    return apiRequest("/api/doctor/reviews/me", "GET", null, token);
+}
+
+/** Fetch Authenticated Patient's Submitted Doctor Reviews */
+export async function fetchMySubmittedReviews(token) {
+    return apiRequest("/api/doctor/reviews/my-submissions", "GET", null, token);
+}
+
 /** Confirm & Record Doctor Consultation Diagnosis & Notes */
 export async function confirmConsultation(appointmentId, consultationData, token) {
     return apiRequest(`/api/doctor/consultations/${appointmentId}/confirm`, "POST", consultationData, token);
@@ -344,6 +369,11 @@ export const getInsurancePolicies = token => apiRequest("/api/insurance/policies
 export const getInsurancePolicy = (id, token) => apiRequest(`/api/insurance/policies/${id}`, "GET", null, token);
 export const updateInsurancePolicy = (id, data, token) => apiRequest(`/api/insurance/policies/${id}`, "PATCH", data, token);
 export const deleteInsurancePolicy = (id, token) => apiRequest(`/api/insurance/policies/${id}`, "DELETE", null, token);
+export const getInsuranceShareCandidates = token => apiRequest("/api/insurance/share-candidates", "GET", null, token);
+export const getInsurancePolicyAccess = (id, token) => apiRequest(`/api/insurance/policies/${id}/access`, "GET", null, token);
+export const setInsurancePolicyAccess = (id, data, token) => apiRequest(`/api/insurance/policies/${id}/access`, "PUT", data, token);
+export const getSharedInsurancePolicies = token => apiRequest("/api/insurance/shared-policies", "GET", null, token);
+export const getSharedInsurancePolicy = (id, token) => apiRequest(`/api/insurance/shared-policies/${id}`, "GET", null, token);
 export const addInsuranceProcedureLimit = (id, data, token) => apiRequest(`/api/insurance/policies/${id}/procedure-limits`, "POST", data, token);
 export const addInsuranceExclusion = (id, data, token) => apiRequest(`/api/insurance/policies/${id}/exclusions`, "POST", data, token);
 export const extractInsurancePolicy = (documentId, token) => apiRequest(`/api/insurance/documents/${documentId}/extract`, "POST", null, token);
@@ -412,8 +442,16 @@ export async function getClinicalSession(sessionId, token) {
 }
 
 /** Finalize Clinical Intake Session */
-export async function finalizeClinicalSession(sessionId, documentData = null, token) {
-    return apiRequest(`/api/sessions/${sessionId}/finalize`, "POST", { documentData }, token);
+export async function finalizeClinicalSession(sessionId, tokenOrDocData = null, optionalToken = null) {
+    let documentData = null;
+    let authToken = optionalToken;
+    if (typeof tokenOrDocData === "string" && !optionalToken) {
+        authToken = tokenOrDocData;
+    } else {
+        documentData = tokenOrDocData;
+        authToken = optionalToken;
+    }
+    return apiRequest(`/api/sessions/${sessionId}/finalize`, "POST", { documentData }, authToken);
 }
 
 /** Delete Clinical Intake Session */
@@ -460,9 +498,41 @@ export async function deleteDocument(documentId, token) {
     return apiRequest(`/api/documents/${documentId}`, "DELETE", null, token);
 }
 
-/** Fetch Authenticated Patient Medical ID */
-export async function getMedicalId(token) {
-    return apiRequest("/api/patient/medical-id", "GET", null, token);
+/** Fetch Authenticated Patient Medical Passport / ID with Time Range Support */
+export async function getMedicalPassport(token, params = {}) {
+    const query = new URLSearchParams();
+    if (params.timeRange) query.append("timeRange", params.timeRange);
+    if (params.startDate) query.append("startDate", params.startDate);
+    if (params.endDate) query.append("endDate", params.endDate);
+    const qs = query.toString() ? `?${query.toString()}` : "";
+    return apiRequest(`/api/patient/medical-passport${qs}`, "GET", null, token);
+}
+
+export const getMedicalId = getMedicalPassport;
+
+/** Fetch Authenticated Patient Graveyard Records */
+export async function getGraveyardItems(token) {
+    return apiRequest("/api/patient/graveyard", "GET", null, token);
+}
+
+/** Archive a Record into the Graveyard */
+export async function archiveGraveyardItem(sourceType, sourceId, reason, token) {
+    return apiRequest("/api/patient/graveyard/archive", "POST", { sourceType, sourceId, reason }, token);
+}
+
+/** Restore a Record from the Graveyard to Active History */
+export async function restoreGraveyardItem(sourceType, sourceId, token) {
+    return apiRequest("/api/patient/graveyard/restore", "POST", { sourceType, sourceId }, token);
+}
+
+/** Get Patient Graveyard Retention Policy */
+export async function getGraveyardPolicy(token) {
+    return apiRequest("/api/patient/graveyard/policy", "GET", null, token);
+}
+
+/** Update Patient Graveyard Retention Policy */
+export async function updateGraveyardPolicy(policy, token) {
+    return apiRequest("/api/patient/graveyard/policy", "PATCH", { policy }, token);
 }
 
 /** Get Document View / Download Signed URL */

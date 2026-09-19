@@ -15,16 +15,19 @@ import {
   TrendingUp,
   UserRound,
   Users,
+  Video,
+  Eye,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { fetchDoctorQueue } from "../services/api";
+import PatientHistoryModal from "../components/doctor/PatientHistoryModal";
 import doctorHero from "../assets/doctor-dashboard-hero-v2.png";
 import styles from "./DoctorDashboard.module.css";
 
 const quickActions = [
   { label: "View Appointments", icon: CalendarDays, tone: "mint", path: "/doctor/appointments" },
   { label: "Search Patient", icon: UserRound, tone: "blue", path: "/doctor/patients" },
-  { label: "Add Clinical Note", icon: ClipboardPlus, tone: "rose", path: "/doctor/patients" },
+  { label: "Live Teleconsults", icon: Video, tone: "rose", path: "/doctor/teleconsult" },
   { label: "Create Prescription", icon: Pill, tone: "lilac", path: "/doctor/patients" },
 ];
 
@@ -33,8 +36,11 @@ function patientDetails(item) {
   const firstName = patient.firstName || item.patient_first_name || item.firstName || "Patient";
   const lastName = patient.lastName || item.patient_last_name || item.lastName || "";
   const scheduled = item.scheduledAt || item.scheduled_at;
+  const apptType = item.appointmentType || item.appointment_type || item.callType || "in_person";
+  const isVirtual = ["video", "teleconsultation", "virtual"].includes(apptType?.toLowerCase());
   return {
     id: item.appointmentId || item.id,
+    patientId: patient.id || item.patient_id || item.patientId || item.userId,
     name: item.name || `${firstName} ${lastName}`.trim(),
     initials: `${firstName[0] || "P"}${lastName[0] || ""}`,
     time: scheduled ? new Date(scheduled).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—",
@@ -42,6 +48,8 @@ function patientDetails(item) {
     age: item.age || "—",
     gender: item.gender || patient.gender || "",
     status: item.appointmentStatus || item.status || "scheduled",
+    isVirtual,
+    appointmentType: apptType,
   };
 }
 
@@ -65,6 +73,7 @@ export default function DoctorDashboard() {
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [calendarDate, setCalendarDate] = useState(new Date());
+  const [selectedPatientForHistory, setSelectedPatientForHistory] = useState(null);
 
   const loadQueue = useCallback(async () => {
     if (!token) return;
@@ -124,10 +133,93 @@ export default function DoctorDashboard() {
             <section className={styles.card}>
               <header><div><h2>Today’s Schedule</h2><p>Your appointments for today</p></div><button onClick={() => navigate("/doctor/appointments")}>View All <ArrowRight /></button></header>
               <div className={styles.scheduleList}>
-                {patients.length ? patients.slice(0, 5).map((patient, index) => (
-                  <button key={patient.id || index} onClick={() => navigate("/doctor/patients")}>
-                    <time>{patient.time}</time><span className={styles.patientAvatar}>{patient.initials}</span><span className={styles.patientIdentity}><strong>{patient.name}</strong><small>{patient.age}{patient.gender ? ` · ${patient.gender}` : ""}</small></span><span className={styles.reason}>{patient.reason}</span><span className={`${styles.status} ${styles[patient.status]}`}>{patient.status.replaceAll("_", " ")}</span><MoreVertical />
-                  </button>
+                {patients.length ? patients.slice(0, 6).map((patient, index) => (
+                  <div
+                    key={patient.id || index}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "12px 16px",
+                      borderRadius: "10px",
+                      border: "1px solid #f1f5f9",
+                      background: "#ffffff",
+                      gap: "12px",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, cursor: patient.patientId ? "pointer" : "default" }}
+                      onClick={() => {
+                        if (patient.patientId) {
+                          setSelectedPatientForHistory({ patientId: patient.patientId, patientName: patient.name });
+                        }
+                      }}
+                    >
+                      <time style={{ fontSize: "12px", fontWeight: "700", color: "#0d9488", minWidth: "60px" }}>{patient.time}</time>
+                      <span className={styles.patientAvatar}>{patient.initials}</span>
+                      <span className={styles.patientIdentity}>
+                        <strong style={{ fontSize: "14px", color: "#0f172a" }}>{patient.name}</strong>
+                        <small>{patient.age}{patient.gender ? ` · ${patient.gender}` : ""}</small>
+                      </span>
+                      <span className={styles.reason} style={{ flex: 1 }}>{patient.reason}</span>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      {patient.isVirtual && (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: "700", background: "#f3e8ff", color: "#7e22ce", padding: "3px 8px", borderRadius: "6px" }}>
+                          <Video size={12} /> Teleconsult
+                        </span>
+                      )}
+                      <span className={`${styles.status} ${styles[patient.status]}`}>{patient.status.replaceAll("_", " ")}</span>
+                      
+                      {patient.patientId && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPatientForHistory({ patientId: patient.patientId, patientName: patient.name })}
+                          title="View Patient Medical History & Clinical Triage"
+                          style={{
+                            background: "#f0fdf4",
+                            border: "1px solid #bbf7d0",
+                            color: "#166534",
+                            padding: "6px 10px",
+                            borderRadius: "6px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px"
+                          }}
+                        >
+                          <Eye size={13} /> Records
+                        </button>
+                      )}
+
+                      {patient.isVirtual && (
+                        <button
+                          type="button"
+                          onClick={() => navigate("/doctor/teleconsult")}
+                          title="Join Live Teleconsultation Room"
+                          style={{
+                            background: "#0284c7",
+                            border: "none",
+                            color: "#ffffff",
+                            padding: "6px 10px",
+                            borderRadius: "6px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px"
+                          }}
+                        >
+                          <Video size={13} /> Call
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 )) : <div className={styles.empty}><CalendarDays /><strong>No appointments today</strong><span>New bookings will appear here automatically.</span></div>}
               </div>
             </section>
@@ -135,7 +227,49 @@ export default function DoctorDashboard() {
             <section className={styles.card}>
               <header><div><h2>Recent Patients</h2><p>Recently consulted patients</p></div><button onClick={() => navigate("/doctor/patients")}>View All <ArrowRight /></button></header>
               <div className={styles.recentList}>
-                {patients.length ? patients.slice(0, 5).map((patient, index) => <button key={patient.id || index} onClick={() => navigate("/doctor/patients")}><span className={styles.patientAvatar}>{patient.initials}</span><span><strong>{patient.name}</strong><small>{patient.reason} · {patient.time}</small></span><MoreVertical /></button>) : <div className={styles.empty}><UserRound /><strong>No recent patients</strong><span>Your consultation history will appear here.</span></div>}
+                {patients.length ? patients.slice(0, 5).map((patient, index) => (
+                  <div
+                    key={patient.id || index}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: "8px", border: "1px solid #f1f5f9" }}
+                  >
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: "10px", cursor: patient.patientId ? "pointer" : "default" }}
+                      onClick={() => {
+                        if (patient.patientId) {
+                          setSelectedPatientForHistory({ patientId: patient.patientId, patientName: patient.name });
+                        }
+                      }}
+                    >
+                      <span className={styles.patientAvatar}>{patient.initials}</span>
+                      <span>
+                        <strong style={{ fontSize: "13px", color: "#0f172a", display: "block" }}>{patient.name}</strong>
+                        <small style={{ color: "#64748b" }}>{patient.reason} · {patient.time}</small>
+                      </span>
+                    </div>
+                    {patient.patientId && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPatientForHistory({ patientId: patient.patientId, patientName: patient.name })}
+                        title="View Patient History"
+                        style={{
+                          background: "#f0fdf4",
+                          border: "1px solid #bbf7d0",
+                          color: "#166534",
+                          padding: "4px 8px",
+                          borderRadius: "6px",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "3px"
+                        }}
+                      >
+                        <Eye size={12} /> View History
+                      </button>
+                    )}
+                  </div>
+                )) : <div className={styles.empty}><UserRound /><strong>No recent patients</strong><span>Your consultation history will appear here.</span></div>}
               </div>
             </section>
           </div>
@@ -149,7 +283,7 @@ export default function DoctorDashboard() {
               <div className={styles.week}>{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div>
               <div className={styles.days}>{calendarDays.map(({ day, outside }, index) => <button key={`${day}-${index}`} className={`${outside ? styles.outside : ""} ${!outside && day === today.getDate() && calendarDate.getMonth() === today.getMonth() && calendarDate.getFullYear() === today.getFullYear() ? styles.today : ""}`}>{day}</button>)}</div>
             </div>
-            <div className={styles.miniSchedule}>{patients.slice(0, 3).map((patient, index) => <button key={patient.id || index}><i className={styles[`dot${index + 1}`]} /><time>{patient.time}</time><span><strong>{patient.name}</strong><small>{patient.reason}</small></span><ChevronRight /></button>)}{!patients.length && <p>No scheduled appointments.</p>}</div>
+            <div className={styles.miniSchedule}>{patients.slice(0, 3).map((patient, index) => <button key={patient.id || index} onClick={() => { if (patient.patientId) setSelectedPatientForHistory({ patientId: patient.patientId, patientName: patient.name }); }}><i className={styles[`dot${index + 1}`]} /><time>{patient.time}</time><span><strong>{patient.name}</strong><small>{patient.reason}</small></span><ChevronRight /></button>)}{!patients.length && <p>No scheduled appointments.</p>}</div>
           </section>
 
           <section className={`${styles.card} ${styles.practiceCard}`}>
@@ -160,6 +294,15 @@ export default function DoctorDashboard() {
           <section className={styles.encouragement}><span><CalendarDays /></span><div><strong>Keep Making a Difference</strong><small>Your care changes lives.</small></div></section>
         </aside>
       </div>
+
+      {/* Patient Unified Medical History & AI Triage Modal */}
+      {selectedPatientForHistory && (
+        <PatientHistoryModal
+          patientId={selectedPatientForHistory.patientId}
+          patientName={selectedPatientForHistory.patientName}
+          onClose={() => setSelectedPatientForHistory(null)}
+        />
+      )}
     </motion.main>
   );
 }

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileText, MapPin, MoreHorizontal, Plus, Search, Stethoscope, UserRound, Trash2, X, Info, Eye } from "lucide-react";
+import { ArrowRight, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileText, MapPin, MoreHorizontal, Plus, Search, Star, Stethoscope, UserRound, Trash2, Video, X, Info, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
-import { getPatientAppointments, cancelAppointment } from "../../services/api";
+import { useAccessibility } from "../../context/AccessibilityContext";
+import { getPatientAppointments, cancelAppointment, fetchMySubmittedReviews } from "../../services/api";
 import { formatDoctorName, translateClinicalTerm } from "../../utils/transliterate";
 import heroImage from "../../assets/schedule-hero.png";
 import ClinicalSummaryCard from "../../components/common/ClinicalSummaryCard";
+import DoctorReviewModal from "../../components/patient/DoctorReviewModal";
 import styles from "./Appointments.module.css";
 
 const fallbackAppointments = [
@@ -46,6 +48,7 @@ const buildMiniCalendar = (month) => {
 export default function Appointments() {
   const { token } = useAuth();
   const { t, language } = useLanguage();
+  const { islEnabled, requestSign } = useAccessibility();
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [filter, setFilter] = useState("all");
@@ -54,6 +57,12 @@ export default function Appointments() {
   const [expanded, setExpanded] = useState(null);
   const [month, setMonth] = useState(new Date(2026, 9, 1));
   const [selectedDate, setSelectedDate] = useState(new Date(2026, 9, 15));
+
+  useEffect(() => {
+    if (islEnabled) {
+      requestSign("Appointments", { context: "appointments_header" });
+    }
+  }, [islEnabled, requestSign]);
 
   const formatStatus = (status) => {
     const s = status?.toLowerCase();
@@ -64,6 +73,8 @@ export default function Appointments() {
   };
 
   const [selectedApptModal, setSelectedApptModal] = useState(null);
+  const [reviewedApptIds, setReviewedApptIds] = useState(new Set());
+  const [reviewModalAppt, setReviewModalAppt] = useState(null);
 
   const fetchAppointmentsData = () => {
     if (!token) return;
@@ -72,6 +83,16 @@ export default function Appointments() {
       setAppointments(response.appointments);
       const firstUpcoming = response.appointments.find((item) => upcomingStatuses.has(item.status?.toLowerCase())) || response.appointments[0];
       if (firstUpcoming) { const date = getApptDate(firstUpcoming); setMonth(new Date(date.getFullYear(), date.getMonth(), 1)); setSelectedDate(date); }
+    }).catch((err) => {
+      console.warn("Failed to fetch appointments:", err.message);
+      setAppointments(fallbackAppointments);
+    });
+
+    fetchMySubmittedReviews(token).then((res) => {
+      if (res && Array.isArray(res.reviews)) {
+        const ids = new Set(res.reviews.map((r) => r.appointment_id).filter(Boolean));
+        setReviewedApptIds(ids);
+      }
     }).catch(() => {});
   };
 
@@ -225,6 +246,58 @@ export default function Appointments() {
                       </td>
                       <td onClick={(e) => e.stopPropagation()} style={{ textAlign: "right" }}>
                         <div style={{ display: "inline-flex", gap: "6px", alignItems: "center", justifyContent: "flex-end" }}>
+                          {["video", "teleconsultation", "virtual"].includes((appointment.appointmentType || appointment.appointment_type)?.toLowerCase()) && isUpcoming && (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/patient/teleconsult${appointment.id ? `?appointmentId=${appointment.id}` : ''}`)}
+                              style={{
+                                background: "#0284c7",
+                                border: "1px solid #0284c7",
+                                color: "#ffffff",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                fontSize: "11px",
+                                fontWeight: "600",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px",
+                                whiteSpace: "nowrap"
+                              }}
+                              title="Join Teleconsultation Video Call"
+                            >
+                              <Video size={12} /> Join Call
+                            </button>
+                          )}
+                          {appointment.status?.toLowerCase() === "completed" && (
+                            reviewedApptIds.has(appointment.id) ? (
+                              <span style={{ color: "#16a34a", fontSize: "11px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "3px", whiteSpace: "nowrap" }}>
+                                <CheckCircle2 size={12} /> Reviewed
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setReviewModalAppt(appointment)}
+                                style={{
+                                  background: "#fef3c7",
+                                  border: "1px solid #fde68a",
+                                  color: "#b45309",
+                                  padding: "4px 8px",
+                                  borderRadius: "6px",
+                                  fontSize: "11px",
+                                  fontWeight: "700",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "3px",
+                                  whiteSpace: "nowrap"
+                                }}
+                                title="Rate & Review Doctor"
+                              >
+                                <Star size={12} fill="#b45309" /> Rate Doctor
+                              </button>
+                            )
+                          )}
                           <button
                             type="button"
                             onClick={() => setSelectedApptModal(appointment)}
@@ -341,7 +414,53 @@ export default function Appointments() {
                     )}
                   </div>
 
-                  <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "12px" }}>
+                  <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "12px", flexWrap: "wrap" }}>
+                    {selectedApptModal.status?.toLowerCase() === "completed" && !reviewedApptIds.has(selectedApptModal.id) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const appt = selectedApptModal;
+                          setSelectedApptModal(null);
+                          setReviewModalAppt(appt);
+                        }}
+                        style={{
+                          background: "#fef3c7",
+                          border: "1px solid #fde68a",
+                          color: "#b45309",
+                          padding: "10px 18px",
+                          borderRadius: "10px",
+                          fontSize: "13px",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px"
+                        }}
+                      >
+                        <Star size={15} fill="#b45309" /> Rate & Review Doctor
+                      </button>
+                    )}
+                    {["video", "teleconsultation", "virtual"].includes((selectedApptModal.appointmentType || selectedApptModal.appointment_type)?.toLowerCase()) && upcomingStatuses.has(selectedApptModal.status?.toLowerCase()) && (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/patient/teleconsult${selectedApptModal.id ? `?appointmentId=${selectedApptModal.id}` : ''}`)}
+                        style={{
+                          background: "#0284c7",
+                          color: "#ffffff",
+                          border: "none",
+                          padding: "10px 18px",
+                          borderRadius: "10px",
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px"
+                        }}
+                      >
+                        <Video size={15} /> Join Video Call
+                      </button>
+                    )}
                     {upcomingStatuses.has(selectedApptModal.status?.toLowerCase()) && (
                       <button
                         type="button"
@@ -442,6 +561,30 @@ export default function Appointments() {
         </section>
         <section className={styles.journey}><blockquote>{t("schedule.journeyQuote", "Stay on top of your health journey.")}</blockquote><Stethoscope /></section>
       </aside>
+
+      {/* Doctor Review Modal */}
+      {reviewModalAppt && (
+        <DoctorReviewModal
+          isOpen={!!reviewModalAppt}
+          onClose={() => setReviewModalAppt(null)}
+          doctor={{
+            id: reviewModalAppt.doctor_id || reviewModalAppt.doctorId || reviewModalAppt.doctor?.id,
+            name: doctorName(reviewModalAppt, language),
+            firstName: reviewModalAppt.doctor?.firstName || reviewModalAppt.doctor_first_name,
+            lastName: reviewModalAppt.doctor?.lastName || reviewModalAppt.doctor_last_name,
+            specialization: reviewModalAppt.specialization || reviewModalAppt.doctor?.specialization,
+            department: reviewModalAppt.department || reviewModalAppt.doctor?.department,
+          }}
+          appointmentId={reviewModalAppt.id}
+          consultationType={reviewModalAppt.appointmentType || reviewModalAppt.appointment_type || "in_person"}
+          onReviewSubmitted={() => {
+            if (reviewModalAppt?.id) {
+              setReviewedApptIds((prev) => new Set([...prev, reviewModalAppt.id]));
+            }
+            fetchAppointmentsData();
+          }}
+        />
+      )}
     </div>
   </motion.main>;
 }

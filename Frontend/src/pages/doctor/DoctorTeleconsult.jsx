@@ -16,7 +16,8 @@ import {
   Radio, 
   Pill,
   Send,
-  Sparkles
+  Sparkles,
+  Eye
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
@@ -28,6 +29,7 @@ import {
   sendTeleconsultMessage 
 } from "../../services/api";
 import TeleconsultRoom from "../../components/teleconsult/TeleconsultRoom";
+import PatientHistoryModal from "../../components/doctor/PatientHistoryModal";
 import styles from "./DoctorTeleconsult.module.css";
 
 export default function DoctorTeleconsult() {
@@ -36,6 +38,9 @@ export default function DoctorTeleconsult() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Patient History Modal State
+  const [selectedPatientForHistory, setSelectedPatientForHistory] = useState(null);
 
   // Action Loading states
   const [processingId, setProcessingId] = useState(null);
@@ -285,7 +290,7 @@ export default function DoctorTeleconsult() {
                   )}
                 </div>
 
-                <div style={{ display: "flex", gap: "10px", marginTop: "auto" }}>
+                <div style={{ display: "flex", gap: "8px", marginTop: "auto", flexWrap: "wrap" }}>
                   <button
                     className={styles.rejectBtn}
                     onClick={() => handleRespond(session.id, "reject")}
@@ -299,6 +304,30 @@ export default function DoctorTeleconsult() {
                     disabled={processingId === session.id}
                   >
                     <Check size={16} /> Approve Call
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPatientForHistory({
+                      patientId: session.patient?.id || session.patient_id || session.patientId,
+                      patientName: session.patient?.name || "Patient"
+                    })}
+                    title="Inspect Patient Unified Medical History & Clinical Intake"
+                    style={{
+                      background: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                      color: "#166534",
+                      padding: "8px 12px",
+                      borderRadius: "10px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      marginLeft: "auto"
+                    }}
+                  >
+                    <Eye size={13} /> Medical History
                   </button>
                 </div>
               </div>
@@ -361,7 +390,7 @@ export default function DoctorTeleconsult() {
                   <strong>Reason:</strong> {session.reason}
                 </div>
 
-                <div style={{ display: "flex", gap: "8px" }}>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "auto" }}>
                   <button
                     className={styles.startCallBtn}
                     onClick={() => handleStartCall(session)}
@@ -369,6 +398,30 @@ export default function DoctorTeleconsult() {
                   >
                     {session.callType === "video" ? <Video size={16} /> : <Phone size={16} />}
                     {isJoining ? "Starting..." : `Start ${session.callType === "video" ? "Video" : "Voice"} Consultation`}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPatientForHistory({
+                      patientId: session.patient?.id || session.patient_id || session.patientId,
+                      patientName: session.patient?.name || "Patient"
+                    })}
+                    title="View Patient Records"
+                    style={{
+                      padding: "0 12px",
+                      borderRadius: "10px",
+                      background: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                      color: "#166534",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}
+                  >
+                    <Eye size={14} /> Records
                   </button>
 
                   <button
@@ -536,6 +589,15 @@ export default function DoctorTeleconsult() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Patient Medical History & Clinical Intake Modal */}
+      {selectedPatientForHistory && (
+        <PatientHistoryModal
+          patientId={selectedPatientForHistory.patientId}
+          patientName={selectedPatientForHistory.patientName}
+          onClose={() => setSelectedPatientForHistory(null)}
+        />
+      )}
     </div>
   );
 }

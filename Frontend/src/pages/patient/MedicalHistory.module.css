@@ -31,3 +31,40 @@
 .modalConfirmBtn:hover{background:#b91c1c}
 .modalConfirmBtn:disabled{opacity:0.6;cursor:not-allowed}
 
+/* Graveyard Views & Controls */
+.viewTabsRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 24px 14px;border-bottom:1px solid #e7ece9;margin-bottom:14px}
+.viewTabs{display:flex;gap:8px;background:#edf3f0;padding:4px;border-radius:12px}
+.viewTab{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border:none;border-radius:9px;background:transparent;color:#556965;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s}
+.viewTab svg{width:15px;height:15px}
+.viewTabActive{background:#fff;color:#0b4c40;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.viewTabCount{display:inline-block;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:800;background:#d8e5e1;color:#234e45}
+.viewTabActive .viewTabCount{background:#0e8371;color:#fff}
+.graveyardTabCount{background:#e2e8f0;color:#475569}
+.viewTabActive .graveyardTabCount{background:#475569;color:#fff}
+
+.archiveBtn{display:inline-flex;align-items:center;gap:4px;color:#d97706!important;background:transparent;border:none;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;transition:background .2s,color .2s}
+.archiveBtn:hover{background:#fef3c7;color:#b45309!important}
+.archiveBtn:disabled{opacity:0.5;cursor:not-allowed}
+
+.restoreBtn{display:inline-flex;align-items:center;gap:5px;color:#0d9488!important;background:#f0fdfa;border:1px solid #99f6e4;padding:5px 12px;border-radius:7px;font-size:12px;font-weight:750;cursor:pointer;transition:all .2s}
+.restoreBtn:hover{background:#ccfbf1;color:#0f766e!important;border-color:#5eead4}
+.restoreBtn:disabled{opacity:0.6;cursor:not-allowed}
+
+.graveyardBanner{margin:0 24px 16px;padding:16px 20px;border-radius:14px;background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.graveyardBannerContent{display:flex;align-items:flex-start;gap:14px;max-width:650px}
+.graveyardBannerIcon{width:42px;height:42px;border-radius:10px;background:#e2e8f0;color:#475569;display:grid;place-items:center;flex-shrink:0}
+.graveyardBannerIcon svg{width:22px;height:22px}
+.graveyardBannerTitle{font-size:15px;font-weight:750;color:#1e293b;margin:0 0 3px}
+.graveyardBannerDesc{font-size:12px;line-height:1.45;color:#64748b;margin:0}
+.graveyardPolicyControl{display:flex;align-items:center;gap:8px;background:#fff;padding:6px 12px;border-radius:10px;border:1px solid #cbd5e1}
+.graveyardPolicyControl label{font-size:12px;font-weight:700;color:#475569;display:flex;align-items:center;gap:5px}
+.graveyardPolicyControl select{border:none;outline:none;background:transparent;font-size:12px;font-weight:700;color:#0f766e;cursor:pointer}
+
+.archivedBadge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:750;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1}
+.archivedBadgeAuto{background:#fef3c7;color:#92400e;border-color:#fde68a}
+
+.archiveModalIcon{background:#fef3c7;color:#d97706}
+.archiveModalConfirmBtn{background:#d97706}
+.archiveModalConfirmBtn:hover{background:#b45309}
+
+

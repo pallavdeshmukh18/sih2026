@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { LanguageProvider } from "./i18n";
+import { AccessibilityProvider } from "./context/AccessibilityContext";
 import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./layouts/ProtectedRoute";
 import ScrollToTop from "./components/ScrollToTop";
@@ -18,6 +19,7 @@ import PatientDashboard from "./pages/PatientDashboard";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import MedicalHistory from "./pages/patient/MedicalHistory";
 import MedicalID from "./pages/patient/MedicalID";
+import MedicalPassport from "./pages/patient/MedicalPassport";
 import Appointments from "./pages/patient/Appointments";
 import Documents from "./pages/patient/Documents";
 import ClaimEstimator from "./pages/patient/ClaimEstimator";
@@ -36,26 +38,35 @@ import Settings from "./pages/shared/Settings";
 import DoctorDirectory from "./pages/shared/DoctorDirectory";
 import Departments from "./pages/shared/Departments";
 import PatientSchedule from "./pages/shared/PatientSchedule";
+import SharedInsurancePolicies from "./pages/shared/SharedInsurancePolicies";
 
 // Receptionist Pages
 import ReceptionistDashboard from "./pages/ReceptionistDashboard";
 import ReceptionistAppointments from "./pages/receptionist/ReceptionistAppointments";
 import ReceptionistPatients from "./pages/receptionist/ReceptionistPatients";
+// Accessibility Development Prototype
+import ISLAvatarTest from "./pages/accessibility/ISLAvatarTest";
 
+import ISLAccessibilityOverlay from "./components/accessibility/ISLAccessibilityOverlay";
+import ISLTextGuide from "./components/accessibility/ISLTextGuide";
 import "./App.css";
 
 function App() {
   return (
     <AuthProvider>
       <LanguageProvider>
-        <Toaster position="top-right" toastOptions={{ style: { background: '#fff', color: '#111', borderRadius: '12px' } }} />
+        <AccessibilityProvider>
+          <Toaster position="top-right" toastOptions={{ style: { background: '#fff', color: '#111', borderRadius: '12px' } }} />
         <Router>
           <ScrollToTop />
+          <ISLTextGuide />
+          <ISLAccessibilityOverlay />
           <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<SignupPage />} />
           <Route path="/signup" element={<Navigate to="/auth" replace />} />
           <Route path="/auth/google/callback" element={<GoogleCallback />} />
+          <Route path="/test/isl" element={<ISLAvatarTest />} />
 
           {/* Dedicated Patient Onboarding Route */}
           <Route path="/patient/onboarding" element={<ProtectedRoute role="patient" allowIncompleteOnboarding={true}><PatientOnboarding /></ProtectedRoute>} />
@@ -64,7 +75,8 @@ function App() {
           <Route path="/patient" element={<ProtectedRoute role="patient"><DashboardLayout /></ProtectedRoute>}>
             <Route path="dashboard" element={<PatientDashboard />} />
             <Route path="assessment" element={<ClinicalAssessment />} />
-            <Route path="medical-id" element={<MedicalID />} />
+            <Route path="medical-passport" element={<MedicalPassport />} />
+            <Route path="medical-id" element={<Navigate to="/patient/medical-passport" replace />} />
             <Route path="history" element={<MedicalHistory />} />
             <Route path="appointments" element={<Appointments />} />
             <Route path="documents" element={<Documents />} />
@@ -89,6 +101,7 @@ function App() {
             <Route path="dashboard" element={<DoctorDashboard />} />
             <Route path="appointments" element={<DoctorAppointments />} />
             <Route path="patients" element={<PatientAccess />} />
+            <Route path="insurance" element={<SharedInsurancePolicies />} />
             <Route path="team" element={<TeamManagement />} />
             
             {/* Doctor Teleconsultation & Shared Modules */}
@@ -111,6 +124,7 @@ function App() {
             <Route path="dashboard" element={<ReceptionistDashboard />} />
             <Route path="appointments" element={<ReceptionistAppointments />} />
             <Route path="patients" element={<ReceptionistPatients />} />
+            <Route path="insurance" element={<SharedInsurancePolicies />} />
             
             {/* Shared Hospital Modules */}
             <Route path="doctor" element={<DoctorDirectory />} />
@@ -130,6 +144,7 @@ function App() {
           <Route path="/account/whatsapp" element={<ProtectedRoute><Navigate to="/patient/account/whatsapp" replace /></ProtectedRoute>} />
           </Routes>
         </Router>
+        </AccessibilityProvider>
       </LanguageProvider>
     </AuthProvider>
   );
