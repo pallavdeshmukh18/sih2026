@@ -770,25 +770,6 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
     else:
         extraction = extract_entities_from_text(patient_text, session.missing_fields)
     
-    # 3. Update state with valid extracted entities (ignore empty/unknown values)
-    extracted_fields = set()
-    for entity in extraction.entities:
-        val_clean = str(entity.value).strip().lower() if entity.value else ""
-        if val_clean and val_clean not in ["", "none", "unknown", "null", "n/a", "not mentioned", "not specified", "undefined"]:
-            if entity.field in session.missing_fields:
-                session.missing_fields.remove(entity.field)
-                extracted_fields.add(entity.field)
-            
-            # If duration or onset is supplied, clear the other time frame field to prevent duplicate questions
-            if entity.field in ["duration", "onset"]:
-                if "duration" in session.missing_fields:
-                    session.missing_fields.remove("duration")
-                if "onset" in session.missing_fields:
-                    session.missing_fields.remove("onset")
-
-            session.answered_fields[entity.field] = entity.value
-            session.clinical_entities.append(entity.model_dump())
-
     if not target_field:
         # Session already completed or has no remaining fields
         session.status = "completed"
@@ -855,7 +836,21 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
 
     # 5. Handle Decision: VALID_ANSWER
     if decision == DECISION_VALID_ANSWER:
-        # Update answered fields and clinical entities
+        # Apply extracted entities from RAG/NLP text parsing
+        for entity in extraction.entities:
+            val_clean = str(entity.value).strip().lower() if entity.value else ""
+            if val_clean and val_clean not in ["", "none", "unknown", "null", "n/a", "not mentioned", "not specified", "undefined"]:
+                if entity.field in session.missing_fields:
+                    session.missing_fields.remove(entity.field)
+                if entity.field in ["duration", "onset"]:
+                    if "duration" in session.missing_fields:
+                        session.missing_fields.remove("duration")
+                    if "onset" in session.missing_fields:
+                        session.missing_fields.remove("onset")
+                session.answered_fields[entity.field] = entity.value
+                session.clinical_entities.append(entity.model_dump())
+
+        # Update answered fields and clinical entities from val_result
         for entity in val_result.extracted_entities:
             field_name = entity.get("field")
             val = entity.get("value")
@@ -891,7 +886,10 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
 
         # Advance to next question
         next_field = session.get_highest_priority_missing_field()
-        next_q, options = generate_next_question(next_field, session.language, session=session)
+        if generate_rag_question:
+            next_q, options = generate_rag_question(session, next_field)
+        else:
+            next_q, options = generate_next_question(next_field, session.language, session=session)
         session.conversation_history.append({"role": "system", "content": next_q})
         session.current_question = next_q
         session.current_options = options
@@ -921,8 +919,7 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
 
         next_field = session.get_highest_priority_missing_field()
         if generate_rag_question:
-            next_q = generate_rag_question(session, next_field)
-            options = get_fallback_options(next_field, session.language)
+            next_q, options = generate_rag_question(session, next_field)
         else:
             next_q, options = generate_next_question(next_field, session.language, session=session)
 
@@ -986,8 +983,7 @@ def process_patient_response(session: ClinicalSession, patient_text: str) -> Tup
 
             next_field = session.get_highest_priority_missing_field()
             if generate_rag_question:
-                next_q = generate_rag_question(session, next_field)
-                options = get_fallback_options(next_field, session.language)
+                next_q, options = generate_rag_question(session, next_field)
             else:
                 next_q, options = generate_next_question(next_field, session.language, session=session)
 

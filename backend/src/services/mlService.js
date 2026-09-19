@@ -82,7 +82,7 @@ async function startClinicalSession(payloadState) {
             `${ML_BASE_URL}/clinical/session/start`,
             payloadState,
             {
-                timeout: 30000,
+                timeout: 60000,
             }
         );
         return response.data;
@@ -107,7 +107,7 @@ async function respondClinicalSession(sessionId, patientText, state = null) {
             `${ML_BASE_URL}/clinical/session/respond`,
             payload,
             {
-                timeout: 30000,
+                timeout: 60000,
             }
         );
         return response.data;

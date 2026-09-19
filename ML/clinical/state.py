@@ -95,6 +95,7 @@ class ClinicalSession(BaseModel):
     current_question: Optional[str] = None
     current_options: List[Dict[str, str]] = Field(default_factory=list)
     retry_counts: Dict[str, int] = Field(default_factory=dict)
+    rag_sources: List[Dict[str, Any]] = Field(default_factory=list)
     status: str = "active"
 
     # ── NEW: tracks the field that was just answered so the flow

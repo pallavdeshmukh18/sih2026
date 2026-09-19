@@ -1,5 +1,8 @@
 import re
 import sys
+import os
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 from typing import List, Dict, Any
 import embeddings.embed_store as embed_store
 import embeddings.knowledge_seed as knowledge_seed
@@ -91,12 +94,65 @@ def semantic_search(
     return matches[:top_k]
 
 
+_chroma_client = None
+_ayush_collection = None
+_sentence_embedder = None
+
+def _get_rag_resources():
+    global _chroma_client, _ayush_collection, _sentence_embedder
+    if _sentence_embedder is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+            _sentence_embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+        except Exception:
+            _sentence_embedder = False
+
+    if _ayush_collection is None:
+        try:
+            import os
+            import chromadb
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            chroma_store_dir = os.path.join(base_dir, "chroma_store")
+            if os.path.exists(chroma_store_dir):
+                _chroma_client = chromadb.PersistentClient(path=chroma_store_dir)
+                _ayush_collection = _chroma_client.get_collection("ayush_clinical_knowledge")
+        except Exception:
+            _ayush_collection = False
+
+    col = _ayush_collection if _ayush_collection is not False else None
+    emb = _sentence_embedder if _sentence_embedder is not False else None
+    return col, emb
+
+
 def retrieve_clinical_knowledge(
     query: str,
     top_k: int = 2
 ) -> list[dict]:
-    """Retrieves disease-specific clinical guidelines and questioning protocols."""
+    """Retrieves disease-specific clinical guidelines and questioning protocols from ChromaDB and Knowledge Base."""
     scored = []
+
+    # 1. Search Persistent ChromaDB Collection ('ayush_clinical_knowledge') if available
+    col, embedder = _get_rag_resources()
+    if col and embedder:
+        try:
+            q_vector = embedder.encode([query]).tolist()
+            res = col.query(query_embeddings=q_vector, n_results=top_k)
+
+            docs = res.get("documents", [[]])[0] if res else []
+            metas = res.get("metadatas", [[]])[0] if res else []
+            dists = res.get("distances", [[]])[0] if res else []
+
+            for d, m, dist in zip(docs, metas, dists):
+                scored.append({
+                    "text": d,
+                    "metadata": m,
+                    "score": 1.0 / (dist + 0.001) if dist is not None else 1.0,
+                    "distance": dist
+                })
+        except Exception:
+            pass
+
+    # 2. Search Static Seed Rules
     kb = getattr(knowledge_seed, "CLINICAL_KNOWLEDGE_BASE", []) or []
     for item in kb:
         doc_text = f"Condition: {item['condition']}\nCategory: {item['category']}\nKeywords: {', '.join(item['keywords'])}\n"

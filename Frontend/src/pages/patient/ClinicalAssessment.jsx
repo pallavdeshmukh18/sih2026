@@ -284,12 +284,10 @@ export default function ClinicalAssessment() {
   const handleStartSession = async (e) => {
     e.preventDefault();
     let activeComplaint = "";
-    if (chiefComplaint && customComplaint.trim()) {
-      activeComplaint = `${chiefComplaint} (${customComplaint.trim()})`;
+    if (customComplaint.trim()) {
+      activeComplaint = customComplaint.trim();
     } else if (chiefComplaint) {
       activeComplaint = chiefComplaint;
-    } else if (customComplaint.trim()) {
-      activeComplaint = customComplaint.trim();
     }
 
     if (!activeComplaint.trim()) {

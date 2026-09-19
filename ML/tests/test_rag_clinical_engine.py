@@ -28,9 +28,10 @@ def test_rag_question_generation():
         missing_fields=list(ontology.required_fields)
     )
 
-    q = generate_rag_question(session, "radiation")
+    q, options = generate_rag_question(session, "radiation")
     assert isinstance(q, str)
     assert len(q) > 5
+    assert isinstance(options, list)
 
 
 def test_rag_entity_extraction():

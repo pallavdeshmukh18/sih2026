@@ -102,7 +102,7 @@ async function startSessionCore({
                     [JSON.stringify(currentSession.current_state), currentSession.id]
                 );
             }
-        } else if (cancelIfDifferentComplaint && (currentSession.language !== language || (chiefComplaint && currentSession.chief_complaint !== chiefComplaint))) {
+        } else if (cancelIfDifferentComplaint) {
             await pool.query(
                 `UPDATE clinical_sessions SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = $1;`,
                 [currentSession.id]

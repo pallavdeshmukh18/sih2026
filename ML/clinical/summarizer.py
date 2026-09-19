@@ -141,6 +141,22 @@ def generate_summary(session: ClinicalSession, document_data: dict = None) -> st
         if profile_parts:
             profile_text = "\n=== PATIENT DEMOGRAPHICS & HISTORY ===\n" + "\n".join(profile_parts) + "\n"
 
+    # Build RAG sources block
+    rag_sources_text = ""
+    if hasattr(session, "rag_sources") and session.rag_sources:
+        rag_lines = []
+        seen_sources = set()
+        for cite in session.rag_sources:
+            src = cite.get("source", "Knowledge Base")
+            snip = cite.get("snippet", "").strip().replace("\n", " ")
+            field = cite.get("field", "").replace("_", " ").title()
+            key = (src, snip)
+            if key not in seen_sources:
+                seen_sources.add(key)
+                rag_lines.append(f"- **Document**: `{src}`\n  - **Clinical Parameter**: {field}\n  - **Excerpt**: *\"{snip}\"*")
+        if rag_lines:
+            rag_sources_text = "\n".join(rag_lines)
+
     if groq_client:
         prompt = f"""You are a senior physician documentation specialist generating a clinical handoff report.
 Your audience is an EXPERIENCED ATTENDING DOCTOR who will see this patient next.
@@ -161,6 +177,9 @@ Session Language: {lang_name} ({session.language})
 
 === RED FLAGS IDENTIFIED ===
 {', '.join(session.red_flags) if session.red_flags else 'None identified'}
+
+=== CLINICAL RAG GUIDELINE CITATIONS (FROM INGESTED STG PDFs) ===
+{rag_sources_text if rag_sources_text else 'No specific RAG guidelines cited.'}
 
 === FULL CONVERSATION TRANSCRIPT ===
 {convo_text if convo_text else 'No conversation recorded.'}
@@ -192,6 +211,9 @@ If nothing is available, write "Not available from this intake."
 
 {"## AYUSH / DASHAVIDHA PARIKSHA" + chr(10) + "Summarize the Ayurvedic constitutional assessment findings." if dashavidha_block else ""}
 {"## ADDITIONAL AYURVEDIC HISTORY" + chr(10) + "Summarize the additional Ayurvedic history." if additional_ayurvedic_block else ""}
+
+## 📚 Clinical RAG Sources & STG Guidelines
+{"List the specific STG Homoeopathy / AYUSH PDF reference quotes and documents retrieved for this intake." if rag_sources_text else "Standard clinical intake protocols applied."}
 
 ## 🚨 Red Flags & Triage Priority
 List any identified red flags and recommend triage priority level (Immediate / Urgent / Routine).
@@ -259,6 +281,10 @@ CRITICAL RULES:
     if additional_ayurvedic_block:
         summary += "## ADDITIONAL AYURVEDIC HISTORY\n"
         summary += additional_ayurvedic_block + "\n\n"
+
+    if rag_sources_text:
+        summary += "## 📚 Clinical RAG Sources & STG Guidelines\n"
+        summary += rag_sources_text + "\n\n"
 
     # Documents
     if document_data:

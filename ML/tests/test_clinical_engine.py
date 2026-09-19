@@ -190,6 +190,7 @@ def test_semantic_clarification_request_detected(mock_semantic):
     session = ClinicalSession(
         patient_id="123",
         chief_complaint="chest_pain",
+        last_answered_field="location",
         missing_fields=["radiation", "severity"]
     )
     mock_semantic.return_value = ValidationResult(
@@ -206,6 +207,7 @@ def test_semantic_clarification_does_not_consume_field(mock_semantic):
     session = ClinicalSession(
         patient_id="123",
         chief_complaint="chest_pain",
+        last_answered_field="location",
         missing_fields=["radiation", "severity"]
     )
     mock_semantic.return_value = ValidationResult(

@@ -52,13 +52,21 @@ async def start_session(req: StartSessionRequest):
     location_keywords = {
         "abdominal": "Abdomen",
         "abdomen": "Abdomen",
+        "stomach": "Abdomen",
         "chest": "Chest",
         "head": "Head",
         "headache": "Head",
         "joint": "Joints / Muscles",
+        "joints": "Joints / Muscles",
         "muscle": "Joints / Muscles",
-        "skin": "Skin",
-        "back": "Back"
+        "knee": "Joints / Muscles",
+        "knees": "Joints / Muscles",
+        "elbow": "Joints / Muscles",
+        "leg": "Joints / Muscles",
+        "hand": "Joints / Muscles",
+        "wrist": "Joints / Muscles",
+        "back": "Back",
+        "skin": "Skin"
     }
     for kw, loc_val in location_keywords.items():
         if kw in complaint_lower:
@@ -67,6 +75,19 @@ async def start_session(req: StartSessionRequest):
             session.answered_fields["location"] = loc_val
             session.clinical_entities.append({"field": "location", "value": loc_val, "confidence": "High"})
             break
+
+    # 1.2 Deterministic Duration & Onset Pre-extraction from initial text input
+    import re
+    dur_match = re.search(r'(?:for|since|about|around)?\s*(\d+\s*(?:-\s*\d+)?\s*(?:days|day|hours|hour|weeks|week|months|month|years|year|din|hafte|mahine|दिवस|तास|दिन|हफ्ते|महीने)\s*(?:ago)?)', complaint_lower)
+    if dur_match:
+        dur_val = dur_match.group(0).strip()
+        if "duration" in session.missing_fields:
+            session.missing_fields.remove("duration")
+        if "onset" in session.missing_fields:
+            session.missing_fields.remove("onset")
+        session.answered_fields["duration"] = dur_val
+        session.answered_fields["onset"] = dur_val
+        session.clinical_entities.append({"field": "duration", "value": dur_val, "confidence": "High"})
 
     # 1.5 Auto-derive Vaya (Age) from patient profile if available
     if "vaya" in session.missing_fields and session.patient_profile:
@@ -106,8 +127,7 @@ async def start_session(req: StartSessionRequest):
     next_field = session.get_highest_priority_missing_field()
     if next_field:
         if generate_rag_question:
-            next_q = generate_rag_question(session, next_field)
-            options = get_fallback_options(next_field, session.language)
+            next_q, options = generate_rag_question(session, next_field)
         else:
             next_q, options = generate_next_question(next_field, session.language, session=session)
     else:
@@ -119,6 +139,7 @@ async def start_session(req: StartSessionRequest):
         "session_id": session.session_id,
         "next_question": next_q,
         "options": options,
+        "rag_sources": getattr(session, "rag_sources", []),
         "state": session.model_dump()
     }
 
@@ -140,6 +161,7 @@ async def respond(req: RespondRequest):
             "message": "Session is already completed",
             "is_complete": True,
             "options": [],
+            "rag_sources": getattr(session, "rag_sources", []),
             "state": session.model_dump()
         }
         
@@ -152,6 +174,7 @@ async def respond(req: RespondRequest):
         "extracted_entities": session.clinical_entities,
         "red_flags": session.red_flags,
         "is_complete": session.status == "completed",
+        "rag_sources": getattr(session, "rag_sources", []),
         "state": session.model_dump()
     }
 
@@ -170,9 +193,8 @@ async def get_summary(req: SummaryRequest):
         
     summary_text = generate_summary(session, req.document_data)
     
-    # Optionally, save this back to the DB session record
-    
     return {
         "session_id": req.session_id,
-        "summary": summary_text
+        "summary": summary_text,
+        "rag_sources": getattr(session, "rag_sources", [])
     }

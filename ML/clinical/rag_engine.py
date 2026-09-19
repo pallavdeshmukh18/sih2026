@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Dict, Any
+from typing import Tuple, List, Dict, Any
 
 try:
     from groq import Groq
@@ -76,17 +76,20 @@ def _build_conversation_context(session: ClinicalSession, max_turns: int = 4) ->
     return "\n\n".join(parts)
 
 
-def generate_rag_question(session: ClinicalSession, missing_field: str) -> str:
+def generate_rag_question(session: ClinicalSession, missing_field: str) -> Tuple[str, List[Dict[str, str]]]:
     """
     Primary RAG Questioning Generator.
     Retrieves disease-specific clinical guidelines and patient record context from ChromaDB
     to formulate a reworded, disease-tailored question asking for the missing field alongside
-    disease-specific diagnostic context.
+    disease-specific diagnostic context and dynamic quick-select options.
 
-    Now includes FULL conversation context so each question is a natural follow-up
+    Includes FULL conversation context so each question is a natural follow-up
     to whatever the patient just said — like a real doctor conducting history-taking.
     Never exposes raw Ayurvedic field names or Sanskrit terms to the patient.
     """
+    from .engine import get_fallback_options, get_fallback_question
+    fallback_opts = get_fallback_options(missing_field, session.language)
+    fallback_q = get_fallback_question(missing_field, session.language)
     lang_name = LANGUAGE_NAMES.get(session.language.lower(), "English")
 
     # Plain-English meaning for this field (works for both AYUSH and standard fields)
@@ -96,9 +99,28 @@ def generate_rag_question(session: ClinicalSession, missing_field: str) -> str:
     )
 
     # 1. RETRIEVE DISEASE-SPECIFIC CLINICAL GUIDELINES FROM CHROMADB
-    query_term = f"{session.chief_complaint} {missing_field}"
-    disease_knowledge = retrieve_clinical_knowledge(query_term, top_k=2)
+    answered_symptoms = " ".join(session.answered_fields.values()) if session.answered_fields else ""
+    query_term = f"{session.chief_complaint} {answered_symptoms} {missing_field}".strip()
+    disease_knowledge = retrieve_clinical_knowledge(query_term, top_k=3)
     knowledge_context = "\n---\n".join([item["text"] for item in disease_knowledge]) if disease_knowledge else ""
+
+    # Record retrieved PDF sources in session state and log citations
+    if disease_knowledge:
+        for match in disease_knowledge:
+            source_file = match.get("metadata", {}).get("source", "Knowledge Base")
+            score = match.get("score", 0.0)
+            excerpt = match.get("text", "")[:180]
+            logger.info(f"📚 [RAG CITATION MATCH] Query: '{query_term}' | Source PDF: '{source_file}' (Score: {score:.3f})")
+            logger.info(f"   Excerpt: \"{excerpt}...\"")
+            
+            citation_obj = {
+                "field": missing_field,
+                "source": source_file,
+                "score": round(score, 3),
+                "snippet": excerpt
+            }
+            if hasattr(session, "rag_sources") and citation_obj not in session.rag_sources:
+                session.rag_sources.append(citation_obj)
 
     # 2. RETRIEVE PATIENT RECORD CONTEXT FROM CHROMADB (IF PATIENT ID PRESENT)
     patient_history_context = ""
@@ -110,22 +132,7 @@ def generate_rag_question(session: ClinicalSession, missing_field: str) -> str:
     # 3. BUILD CONVERSATION CONTEXT (answered fields + recent Q&A)
     conversation_context = _build_conversation_context(session)
 
-    # 4. PRIMARY: Try to extract parameter exact rephrasing directly from retrieved ChromaDB text.
-    #    Only use this shortcut if the extracted line does NOT contain the raw field name.
-    if disease_knowledge:
-        for doc in disease_knowledge:
-            if f"{missing_field}:" in doc["text"]:
-                for line in doc["text"].split("\n"):
-                    if line.strip().startswith(f"{missing_field}:"):
-                        candidate = line.split(":", 1)[1].strip()
-                        # Sanity-check: don't return if it still contains the raw field name or jargon
-                        blocked_terms = [missing_field, "prakriti", "vikriti", "satmya", "samhanana",
-                                         "sattva", "vyayama", "ahara", "koshtha", "nidana", "samprapti",
-                                         "dushya", "desha", "bala", "kala", "vata", "pitta", "kapha", "dosha"]
-                        if not any(t.lower() in candidate.lower() for t in blocked_terms):
-                            return candidate
-
-    # 5. Build Augmented Prompt and use Groq LLM
+    # 4. Build Augmented Prompt and use Groq LLM
     profile_text = ""
     if session.patient_profile:
         prof = session.patient_profile
@@ -151,7 +158,7 @@ PATIENT LANGUAGE: {lang_name} ({session.language})
 === CONVERSATION SO FAR ===
 {conversation_context if conversation_context else "This is the first question of the intake."}
 
-=== CLINICAL GUIDELINES (FROM KNOWLEDGE BASE) ===
+=== CLINICAL GUIDELINES (FROM KNOWLEDGE BASE & PDF STGS) ===
 {knowledge_context if knowledge_context else "Standard clinical intake protocols apply."}
 
 === PATIENT PAST MEDICAL RECORDS ===
@@ -163,11 +170,22 @@ You need to ask the patient about: {ayush_meaning}
 === STRICT RULES — ALL MANDATORY ===
 1. NEVER mention the technical field code "{missing_field}" — the patient cannot understand it.
 2. NEVER use ANY Ayurvedic or Sanskrit terminology: Prakriti, Vikriti, Sara, Samhanana, Pramana, Satmya, Sattva, Ahara Shakti, Vyayama Shakti, Agni, Vata, Pitta, Kapha, Dosha, Tridosha, Koshtha, Nidana, Samprapti, Dushya, Desha, Bala, Kala, or similar words.
-3. Frame your question as a NATURAL FOLLOW-UP to what the patient just said. Briefly acknowledge their last response first.
-4. Use simple, everyday conversational language that any patient (not a doctor) can immediately understand.
-5. Keep it concise — maximum 2 sentences.
-6. Do NOT give medical advice, diagnoses, or invent information about the patient.
-7. Output ONLY the question text in {lang_name}. No preamble, no JSON, no labels, no explanation.
+3. DIRECT PDF GUIDELINE CORRELATION: You MUST directly ground and correlate your question and quick-select options on the clinical presentation, symptom subtypes, triggers, or diagnostic criteria detailed in the 'CLINICAL GUIDELINES (FROM KNOWLEDGE BASE & PDF STGS)' section above.
+4. Frame your question as a NATURAL FOLLOW-UP to what the patient just said. Briefly acknowledge their last response first.
+5. Use simple, everyday conversational language that any patient (not a doctor) can immediately understand.
+6. Keep it concise — maximum 2 sentences.
+7. Provide 3 to 4 short, patient-friendly quick-select options in {lang_name} that directly map to the clinical categories/variants described in the PDF guidelines for '{missing_field}'.
+
+Respond STRICTLY as a JSON object:
+{{
+    "question": "Question text in simple everyday {lang_name}",
+    "options": [
+        {{"id": "opt_1", "label": "Concise option label 1 in {lang_name}"}},
+        {{"id": "opt_2", "label": "Concise option label 2 in {lang_name}"}},
+        {{"id": "opt_3", "label": "Concise option label 3 in {lang_name}"}},
+        {{"id": "opt_4", "label": "Concise option label 4 in {lang_name}"}}
+    ]
+}}
 """
 
     if groq_client:
@@ -178,9 +196,10 @@ You need to ask the patient about: {ayush_meaning}
                         "role": "system",
                         "content": (
                             f"You are a patient-friendly clinical intake assistant. "
-                            f"You MUST write all questions in simple everyday {lang_name} that any layperson can understand. "
+                            f"You MUST ground all questions and options directly on the retrieved PDF clinical guidelines. "
+                            f"Write all questions and options in simple everyday {lang_name} that any layperson can understand. "
                             f"NEVER use medical jargon, Sanskrit terms, or Ayurvedic terminology. "
-                            f"NEVER use the raw field name '{missing_field}' in any output."
+                            f"NEVER use the raw field name '{missing_field}' in any output. Output valid JSON only."
                         )
                     },
                     {
@@ -189,18 +208,22 @@ You need to ask the patient about: {ayush_meaning}
                     }
                 ],
                 model=GROQ_TEXT_MODEL,
+                response_format={"type": "json_object"}
             )
-            q = chat_completion.choices[0].message.content.strip()
-            # Strip any accidental quotes the LLM may wrap the question in
+            raw_text = chat_completion.choices[0].message.content.strip()
+            data = json.loads(raw_text)
+            q = data.get("question", "").strip() or fallback_q
             if q and q[0] == '"' and q[-1] == '"':
                 q = q[1:-1].strip()
-            if q:
-                return q
+            opts = data.get("options", [])
+            if not isinstance(opts, list) or not opts:
+                opts = fallback_opts
+            return q, opts
         except Exception as e:
             logger.error(f"RAG Question Generation LLM error: {e}")
 
-    # Fallback: use the plain-English description, never the raw field name
-    return f"Understood, thank you. I have one more question — could you tell me about {ayush_meaning}?"
+    # Fallback: use the plain-English description & fallback options
+    return fallback_q, fallback_opts
 
 
 def extract_entities_rag(text: str, session: ClinicalSession) -> ExtractionResult:
