@@ -252,3 +252,9 @@
   .card { max-height: calc(100dvh - 16px); }
   .avatarBody { height: 260px; }
 }
+
+.card.enlarged { width: min(520px, calc(100vw - 32px)); }
+.enlarged .avatarBody { height: clamp(260px, 65dvh, 580px); }
+@media (max-width: 480px) {
+  .card.enlarged { width: calc(100vw - 24px); }
+}

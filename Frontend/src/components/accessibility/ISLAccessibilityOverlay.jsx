@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Sparkles, ChevronDown, ChevronUp, RotateCcw, X } from "lucide-react";
+import { Sparkles, ChevronDown, ChevronUp, RotateCcw, Maximize2, Minimize2, X } from "lucide-react";
 import { useAccessibility } from "../../context/AccessibilityContext";
 import { useAuth } from "../../context/AuthContext";
 import ISLAvatar from "./ISLAvatar";
@@ -23,6 +23,7 @@ export default function ISLAccessibilityOverlay() {
 
   const [activePreset, setActivePreset] = useState("");
   const [replayKey, setReplayKey] = useState(0);
+  const [enlarged, setEnlarged] = useState(false);
 
   const isPatient = user?.role === "patient";
   const hasVoiceGuide = user?.onboarding?.accessibilityPreference === "voice_guidance";
@@ -51,7 +52,7 @@ export default function ISLAccessibilityOverlay() {
   // Only render if ISL is enabled and user is a patient
   if (!islEnabled) {
     return <div className={styles.overlayContainer} data-isl-ignore="true">
-      <button className={`${styles.minimizedButton} ${styles.interactive}`}
+      <button data-isl-ignore="true" className={`${styles.minimizedButton} ${styles.interactive}`}
         onClick={() => setIslEnabled(true)} aria-label="Enable sign language assistance">
         <Sparkles size={16} /> Sign language
       </button>
@@ -82,7 +83,7 @@ export default function ISLAccessibilityOverlay() {
         </button>
       ) : (
         /* Expanded Floating Card */
-        <div className={`${styles.card} ${styles.interactive}`} data-testid="isl-overlay-card">
+        <div className={`${styles.card} ${styles.interactive} ${enlarged ? styles.enlarged : ""}`} data-testid="isl-overlay-card">
           {/* Header */}
           <div className={styles.cardHeader}>
             <div className={styles.titleArea}>
@@ -98,6 +99,11 @@ export default function ISLAccessibilityOverlay() {
               />
             </div>
             <div className={styles.controlButtons}>
+              <button className={styles.iconBtn} onClick={() => setEnlarged(value => !value)}
+                aria-label={enlarged ? "Restore avatar size" : "Enlarge avatar"}
+                title={enlarged ? "Restore avatar size" : "Enlarge avatar"} aria-pressed={enlarged}>
+                {enlarged ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
               {currentSignText && (
                 <button
                   className={styles.iconBtn}

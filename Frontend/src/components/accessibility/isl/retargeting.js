@@ -196,7 +196,14 @@ export function initRetargeting(targetScene, targetBoneMap) {
   for (const name of BONE_ORDER) {
     if (/Hand(Thumb|Index|Middle|Ring|Pinky)[123]$/.test(name)) {
       const bone = targetBoneMap.get(name);
-      if (bone) digitRest.set(name, bone.quaternion.clone());
+      if (bone) {
+        const alignment = new THREE.Euler().setFromQuaternion(bone.quaternion);
+        // The source animation supplies flexion. Do not add the target mesh's
+        // pre-curled bind fingers on top of a 90-degree authored knuckle bend.
+        // Keep thumb-base opposition and each digit's lateral alignment.
+        if (!name.endsWith("Thumb1")) alignment.x = 0;
+        digitRest.set(name, new THREE.Quaternion().setFromEuler(alignment));
+      }
     }
   }
   return { M_map, digitRest };
@@ -275,4 +282,14 @@ export function applyRetargetedPose(canonicalPose, targetBoneMap, retargetData) 
     }
     bone.quaternion.copy(localQ);
   }
+}
+
+// Presentation-only idle pose; signing still starts from the authored reference.
+export function getCanonicalIdlePose() {
+  const pose = getCanonicalRestPose();
+  pose.mixamorigLeftArm.z = -1.25;
+  pose.mixamorigRightArm.z = 1.25;
+  pose.mixamorigLeftForeArm.y = -0.3;
+  pose.mixamorigRightForeArm.y = 0.3;
+  return pose;
 }

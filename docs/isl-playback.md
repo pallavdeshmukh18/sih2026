@@ -72,3 +72,31 @@ word sense. See `isl-vocabulary-coverage.csv` for each word. No replacement of t
 current rig can create the missing vocabulary automatically. The upstream player
 includes client-side animation generation, but needs its own avatar/runtime and
 reviewed SiGML assets; it is not a direct Three.js animation import.
+
+
+## Hand and rendering corrections (2026-09-20)
+
+Clearance now checks skinned hand vertices as well as finger joints against a
+live conservative torso boundary. Arm rotations move the wrist out of the
+boundary while preserving wrist orientation, finger pose and bone lengths.
+This is not full mesh collision detection: hand-to-hand, face contact, and
+arbitrary concave clothing geometry are not solved. It can shift contact signs
+outward, so linguistic review remains necessary.
+
+Finger retargeting keeps lateral alignment and thumb-base opposition, but removes
+bind-pose flexion that previously added curl on top of authored finger bends.
+The presentation idle pose lowers the arms without changing the source reference
+used to compile signs. Darker clothing, hidden jewelry, and an expandable panel
+make the hands easier to distinguish. Existing model geometry/textures remain.
+
+Regression commands from Frontend:
+
+    node --test tests/isl-*.test.js
+    npm run dev -- --host 127.0.0.1
+    node scripts/check-isl-avatar.mjs
+
+The browser script needs installed Chrome and Playwright (set PLAYWRIGHT_MODULE
+to its module entry path if installed outside Frontend). It samples 704 poses
+and transitions across A–Z and the four word signs, checking visible hand vertices
+against the torso boundary. Observed zero penetration in that sweep; solver cost
+averaged about 6.3 ms in local headless Chrome, not a mobile performance guarantee.

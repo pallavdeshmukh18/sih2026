@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { planText, compileGestures, createTransition, sampleTransition } from '../src/components/accessibility/isl/playback.js';
-import { getCanonicalRestPose } from '../src/components/accessibility/isl/retargeting.js';
+import { getCanonicalRestPose, getCanonicalIdlePose } from '../src/components/accessibility/isl/retargeting.js';
 import { TIME } from '../src/components/accessibility/isl/Words/TIME.js';
 import { A } from '../src/components/accessibility/isl/Alphabets/A.js';
 
@@ -20,7 +20,7 @@ test('word movement frames survive and reset occurs only at the end', () => {
   const steps = compileGestures(planText('TIME A', { TIME }).tokens, { TIME }, { A });
   assert.equal(steps.length, 5);
   assert.equal(steps.filter(s => s.hold).length, 2);
-  assert.deepEqual(steps.at(-1).pose, getCanonicalRestPose());
+  assert.deepEqual(steps.at(-1).pose, getCanonicalIdlePose());
 });
 test('pose depends on elapsed time, not the number of rendered frames', () => {
   const from = getCanonicalRestPose();

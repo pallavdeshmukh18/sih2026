@@ -1,5 +1,5 @@
 import { Euler, Quaternion } from 'three';
-import { getCanonicalRestPose } from './retargeting.js';
+import { getCanonicalRestPose, getCanonicalIdlePose } from './retargeting.js';
 
 const SYMBOL_WORDS = { '&': ' AND ', '%': ' PERCENT ', '+': ' PLUS ', '=': ' EQUALS ', '₹': ' RUPEES ', '$': ' DOLLARS ', '°': ' DEGREES ', '/': ' SLASH ', '@': ' AT ', '<': ' LESS THAN ', '>': ' GREATER THAN ', '−': ' MINUS ' };
 export function normalizeSignText(text) {
@@ -60,7 +60,7 @@ export function compileGestures(tokens, dictionary, alphabet) {
       steps.push({ pose, token: index === 0 ? token.label : '', hold: index === signingFrames.length - 1 });
     });
   }
-  if (steps.length) steps.push({ pose: getCanonicalRestPose(), hold: false });
+  if (steps.length) steps.push({ pose: getCanonicalIdlePose(), hold: false });
   return steps;
 }
 

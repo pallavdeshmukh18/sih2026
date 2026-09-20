@@ -164,6 +164,15 @@ sih2026/
 
 ## Quickstart and Local Deployment Guide
 
+After installing the dependencies and creating the environment files, start the
+frontend, backend, and ML service together from the repository root:
+
+```bash
+./start.sh
+```
+
+Press `Ctrl+C` to stop all three services.
+
 ### Prerequisites
 - **Node.js** (v18.0.0 or higher)
 - **Python** (v3.10 or higher)

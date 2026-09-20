@@ -9,7 +9,7 @@ import * as words from "./isl/words.js";
 import { buildBoneMap } from "./isl/boneMapping.js";
 import {
   initRetargeting,
-  getCanonicalRestPose,
+  getCanonicalIdlePose,
   applyRetargetedPose,
 } from "./isl/retargeting.js";
 import styles from "./ISLAvatar.module.css";
@@ -97,7 +97,7 @@ export default function ISLAvatar({
       ref.animate(performance.now());
     } else {
       // Clear/cancel requests also lower the hands smoothly.
-      ref.animations = [{ pose: getCanonicalRestPose(), hold: false }];
+      ref.animations = [{ pose: getCanonicalIdlePose(), hold: false }];
       ref.animate(performance.now());
     }
   }, []);
@@ -265,6 +265,11 @@ export default function ISLAvatar({
         gltf.scene.traverse((child) => {
           const materials = Array.isArray(child.material) ? child.material : [child.material];
           for (const material of materials) {
+            if (material?.name === "robe_m") {
+              material.color.set(0x36576b);
+              material.roughness = 0.85;
+            }
+            if (material?.name === "jewelry_m") child.visible = false;
             if (material?.map) material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
           }
           if (child.type === "SkinnedMesh") {
@@ -290,11 +295,11 @@ export default function ISLAvatar({
         ref.isRetargeted = isRetargeted;
         if (isRetargeted) {
           ref.retargetData = initRetargeting(gltf.scene, boneMap);
-          ref.canonicalPose = getCanonicalRestPose();
+          ref.canonicalPose = getCanonicalIdlePose();
           applyRetargetedPose(ref.canonicalPose, boneMap, ref.retargetData);
         } else {
           ref.retargetData = null;
-          ref.canonicalPose = getCanonicalRestPose();
+          ref.canonicalPose = getCanonicalIdlePose();
           for (const [name, pose] of Object.entries(ref.canonicalPose)) {
             // Preserve the GLB root correction relative to its Armature.
             if (name !== "mixamorigHips") boneMap.get(name)?.rotation.set(pose.x, pose.y, pose.z);
