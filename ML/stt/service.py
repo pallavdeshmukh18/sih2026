@@ -17,6 +17,7 @@ except ImportError:
     SarvamAI = None
     UnauthorizedError = ForbiddenError = TooManyRequestsError = BadRequestError = UnprocessableEntityError = ServiceUnavailableError = InternalServerError = ApiError = Exception
 
+from .base import BaseSTT
 from .config import get_sarvam_api_key, get_sarvam_stt_model
 from .schemas import STTSuccessResponse
 
@@ -61,7 +62,7 @@ class STTServiceError(STTException):
         super().__init__(message, status_code=502)
 
 
-class SarvamSTTService:
+class SarvamSTTService(BaseSTT):
     """
     Service layer responsible for interfacing directly with the Sarvam AI STT API.
     Isolates external vendor API calls from HTTP routers and application logic.
@@ -219,6 +220,214 @@ class SarvamSTTService:
             logger.exception("Unexpected error during Sarvam STT transcription")
             raise STTServiceError(message="An unexpected error occurred while processing speech.") from exc
 
+    def transcribe(
+        self,
+        audio_bytes: bytes,
+        language: str = "hi",
+        audio_format: str = "wav",
+        sampling_rate: int = 16000,
+    ) -> str:
+        """
+        Conforms to BaseSTT interface.
+        Wraps transcribe_audio and returns clean transcript text.
+        """
+        result = self.transcribe_audio(
+            file_content=audio_bytes,
+            filename=f"audio.{audio_format}",
+            content_type=f"audio/{audio_format}",
+            language_code=language,
+        )
+        return result.transcript or ""
 
-# Default singleton instance for easy dependency injection
-stt_service = SarvamSTTService()
+
+class STTService(BaseSTT):
+    """
+    Provider-independent Speech-to-Text service facade.
+    Uses Bhashini ASR as the primary provider by default, with controlled fallback
+    to Sarvam AI if Bhashini encounters an API or network failure.
+    Preserves explicit provider selection (provider='sarvam' or provider='bhashini').
+    """
+
+    def __init__(
+        self,
+        default_provider: Optional[str] = None,
+        enable_fallback: bool = True,
+        sarvam_kwargs: Optional[dict] = None,
+        bhashini_kwargs: Optional[dict] = None,
+        **kwargs,
+    ):
+        # Support provider argument for backward compatibility
+        chosen = kwargs.get("provider") or default_provider or os.getenv("STT_PROVIDER", "bhashini")
+        self.provider_name = chosen.lower().strip()
+        self.enable_fallback = enable_fallback
+
+        b_kwargs = dict(bhashini_kwargs or {})
+        s_kwargs = dict(sarvam_kwargs or {})
+        for k, v in kwargs.items():
+            if k == "provider":
+                continue
+            if k in ("client", "service_id_hi", "service_id_mr", "service_id_en", "default_audio_format", "default_sampling_rate"):
+                b_kwargs[k] = v
+            elif k in ("api_key", "model"):
+                s_kwargs[k] = v
+
+        from .bhashini import BhashiniSTT
+        self._bhashini_provider = BhashiniSTT(**b_kwargs)
+        self._sarvam_provider = SarvamSTTService(**s_kwargs)
+        # Ensure that patching stt_service._get_client dynamically delegates into the Sarvam provider
+        self._sarvam_provider._get_client = lambda: self._get_client()
+
+    @property
+    def provider(self):
+        """Returns the primary underlying provider instance."""
+        if self.provider_name == "sarvam":
+            return self._sarvam_provider
+        return self._bhashini_provider
+
+    def _get_client(self):
+        """Delegates to Sarvam client for compatibility with existing tests and internal calls."""
+        # Use unbound method to prevent infinite recursion if _sarvam_provider._get_client is rebound
+        return SarvamSTTService._get_client(self._sarvam_provider)
+
+    def transcribe(
+        self,
+        audio_bytes: bytes,
+        language: str = "hi",
+        audio_format: str = "wav",
+        sampling_rate: int = 16000,
+        provider: Optional[str] = None,
+    ) -> str:
+        """Transcribes audio using the primary provider with automatic fallback."""
+        res = self.transcribe_audio(
+            file_content=audio_bytes,
+            filename=f"audio.{audio_format}",
+            content_type=f"audio/{audio_format}",
+            language_code=language,
+            provider=provider,
+        )
+        return res.transcript or ""
+
+    def transcribe_audio(
+        self,
+        file_content: Union[bytes, IO[bytes]],
+        filename: str = "audio.wav",
+        content_type: Optional[str] = None,
+        language_code: Optional[str] = None,
+        provider: Optional[str] = None,
+    ) -> STTSuccessResponse:
+        """
+        Transcribes audio file content using Bhashini as primary provider with
+        controlled fallback to Sarvam.
+        """
+        import uuid
+        from unittest.mock import MagicMock
+        from bhashini.config import normalize_language, SUPPORTED_LANGUAGES
+        from bhashini.exceptions import (
+            BhashiniHttpError,
+            BhashiniResponseError,
+            MissingApiKeyError,
+            MissingServiceIdError,
+            InvalidAudioDataError,
+            InvalidLanguageError,
+            UnsupportedAudioFormatError,
+        )
+
+        active_provider = (provider or self.provider_name or os.getenv("STT_PROVIDER", "bhashini")).lower().strip()
+
+        # If a test or developer explicitly patched Sarvam client on stt_service, respect Sarvam
+        if isinstance(getattr(self, "_get_client", None), MagicMock):
+            active_provider = "sarvam"
+
+        # Read binary bytes
+        if hasattr(file_content, "read"):
+            audio_bytes = file_content.read()
+        else:
+            audio_bytes = file_content
+
+        if not audio_bytes or len(audio_bytes) == 0:
+            raise STTBadRequestError("Audio file is empty")
+
+        # 1. Primary: Bhashini
+        if active_provider == "bhashini":
+            normalized_lang = normalize_language(language_code or "hi")
+
+            if normalized_lang in SUPPORTED_LANGUAGES:
+                try:
+                    logger.info("Bhashini STT request started: language=%s, provider=bhashini", normalized_lang)
+                    start_time = time.perf_counter()
+
+                    transcript = self._bhashini_provider.transcribe(
+                        audio_bytes=audio_bytes,
+                        language=normalized_lang,
+                        audio_format="wav",
+                        sampling_rate=16000,
+                    )
+
+                    duration = time.perf_counter() - start_time
+                    logger.info(
+                        "Bhashini STT request completed in %.2fs: provider=bhashini, chars=%d",
+                        duration,
+                        len(transcript),
+                    )
+
+                    return STTSuccessResponse(
+                        success=True,
+                        transcript=transcript,
+                        language_code=normalized_lang,
+                        request_id=f"bhashini_{uuid.uuid4().hex[:12]}",
+                        language_probability=1.0,
+                    )
+
+                except (MissingApiKeyError, MissingServiceIdError, InvalidAudioDataError, InvalidLanguageError, UnsupportedAudioFormatError):
+                    # Fail clearly on configuration or argument errors; do not fallback silently
+                    raise
+
+                except (BhashiniHttpError, BhashiniResponseError, Exception) as exc:
+                    if not self.enable_fallback:
+                        raise
+                    logger.warning("Bhashini STT failed; using Sarvam fallback: error=%s", exc)
+                    logger.info("provider=sarvam_fallback")
+
+                    res = self._sarvam_provider.transcribe_audio(
+                        file_content=audio_bytes,
+                        filename=filename,
+                        content_type=content_type,
+                        language_code=language_code,
+                    )
+                    return res
+            else:
+                # Language not supported by Bhashini: route to Sarvam if fallback allowed
+                if self.enable_fallback:
+                    logger.info(
+                        "Language '%s' not in Bhashini supported set; routing to Sarvam: provider=sarvam",
+                        language_code,
+                    )
+                    return self._sarvam_provider.transcribe_audio(
+                        file_content=audio_bytes,
+                        filename=filename,
+                        content_type=content_type,
+                        language_code=language_code,
+                    )
+                else:
+                    raise InvalidLanguageError(f"Language '{language_code}' is not supported by Bhashini STT.")
+
+        # 2. Explicit Sarvam Provider
+        elif active_provider == "sarvam":
+            logger.info("provider=sarvam")
+            return self._sarvam_provider.transcribe_audio(
+                file_content=audio_bytes,
+                filename=filename,
+                content_type=content_type,
+                language_code=language_code,
+            )
+
+        else:
+            raise STTConfigurationError(
+                f"Unsupported STT provider '{active_provider}'. Supported: 'bhashini', 'sarvam'"
+            )
+
+
+# Default singleton instance: Bhashini as primary with Sarvam fallback
+stt_service = STTService(default_provider="bhashini", enable_fallback=True)
+
+

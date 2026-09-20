@@ -11,6 +11,7 @@ from .config import (
 )
 from .schemas import TTSSynthesizeRequest, TTSSuccessResponse, TTSErrorResponse
 from .service import tts_service, TTSException
+from bhashini.exceptions import BhashiniError
 
 logger = logging.getLogger("medikiosk.tts.router")
 
@@ -99,10 +100,17 @@ async def synthesize_speech(request: TTSSynthesizeRequest):
             language_code=target_lang,
             speaker=speaker,
             pace=pace,
+            provider=request.provider,
         )
         return result
 
     except TTSException as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"success": False, "error": exc.message},
+        )
+
+    except BhashiniError as exc:
         return JSONResponse(
             status_code=exc.status_code,
             content={"success": False, "error": exc.message},

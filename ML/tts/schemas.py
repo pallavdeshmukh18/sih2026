@@ -23,15 +23,30 @@ class TTSSynthesizeRequest(BaseModel):
         le=2.0,
         description="Speech pace between 0.5 and 2.0 (default: 1.0)",
     )
+    provider: Optional[str] = Field(
+        None,
+        description="Optional TTS provider override ('bhashini' or 'sarvam'). Defaults to 'bhashini'.",
+    )
 
 
 class TTSSuccessResponse(BaseModel):
     success: bool = True
-    request_id: Optional[str] = Field(None, description="Sarvam request ID")
+    request_id: Optional[str] = Field(None, description="Request ID")
     audio_base64: str = Field(..., description="Base64 encoded audio string")
     audio_format: str = Field("wav", description="Audio format")
     language_code: str = Field(..., description="Language code of synthesized speech")
     speaker: str = Field("simran", description="Speaker name used for synthesis")
+    provider: Optional[str] = Field("bhashini", description="TTS provider used ('bhashini' or 'sarvam')")
+
+    def __iter__(self):
+        import base64
+        return iter((base64.b64decode(self.audio_base64), {
+            "request_id": self.request_id,
+            "audio_format": self.audio_format,
+            "language_code": self.language_code,
+            "speaker": self.speaker,
+            "provider": self.provider,
+        }))
 
 
 class TTSErrorResponse(BaseModel):

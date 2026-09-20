@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from .config import SUPPORTED_AUDIO_EXTENSIONS, MAX_AUDIO_FILE_SIZE_BYTES
 from .schemas import STTSuccessResponse, STTErrorResponse
 from .service import stt_service, STTException
+from bhashini.exceptions import BhashiniError
 
 logger = logging.getLogger("medikiosk.stt.router")
 
@@ -31,6 +32,10 @@ async def transcribe_audio(
     language_code: Optional[str] = Form(
         None,
         description="Optional BCP-47 language code (e.g., 'hi-IN', 'mr-IN', 'en-IN'). Omit for auto-detection.",
+    ),
+    provider: Optional[str] = Form(
+        None,
+        description="Optional STT provider override ('bhashini' or 'sarvam'). Defaults to 'bhashini'.",
     ),
 ):
     """
@@ -86,17 +91,24 @@ async def transcribe_audio(
                 },
             )
 
-        # 3. Process transcription via Sarvam STT service
+        # 3. Process transcription via STT service (Bhashini primary, Sarvam fallback)
         result = stt_service.transcribe_audio(
             file_content=audio_bytes,
             filename=file.filename,
             content_type=file.content_type,
             language_code=language_code,
+            provider=provider,
         )
 
         return result
 
     except STTException as exc:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"success": False, "error": exc.message},
+        )
+
+    except BhashiniError as exc:
         return JSONResponse(
             status_code=exc.status_code,
             content={"success": False, "error": exc.message},

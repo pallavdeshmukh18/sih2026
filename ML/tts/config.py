@@ -11,23 +11,15 @@ def get_sarvam_tts_model() -> str:
     return os.getenv("SARVAM_TTS_MODEL", "bulbul:v3").strip().strip("'\"")
 
 
-# Supported BCP-47 language codes for Sarvam Bulbul v3
+# Supported language codes for TTS (BCP-47 and standard 2-letter ISO-639)
 SUPPORTED_TTS_LANGUAGES: Set[str] = {
-    "bn-IN",
-    "en-IN",
-    "gu-IN",
-    "hi-IN",
-    "kn-IN",
-    "ml-IN",
-    "mr-IN",
-    "od-IN",
-    "pa-IN",
-    "ta-IN",
-    "te-IN",
+    "bn-IN", "en-IN", "gu-IN", "hi-IN", "kn-IN", "ml-IN", "mr-IN", "od-IN", "pa-IN", "ta-IN", "te-IN",
+    "hi", "mr", "en", "gu", "bn", "ta", "te", "kn", "ml", "pa", "or",
 }
 
-# Complete list of supported Bulbul v3 speaker voices
+# Complete list of supported speaker voices (including Bhashini female/male voices)
 SUPPORTED_SPEAKERS: Set[str] = {
+    "female", "male", "default",
     "anushka", "abhilash", "manisha", "vidya", "arya", "karun", "hitesh",
     "aditya", "ritu", "priya", "neha", "rahul", "pooja", "rohan", "simran",
     "kavya", "amit", "dev", "ishita", "shreya", "ratan", "varun", "manan",

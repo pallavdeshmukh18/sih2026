@@ -158,6 +158,8 @@ def generate_summary(session: ClinicalSession, document_data: dict = None) -> st
             rag_sources_text = "\n".join(rag_lines)
 
     if groq_client:
+        ayush_str = f"AYUSH / DASHAVIDHA PARIKSHA:\n{dashavidha_block}" if dashavidha_block else ""
+        ayurvedic_str = f"ADDITIONAL AYURVEDIC HISTORY:\n{additional_ayurvedic_block}" if additional_ayurvedic_block else ""
         prompt = f"""You are a senior physician documentation specialist generating a clinical handoff report.
 Your audience is an EXPERIENCED ATTENDING DOCTOR who will see this patient next.
 The report must save them time — they should be able to scan it in 30 seconds and understand the patient's full presentation.
@@ -172,8 +174,8 @@ Session Language: {lang_name} ({session.language})
 === STRUCTURED CLINICAL PARAMETERS (OLDCARTS) ===
 {hpi_block}
 {f"GI-Specific: {gi_block}" if gi_block else ""}
-{f"AYUSH / DASHAVIDHA PARIKSHA:\n{dashavidha_block}" if dashavidha_block else ""}
-{f"ADDITIONAL AYURVEDIC HISTORY:\n{additional_ayurvedic_block}" if additional_ayurvedic_block else ""}
+{ayush_str}
+{ayurvedic_str}
 
 === RED FLAGS IDENTIFIED ===
 {', '.join(session.red_flags) if session.red_flags else 'None identified'}

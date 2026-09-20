@@ -688,6 +688,7 @@ def generate_next_question(missing_field: str, language: str = "en", session: 'C
 
     chief = session.chief_complaint if session else "their health concern"
     
+    context_str = f"=== CONVERSATION CONTEXT ===\n{context_block}" if context_block else "This is an early question in the intake."
     prompt = f"""You are an empathetic medical intake assistant in MediKiosk, conducting a structured clinical history-taking.
 You are speaking directly to the patient — like a caring, experienced doctor.
 
@@ -695,7 +696,7 @@ CHIEF COMPLAINT: "{chief}"
 NEXT PARAMETER TO ASK: '{missing_field}'
 Target Language: {lang_name} ({language}).
 
-{'=== CONVERSATION CONTEXT ===\n' + context_block if context_block else 'This is an early question in the intake.'}
+{context_str}
 
 INSTRUCTIONS:
 1. Frame the question as a NATURAL FOLLOW-UP to the patient's last answer. Briefly acknowledge what they just said before transitioning.

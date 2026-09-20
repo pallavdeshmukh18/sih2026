@@ -6,8 +6,9 @@ class STTSuccessResponse(BaseModel):
     success: bool = True
     transcript: str = Field(..., description="Transcribed text in the patient's spoken language")
     language_code: Optional[str] = Field(None, description="BCP-47 language code of the transcription")
-    request_id: Optional[str] = Field(None, description="Sarvam request ID for tracing")
+    request_id: Optional[str] = Field(None, description="Request ID for tracing")
     language_probability: Optional[float] = Field(None, description="Confidence score for language detection if available")
+    provider: Optional[str] = Field("bhashini", description="STT provider used ('bhashini' or 'sarvam')")
 
 
 class STTErrorResponse(BaseModel):
