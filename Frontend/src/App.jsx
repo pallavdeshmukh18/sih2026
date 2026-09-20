@@ -44,6 +44,8 @@ import SharedInsurancePolicies from "./pages/shared/SharedInsurancePolicies";
 import ReceptionistDashboard from "./pages/ReceptionistDashboard";
 import ReceptionistAppointments from "./pages/receptionist/ReceptionistAppointments";
 import ReceptionistPatients from "./pages/receptionist/ReceptionistPatients";
+import ReceptionistBilling from "./pages/receptionist/ReceptionistBilling";
+import ReceptionistReports from "./pages/receptionist/ReceptionistReports";
 // Accessibility Development Prototype
 import ISLAvatarTest from "./pages/accessibility/ISLAvatarTest";
 
@@ -124,6 +126,8 @@ function App() {
             <Route path="dashboard" element={<ReceptionistDashboard />} />
             <Route path="appointments" element={<ReceptionistAppointments />} />
             <Route path="patients" element={<ReceptionistPatients />} />
+            <Route path="billing" element={<ReceptionistBilling />} />
+            <Route path="reports" element={<ReceptionistReports />} />
             <Route path="insurance" element={<SharedInsurancePolicies />} />
             
             {/* Shared Hospital Modules */}
@@ -132,6 +136,7 @@ function App() {
             <Route path="schedule" element={<ReceptionistAppointments />} />
             <Route path="account" element={<Account />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="teleconsult" element={<Navigate to="/receptionist/dashboard" replace />} />
 
             <Route path="" element={<Navigate to="/receptionist/dashboard" replace />} />
             <Route path="*" element={<ComingSoon />} />

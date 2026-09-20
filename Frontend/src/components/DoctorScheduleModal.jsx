@@ -5,7 +5,7 @@ import {
     AlertCircle, Plus, X, RefreshCw, ChevronLeft, ChevronRight, Award 
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { fetchReceptionistAppointments } from "../services/api";
+import { fetchReceptionistAppointments, fetchAvailableDoctorSlots } from "../services/api";
 import toast from "react-hot-toast";
 import styles from "./DoctorScheduleModal.module.css";
 
@@ -20,6 +20,7 @@ export default function DoctorScheduleModal({ doctor, isOpen, onClose, onBookSlo
     const todayStr = new Date().toISOString().split("T")[0];
     const [selectedDate, setSelectedDate] = useState(todayStr);
     const [appointments, setAppointments] = useState([]);
+    const [availableSlots, setAvailableSlots] = useState([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -28,13 +29,24 @@ export default function DoctorScheduleModal({ doctor, isOpen, onClose, onBookSlo
         const loadSchedule = async () => {
             setLoading(true);
             try {
-                const res = await fetchReceptionistAppointments({
-                    doctorId: doctor.id,
-                    date: selectedDate,
-                }, token);
+                const [apptsRes, availRes] = await Promise.allSettled([
+                    fetchReceptionistAppointments({
+                        doctorId: doctor.id,
+                        date: selectedDate,
+                    }, token),
+                    fetchAvailableDoctorSlots(doctor.id, selectedDate, token)
+                ]);
 
-                if (res?.appointments) {
-                    setAppointments(res.appointments);
+                if (apptsRes.status === "fulfilled" && apptsRes.value?.appointments) {
+                    setAppointments(apptsRes.value.appointments);
+                } else {
+                    setAppointments([]);
+                }
+
+                if (availRes.status === "fulfilled" && availRes.value?.slots) {
+                    setAvailableSlots(availRes.value.slots);
+                } else {
+                    setAvailableSlots([]);
                 }
             } catch (err) {
                 toast.error(err.message || "Failed to load doctor schedule.");
@@ -46,25 +58,28 @@ export default function DoctorScheduleModal({ doctor, isOpen, onClose, onBookSlo
         loadSchedule();
     }, [isOpen, doctor?.id, selectedDate, token]);
 
-    // Map time slots to appointments
+    // Map time slots to appointments & live availability
     const slotData = useMemo(() => {
         return STANDARD_TIME_SLOTS.map((slotTime) => {
             // Find appointment matching slot time
             const matchingAppt = appointments.find((a) => {
-                const apptDate = new Date(a.scheduledAt);
+                const apptDate = new Date(a.scheduledAt || a.scheduled_at);
                 const hours = String(apptDate.getHours()).padStart(2, "0");
                 const minutes = String(apptDate.getMinutes()).padStart(2, "0");
                 const apptTimeStr = `${hours}:${minutes}`;
                 return apptTimeStr === slotTime;
             });
 
+            const matchingSlot = availableSlots.find((s) => s.time === slotTime || s.time24 === slotTime);
+            const isBooked = !!matchingAppt || (matchingSlot !== undefined && !matchingSlot.available);
+
             return {
                 time: slotTime,
-                isBooked: !!matchingAppt,
+                isBooked,
                 appointment: matchingAppt || null,
             };
         });
-    }, [appointments]);
+    }, [appointments, availableSlots]);
 
     const bookedCount = slotData.filter((s) => s.isBooked).length;
     const availableCount = slotData.length - bookedCount;

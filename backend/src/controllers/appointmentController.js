@@ -8,7 +8,7 @@ const crypto = require("crypto");
 async function createAppointment(req, res, next) {
     try {
         const { doctorId, scheduledAt, durationMinutes = 30, appointmentType = "in_person", reason, notes, sessionId, clinicalSessionId } = req.body;
-        const patientId = req.user.role === "patient" ? req.user.id : req.body.patientId;
+        let patientId = req.user.role === "patient" ? req.user.id : (req.body.patientId || req.body.patientName);
         const activeSessionId = sessionId || clinicalSessionId;
         const rawType = appointmentType || "in_person";
         const normalizedType = rawType === "teleconsultation" ? "video" : rawType;
@@ -16,8 +16,50 @@ async function createAppointment(req, res, next) {
         if (!patientId || !doctorId || !scheduledAt) {
             return res.status(400).json({
                 success: false,
-                message: "Missing required fields: doctorId, scheduledAt",
+                message: "Missing required fields: doctorId, scheduledAt, patientId",
             });
+        }
+
+        // If patientId is a name or phone and not a UUID, resolve it
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(patientId).trim());
+        if (!isUUID) {
+            const searchRes = await pool.query(
+                `SELECT u.id 
+                 FROM users u
+                 LEFT JOIN patient_profiles p ON u.id = p.user_id
+                 WHERE u.role = 'patient' AND (
+                     u.phone = $1
+                     OR u.email = $1
+                     OR p.abha_id = $1
+                     OR TRIM(CONCAT(u.first_name, ' ', COALESCE(u.last_name, ''))) ILIKE $1
+                     OR u.first_name ILIKE $1
+                     OR u.last_name ILIKE $1
+                 ) LIMIT 1;`,
+                [String(patientId).trim()]
+            );
+            if (searchRes.rows.length > 0) {
+                patientId = searchRes.rows[0].id;
+            } else {
+                const nameParts = String(patientId).trim().split(" ");
+                const firstName = nameParts[0] || "Patient";
+                const lastName = nameParts.slice(1).join(" ") || "Walk-In";
+                const randomPhone = `98${Math.floor(10000000 + Math.random() * 90000000)}`;
+
+                const newPatient = await pool.query(
+                    `INSERT INTO users (first_name, last_name, phone, role, login_method, is_active)
+                     VALUES ($1, $2, $3, 'patient', 'phone', true)
+                     RETURNING id;`,
+                    [firstName, lastName, randomPhone]
+                );
+                patientId = newPatient.rows[0].id;
+
+                await pool.query(
+                    `INSERT INTO patient_profiles (user_id)
+                     VALUES ($1)
+                     ON CONFLICT (user_id) DO NOTHING;`,
+                    [patientId]
+                );
+            }
         }
 
         const scheduledDate = new Date(scheduledAt);
@@ -27,39 +69,41 @@ async function createAppointment(req, res, next) {
             return res.status(400).json({ message: "Choose a future appointment, a valid type, and duration between 1 and 240 minutes." });
         }
 
-        // REQUIREMENT 5 & 12: Enforce completed AI clinical assessment before booking
-        if (!activeSessionId) {
+        // REQUIREMENT 5 & 12: Enforce completed AI clinical assessment before booking ONLY for patient self-booking
+        if (req.user.role === "patient" && !activeSessionId) {
             return res.status(400).json({
                 success: false,
                 message: "An AI clinical intake assessment must be completed before booking an appointment.",
             });
         }
 
-        // Verify clinical session exists, belongs to patient, and is completed
-        const sessionCheck = await pool.query(
-            `SELECT id, patient_id, status, chief_complaint FROM clinical_sessions WHERE id = $1;`,
-            [activeSessionId]
-        );
-        if (sessionCheck.rows.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Clinical intake assessment session not found.",
-            });
-        }
+        if (activeSessionId) {
+            // Verify clinical session exists, belongs to patient, and is completed
+            const sessionCheck = await pool.query(
+                `SELECT id, patient_id, status, chief_complaint FROM clinical_sessions WHERE id = $1;`,
+                [activeSessionId]
+            );
+            if (sessionCheck.rows.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Clinical intake assessment session not found.",
+                });
+            }
 
-        const session = sessionCheck.rows[0];
-        if (session.patient_id !== patientId) {
-            return res.status(403).json({
-                success: false,
-                message: "Unauthorized: Clinical intake session belongs to another patient.",
-            });
-        }
+            const session = sessionCheck.rows[0];
+            if (req.user.role === "patient" && session.patient_id !== patientId) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Unauthorized: Clinical intake session belongs to another patient.",
+                });
+            }
 
-        if (session.status !== "completed") {
-            return res.status(400).json({
-                success: false,
-                message: "Clinical intake assessment is incomplete. Please finish the assessment before booking.",
-            });
+            if (session.status !== "completed") {
+                return res.status(400).json({
+                    success: false,
+                    message: "Clinical intake assessment is incomplete. Please finish the assessment before booking.",
+                });
+            }
         }
 
         // REQUIREMENT 2: Verify doctor exists, is active, and verified
@@ -439,7 +483,8 @@ async function updateAppointmentStatus(req, res, next) {
         if (!appointment) return res.status(404).json({ message: "Appointment not found" });
         const isPatient = req.user.role === "patient" && appointment.patient_id === req.user.id;
         const isDoctor = req.user.role === "doctor" && appointment.doctor_id === req.user.id;
-        if (!isPatient && !isDoctor) return res.status(403).json({ message: "Access denied to this appointment." });
+        const isStaff = ["receptionist", "admin", "nurse"].includes(req.user.role);
+        if (!isPatient && !isDoctor && !isStaff) return res.status(403).json({ message: "Access denied to this appointment." });
         if (isPatient && status !== "cancelled") return res.status(403).json({ message: "Patients may only cancel appointments." });
         if (!["scheduled", "confirmed"].includes(appointment.status)) {
             return res.status(409).json({ message: "This appointment is already closed." });
@@ -483,11 +528,11 @@ async function updateAppointmentStatus(req, res, next) {
 async function deleteAppointment(req, res, next) {
     try {
         const appointmentId = req.params.id;
-        const patientId = req.user.id;
+        const isStaff = ["receptionist", "doctor", "admin"].includes(req.user.role);
 
         const check = await pool.query(
-            "SELECT id, patient_id, doctor_id, scheduled_at, appointment_type FROM appointments WHERE id = $1 AND patient_id = $2;",
-            [appointmentId, patientId]
+            "SELECT id, patient_id, doctor_id, scheduled_at, appointment_type FROM appointments WHERE id = $1 AND (patient_id = $2 OR $3 = true);",
+            [appointmentId, req.user.id, isStaff]
         );
         if (check.rows.length === 0) {
             return res.status(404).json({ success: false, message: "Appointment not found." });

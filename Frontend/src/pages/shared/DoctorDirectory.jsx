@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Building2, Calendar, CheckCircle, ChevronDown, Heart, MapPin, RefreshCw, Search, ShieldCheck, Star, Stethoscope, Video, X } from "lucide-react";
+import { Building2, Calendar, CheckCircle, ChevronDown, Clock, Heart, MapPin, RefreshCw, Search, ShieldCheck, Star, Stethoscope, Video, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../i18n";
 import { useAccessibility } from "../../context/AccessibilityContext";
 import { createAppointment, fetchPublicDoctors, fetchDoctorReviews } from "../../services/api";
 import { formatDoctorName, translateClinicalTerm, translateDepartment } from "../../utils/transliterate";
+import DoctorScheduleModal from "../../components/DoctorScheduleModal";
 import heroImage from "../../assets/doctor-directory-hero.png";
 import styles from "./DoctorDirectory.module.css";
 
@@ -15,6 +16,7 @@ export default function DoctorDirectory() {
   const navigate = useNavigate();
   const { token, user } = useAuth();
   const canBookAppointments = user?.role === "patient";
+  const isReceptionist = user?.role === "receptionist";
   const { t, language } = useLanguage();
   const { islEnabled, requestSign } = useAccessibility();
   const [doctors, setDoctors] = useState([]);
@@ -26,6 +28,7 @@ export default function DoctorDirectory() {
   const [date, setDate] = useState("");
   const [favorites, setFavorites] = useState(new Set());
   const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [selectedDoctorForSchedule, setSelectedDoctorForSchedule] = useState(null);
   const [scheduledAt, setScheduledAt] = useState("");
   const [appointmentType, setAppointmentType] = useState("in_person");
   const [reason, setReason] = useState("General Clinical Consultation");
@@ -142,9 +145,9 @@ export default function DoctorDirectory() {
     <div className={`${styles.page} workspacePage`}>
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
-          <span>{t("navigation.doctors", "Doctor Directory")}</span>
-          <h1>{t("doctors.pageTitle", "Find Your Doctor")}</h1>
-          <p>{t("doctors.pageSub", "Browse verified specialists, check availability, and schedule in-person or video consultations.")}</p>
+          <span>{isReceptionist ? "Hospital OPD Roster" : t("navigation.doctors", "Doctor Directory")}</span>
+          <h1>{isReceptionist ? "Doctor Availability & Schedules" : t("doctors.pageTitle", "Find Your Doctor")}</h1>
+          <p>{isReceptionist ? "Click any doctor to check live consultation timetable, booked slots, and remaining available time slots." : t("doctors.pageSub", "Browse verified specialists, check availability, and schedule in-person or video consultations.")}</p>
         </div>
         <img src={heroImage} alt="Doctor directory illustration" />
       </section>
@@ -208,20 +211,52 @@ export default function DoctorDirectory() {
                 const displayReviewCount = doctor.reviewCount !== undefined ? doctor.reviewCount : (87 + index * 19);
 
                 return (
-                  <motion.article layout key={doctor.id} className={styles.doctorCard} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: Math.min(index * .025, .15) }}>
-                    <button className={`${styles.favorite} ${favorites.has(doctor.id) ? styles.liked : ""}`} onClick={() => toggleFavorite(doctor.id)} aria-label="Save doctor"><Heart /></button>
+                  <motion.article 
+                    layout 
+                    key={doctor.id} 
+                    className={`${styles.doctorCard} ${isReceptionist ? styles.clickableDoctorCard : ""}`} 
+                    onClick={() => {
+                      if (isReceptionist) {
+                        setSelectedDoctorForSchedule(doctor);
+                      }
+                    }}
+                    title={isReceptionist ? "Click to view doctor availability timetable & remaining slots" : undefined}
+                    initial={{ opacity: 0, y: 8 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    exit={{ opacity: 0 }} 
+                    transition={{ delay: Math.min(index * .025, .15) }}
+                  >
+                    <button className={`${styles.favorite} ${favorites.has(doctor.id) ? styles.liked : ""}`} onClick={(e) => { e.stopPropagation(); toggleFavorite(doctor.id); }} aria-label="Save doctor"><Heart /></button>
                     <div className={styles.avatar}>{initials}</div>
                     <div className={styles.doctorInfo}>
-                      <span className={styles.availability}>{index % 3 === 2 ? t("doctors.availableTomorrow", "Available Tomorrow") : t("doctors.availableToday", "Available Today")}</span>
+                      <span className={styles.availability}>
+                        {isReceptionist ? (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            <Clock size={11} /> Check Slots & Timetable
+                          </span>
+                        ) : (
+                          index % 3 === 2 ? t("doctors.availableTomorrow", "Available Tomorrow") : t("doctors.availableToday", "Available Today")
+                        )}
+                      </span>
                       <h3>{formatDoctorName(doctor, language)} <CheckCircle /></h3>
                       <p>{translateSpec(doctor.specialization)}</p>
                       <small>{8 + index}+ {t("doctors.yearsExperience", "years experience")}</small>
                       <small><Building2 /> {translateDepartment(doctor.department, language) || `${translateClinicalTerm(location, "locations", language) || location} ${t("doctors.medicalCentre", "Medical Centre")}`}</small>
                       <small className={styles.rating}>★ <b>{displayRating}</b> ({displayReviewCount} {t("doctors.reviews", "reviews")})</small>
                     </div>
-                    <div className={`${styles.cardActions} ${!canBookAppointments ? styles.singleAction : ""}`}>
-                      <button onClick={() => handleViewDoctorProfile(doctor)}>{t("common.view", "View Profile")}</button>
-                      {canBookAppointments && <button className={styles.bookButton} onClick={() => openBooking(doctor)}><Calendar /> {t("doctors.bookAppointment", "Book Appointment")}</button>}
+                    <div className={`${styles.cardActions} ${!canBookAppointments && !isReceptionist ? styles.singleAction : ""}`} onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => handleViewDoctorProfile(doctor)}>{t("common.view", "View Profile")}</button>
+                      {canBookAppointments && <button type="button" className={styles.bookButton} onClick={() => openBooking(doctor)}><Calendar /> {t("doctors.bookAppointment", "Book Appointment")}</button>}
+                      {isReceptionist && (
+                        <button 
+                          type="button" 
+                          className={styles.bookButton} 
+                          onClick={() => setSelectedDoctorForSchedule(doctor)}
+                          style={{ background: "#0284c7" }}
+                        >
+                          <Clock size={13} /> Available Slots
+                        </button>
+                      )}
                     </div>
                   </motion.article>
                 );
@@ -301,6 +336,31 @@ export default function DoctorDirectory() {
                     }}
                   >
                     <Calendar size={14} /> Book Consultation
+                  </button>
+                )}
+                {isReceptionist && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const doc = viewingDoctorProfile;
+                      setViewingDoctorProfile(null);
+                      setSelectedDoctorForSchedule(doc);
+                    }}
+                    style={{
+                      background: "#0284c7",
+                      color: "#ffffff",
+                      border: "none",
+                      padding: "10px 18px",
+                      borderRadius: "10px",
+                      fontWeight: "700",
+                      fontSize: "13px",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px"
+                    }}
+                  >
+                    <Clock size={14} /> View Slots & Timetable
                   </button>
                 )}
               </div>
@@ -392,6 +452,17 @@ export default function DoctorDirectory() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Doctor Schedule Modal for Receptionist */}
+      <DoctorScheduleModal
+        doctor={selectedDoctorForSchedule}
+        isOpen={!!selectedDoctorForSchedule}
+        onClose={() => setSelectedDoctorForSchedule(null)}
+        onBookSlot={(doc, slotTime) => {
+          setSelectedDoctorForSchedule(null);
+          navigate("/receptionist/appointments");
+        }}
+      />
     </div>
   );
 }

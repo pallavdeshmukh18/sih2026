@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
     LayoutDashboard, User, Stethoscope, Users, Calendar, 
-    FileText, ClipboardList, Video, LogOut, UserCog, ShieldCheck, Settings as SettingsIcon, Calculator
+    FileText, ClipboardList, Video, LogOut, UserCog, ShieldCheck, Settings as SettingsIcon, Calculator, CreditCard, BarChart3
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 import { useAuth } from '../../context/AuthContext';
@@ -14,9 +14,15 @@ const Sidebar = ({ onHoverChange, collapsed = false }) => {
     const role = user?.role || 'patient';
     const basePath = `/${role}`;
 
+    const roleSidebarClass = role === 'patient' 
+        ? styles.patientSidebar 
+        : role === 'receptionist' 
+            ? styles.receptionistSidebar 
+            : styles.doctorSidebar;
+
     return (
         <aside
-            className={`${styles.sidebar} ${role === 'patient' ? styles.patientSidebar : role === 'doctor' ? styles.doctorSidebar : ''} ${collapsed ? styles.collapsed : ''}`}
+            className={`${styles.sidebar} ${roleSidebarClass} ${collapsed ? styles.collapsed : ''}`}
             onMouseEnter={() => onHoverChange?.(true)}
             onMouseLeave={() => onHoverChange?.(false)}
         >
@@ -38,18 +44,27 @@ const Sidebar = ({ onHoverChange, collapsed = false }) => {
                     {role === 'receptionist' && (
                         <>
                             <NavLink to="/receptionist/appointments" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                                <ClipboardList size={20} />
-                                <span>Front-Desk Queue</span>
+                                <Calendar size={20} />
+                                <span>Manage Appointments</span>
                             </NavLink>
                             <NavLink to="/receptionist/patients" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                                 <Users size={20} />
                                 <span>Walk-In Registration</span>
                             </NavLink>
+                            <NavLink to="/receptionist/billing" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                                <CreditCard size={20} />
+                                <span>Billing & Payments</span>
+                            </NavLink>
                             <NavLink to="/receptionist/insurance" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
                                 <ShieldCheck size={20} />
                                 <span>Shared Insurance</span>
                             </NavLink>
+                            <NavLink to="/receptionist/reports" className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                                <BarChart3 size={20} />
+                                <span>Reports</span>
+                            </NavLink>
                         </>
+
                     )}
 
                     <NavLink to={`${basePath}/doctor`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
@@ -119,10 +134,12 @@ const Sidebar = ({ onHoverChange, collapsed = false }) => {
                         </NavLink>
                     )}
 
-                    <NavLink to={`${basePath}/teleconsult`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
-                        <Video size={20} />
-                        <span>{t('navigation.teleconsult', 'Teleconsult')}</span>
-                    </NavLink>
+                    {role !== 'receptionist' && (
+                        <NavLink to={`${basePath}/teleconsult`} className={({isActive}) => isActive ? `${styles.navItem} ${styles.active}` : styles.navItem}>
+                            <Video size={20} />
+                            <span>{t('navigation.teleconsult', 'Teleconsult')}</span>
+                        </NavLink>
+                    )}
                 </div>
 
                 <div className={styles.sectionTitle}>{t('navigation.others')}</div>

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { 
     Users, CalendarDays, Clock3, CheckCircle2, Stethoscope, Search, 
-    UserPlus, ArrowRight, Activity, Plus, RefreshCw, AlertCircle
+    UserPlus, ArrowRight, Activity, Plus, RefreshCw, AlertCircle,
+    Filter, X, Clock, UserCheck
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { 
@@ -32,6 +33,9 @@ export default function ReceptionistDashboard() {
     const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(true);
     const [quickSearch, setQuickSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all"); // 'all', 'checked_in', 'yet_to_arrive', 'completed'
+    const [doctorFilter, setDoctorFilter] = useState("all"); // 'all' or doctorId
+    const [timeSlotFilter, setTimeSlotFilter] = useState("all"); // 'all', 'morning', 'afternoon', 'evening'
     const [checkingInId, setCheckingInId] = useState(null);
     const [selectedDoctorForSchedule, setSelectedDoctorForSchedule] = useState(null);
 
@@ -78,16 +82,65 @@ export default function ReceptionistDashboard() {
         }
     };
 
-    const filteredAppointments = appointments.filter(a => {
-        if (!quickSearch.trim()) return true;
-        const q = quickSearch.toLowerCase();
-        return (
-            a.patient?.name?.toLowerCase().includes(q) ||
-            a.patient?.phone?.toLowerCase().includes(q) ||
-            a.doctor?.name?.toLowerCase().includes(q) ||
-            a.id?.toLowerCase().includes(q)
-        );
-    });
+    // Queue Segment Counts
+    const counts = useMemo(() => {
+        let all = appointments.length;
+        let checkedIn = 0;
+        let yetToArrive = 0;
+        let completed = 0;
+
+        appointments.forEach(a => {
+            if (a.status === "confirmed" || a.status === "checked_in") checkedIn++;
+            else if (a.status === "scheduled") yetToArrive++;
+            else if (a.status === "completed") completed++;
+        });
+
+        return { all, checkedIn, yetToArrive, completed };
+    }, [appointments]);
+
+    // Filtered Appointments based on Search, Status, Doctor, and Timeslot
+    const filteredAppointments = useMemo(() => {
+        return appointments.filter(a => {
+            // Check-in / Arrival filter
+            if (statusFilter === "checked_in" && !(a.status === "confirmed" || a.status === "checked_in")) return false;
+            if (statusFilter === "yet_to_arrive" && a.status !== "scheduled") return false;
+            if (statusFilter === "completed" && a.status !== "completed") return false;
+
+            // Doctor filter
+            if (doctorFilter !== "all" && a.doctor?.id !== doctorFilter) return false;
+
+            // Timeslot filter
+            if (timeSlotFilter !== "all") {
+                const apptDate = new Date(a.scheduledAt);
+                const hour = apptDate.getHours();
+                if (timeSlotFilter === "morning" && hour >= 12) return false;
+                if (timeSlotFilter === "afternoon" && (hour < 12 || hour >= 16)) return false;
+                if (timeSlotFilter === "evening" && hour < 16) return false;
+            }
+
+            // Quick search
+            if (quickSearch.trim()) {
+                const q = quickSearch.toLowerCase();
+                const matches = 
+                    a.patient?.name?.toLowerCase().includes(q) ||
+                    a.patient?.phone?.toLowerCase().includes(q) ||
+                    a.doctor?.name?.toLowerCase().includes(q) ||
+                    a.id?.toLowerCase().includes(q);
+                if (!matches) return false;
+            }
+
+            return true;
+        });
+    }, [appointments, statusFilter, doctorFilter, timeSlotFilter, quickSearch]);
+
+    const isFilterActive = statusFilter !== "all" || doctorFilter !== "all" || timeSlotFilter !== "all" || quickSearch.trim() !== "";
+
+    const resetFilters = () => {
+        setStatusFilter("all");
+        setDoctorFilter("all");
+        setTimeSlotFilter("all");
+        setQuickSearch("");
+    };
 
     const currentDateStr = new Date().toLocaleDateString("en-IN", {
         weekday: "long",
@@ -126,52 +179,27 @@ export default function ReceptionistDashboard() {
                 </div>
             </div>
 
-            {/* Stats Metrics Cards */}
-            <div className={styles.metricsGrid}>
-                <div className={styles.metricCard}>
-                    <div className={`${styles.metricIcon} ${styles.toneBlue}`}>
-                        <CalendarDays size={20} />
+            {/* Manage Appointments Action Tab / Banner */}
+            <Link to="/receptionist/appointments" className={styles.manageAppointmentsBanner}>
+                <div className={styles.bannerLeft}>
+                    <div className={styles.bannerIcon}>
+                        <CalendarDays size={24} />
                     </div>
-                    <div className={styles.metricContent}>
-                        <span className={styles.metricLabel}>Today's Appointments</span>
-                        <strong className={styles.metricValue}>{stats.totalToday}</strong>
-                        <span className={styles.metricDetail}>Scheduled OPD</span>
-                    </div>
-                </div>
-
-                <div className={styles.metricCard}>
-                    <div className={`${styles.metricIcon} ${styles.toneGreen}`}>
-                        <CheckCircle2 size={20} />
-                    </div>
-                    <div className={styles.metricContent}>
-                        <span className={styles.metricLabel}>Checked In</span>
-                        <strong className={styles.metricValue}>{stats.checkedIn}</strong>
-                        <span className={styles.metricDetail}>Ready in waiting room</span>
+                    <div className={styles.bannerContent}>
+                        <div className={styles.bannerTitleRow}>
+                            <h2 className={styles.bannerTitle}>Manage Appointments</h2>
+                            <span className={styles.bannerBadge}>OPD Hub</span>
+                        </div>
+                        <p className={styles.bannerSubtitle}>
+                            Book, reschedule, cancel, confirm appointments; doctor/date/time slots
+                        </p>
                     </div>
                 </div>
-
-                <div className={styles.metricCard}>
-                    <div className={`${styles.metricIcon} ${styles.toneAmber}`}>
-                        <Clock3 size={20} />
-                    </div>
-                    <div className={styles.metricContent}>
-                        <span className={styles.metricLabel}>Pending Check-In</span>
-                        <strong className={styles.metricValue}>{Math.max(0, stats.totalToday - stats.checkedIn - stats.completed)}</strong>
-                        <span className={styles.metricDetail}>Awaiting arrival</span>
-                    </div>
+                <div className={styles.bannerAction}>
+                    <span>Manage Appointments</span>
+                    <ArrowRight size={16} />
                 </div>
-
-                <div className={styles.metricCard}>
-                    <div className={`${styles.metricIcon} ${styles.tonePurple}`}>
-                        <Stethoscope size={20} />
-                    </div>
-                    <div className={styles.metricContent}>
-                        <span className={styles.metricLabel}>Active Doctors</span>
-                        <strong className={styles.metricValue}>{stats.availableDoctors || doctors.length}</strong>
-                        <span className={styles.metricDetail}>On OPD Duty</span>
-                    </div>
-                </div>
-            </div>
+            </Link>
 
             {/* Main Workspace Layout (2 columns: Queue + Doctor Availability) */}
             <div className={styles.workspaceGrid}>
@@ -182,14 +210,104 @@ export default function ReceptionistDashboard() {
                             <h2 className={styles.cardTitle}>Today's Patient Queue</h2>
                             <p className={styles.cardSubtitle}>Search and check-in patients arriving at the clinic.</p>
                         </div>
-                        <div className={styles.searchBox}>
-                            <Search size={16} className={styles.searchIcon} />
-                            <input 
-                                type="text"
-                                placeholder="Search by name, phone or ID..."
-                                value={quickSearch}
-                                onChange={(e) => setQuickSearch(e.target.value)}
-                            />
+                        <div className={styles.queueHeaderBadge}>
+                            <span className={styles.livePulseDot}></span>
+                            <span>Live OPD Roster</span>
+                        </div>
+                    </div>
+
+                    {/* Expanded Patient Search Menu */}
+                    <div className={styles.searchBox}>
+                        <Search size={18} className={styles.searchIcon} />
+                        <input 
+                            type="text"
+                            placeholder="Search patient by name, mobile number, ABHA ID, or appointment ID..."
+                            value={quickSearch}
+                            onChange={(e) => setQuickSearch(e.target.value)}
+                        />
+                        {quickSearch && (
+                            <button 
+                                className={styles.clearSearchBtn}
+                                onClick={() => setQuickSearch("")}
+                                title="Clear search"
+                            >
+                                <X size={14} />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Filter Segment Controls Strip: Status (Checked in / Yet to arrive), Doctor, Timeslots */}
+                    <div className={styles.queueFilterStrip}>
+                        {/* Status Pills */}
+                        <div className={styles.statusPills}>
+                            <button
+                                className={`${styles.statusPill} ${statusFilter === "all" ? styles.statusPillActive : ""}`}
+                                onClick={() => setStatusFilter("all")}
+                            >
+                                All <span className={styles.pillCount}>{counts.all}</span>
+                            </button>
+                            <button
+                                className={`${styles.statusPill} ${statusFilter === "checked_in" ? styles.statusPillCheckedInActive : ""}`}
+                                onClick={() => setStatusFilter("checked_in")}
+                            >
+                                <span className={styles.statusDotGreen}></span>
+                                Checked In <span className={styles.pillCount}>{counts.checkedIn}</span>
+                            </button>
+                            <button
+                                className={`${styles.statusPill} ${statusFilter === "yet_to_arrive" ? styles.statusPillPendingActive : ""}`}
+                                onClick={() => setStatusFilter("yet_to_arrive")}
+                            >
+                                <span className={styles.statusDotAmber}></span>
+                                Yet to Arrive <span className={styles.pillCount}>{counts.yetToArrive}</span>
+                            </button>
+                            <button
+                                className={`${styles.statusPill} ${statusFilter === "completed" ? styles.statusPillCompletedActive : ""}`}
+                                onClick={() => setStatusFilter("completed")}
+                            >
+                                Completed <span className={styles.pillCount}>{counts.completed}</span>
+                            </button>
+                        </div>
+
+                        {/* Dropdown Filters (Doctor & Timeslot) */}
+                        <div className={styles.dropdownFilters}>
+                            <div className={styles.filterDropdownGroup}>
+                                <Stethoscope size={14} className={styles.filterDropdownIcon} />
+                                <select 
+                                    value={doctorFilter}
+                                    onChange={(e) => setDoctorFilter(e.target.value)}
+                                    className={styles.filterSelect}
+                                >
+                                    <option value="all">All Doctors</option>
+                                    {doctors.map(d => (
+                                        <option key={d.id} value={d.id}>{d.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className={styles.filterDropdownGroup}>
+                                <Clock size={14} className={styles.filterDropdownIcon} />
+                                <select 
+                                    value={timeSlotFilter}
+                                    onChange={(e) => setTimeSlotFilter(e.target.value)}
+                                    className={styles.filterSelect}
+                                >
+                                    <option value="all">All Timeslots</option>
+                                    <option value="morning">Morning (Before 12 PM)</option>
+                                    <option value="afternoon">Afternoon (12 PM - 4 PM)</option>
+                                    <option value="evening">Evening (After 4 PM)</option>
+                                </select>
+                            </div>
+
+                            {isFilterActive && (
+                                <button 
+                                    onClick={resetFilters} 
+                                    className={styles.resetFilterBtn}
+                                    title="Reset all filters"
+                                >
+                                    <X size={13} />
+                                    Reset
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -201,11 +319,23 @@ export default function ReceptionistDashboard() {
                     ) : filteredAppointments.length === 0 ? (
                         <div className={styles.emptyState}>
                             <AlertCircle size={36} color="#94a3b8" />
-                            <h3>No appointments found for today</h3>
-                            <p>Register a walk-in patient or book an appointment to begin.</p>
-                            <Link to="/receptionist/patients" className={styles.emptyActionBtn}>
-                                <Plus size={16} /> Add Walk-In Patient
-                            </Link>
+                            {isFilterActive ? (
+                                <>
+                                    <h3>No patients match your filters</h3>
+                                    <p>Try switching filter options or clearing search keywords.</p>
+                                    <button onClick={resetFilters} className={styles.emptyActionBtn} style={{ background: "#475569" }}>
+                                        <X size={16} /> Reset Filters
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <h3>No appointments found for today</h3>
+                                    <p>Register a walk-in patient or book an appointment to begin.</p>
+                                    <Link to="/receptionist/patients" className={styles.emptyActionBtn}>
+                                        <Plus size={16} /> Add Walk-In Patient
+                                    </Link>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <div className={styles.tableWrapper}>
@@ -344,10 +474,10 @@ export default function ReceptionistDashboard() {
                                 </div>
                             </Link>
                             <Link to="/receptionist/appointments" className={styles.quickActionCard}>
-                                <CalendarDays size={20} color="#6366f1" />
+                                <CalendarDays size={20} color="#0284c7" />
                                 <div>
-                                    <strong>All Appointments</strong>
-                                    <small>Reschedule & manage</small>
+                                    <strong>Manage Appointments</strong>
+                                    <small>Book, reschedule, cancel, confirm</small>
                                 </div>
                             </Link>
                         </div>

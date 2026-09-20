@@ -138,9 +138,29 @@ export async function fetchReceptionistAppointments(params = {}, token) {
     return apiRequest(`/api/receptionist/appointments${queryString}`, "GET", null, token);
 }
 
+/** Fetch Doctor Available Slots for Specific Date */
+export async function fetchAvailableDoctorSlots(doctorId, date, token) {
+    return apiRequest(`/api/appointments/available?doctorId=${doctorId}&date=${date}`, "GET", null, token);
+}
+
 /** Check-in Patient for Appointment */
 export async function checkInAppointment(appointmentId, token) {
     return apiRequest(`/api/receptionist/check-in/${appointmentId}`, "POST", null, token);
+}
+
+/** Book Appointment as Receptionist */
+export async function bookReceptionistAppointment(appointmentData, token) {
+    return apiRequest("/api/receptionist/appointments", "POST", appointmentData, token);
+}
+
+/** Cancel Appointment as Receptionist */
+export async function cancelReceptionistAppointment(appointmentId, token) {
+    return apiRequest(`/api/receptionist/appointments/${appointmentId}/cancel`, "PATCH", null, token);
+}
+
+/** Reschedule Appointment as Receptionist */
+export async function rescheduleReceptionistAppointment(appointmentId, data, token) {
+    return apiRequest(`/api/receptionist/appointments/${appointmentId}/reschedule`, "PATCH", data, token);
 }
 
 /** Register Walk-In Patient and Optionally Book Appointment */
@@ -156,6 +176,48 @@ export async function fetchReceptionistPatients(params = {}, token) {
     if (params.offset) query.append("offset", params.offset);
     const queryString = query.toString() ? `?${query.toString()}` : "";
     return apiRequest(`/api/receptionist/patients${queryString}`, "GET", null, token);
+}
+
+/** Fetch Billing & Payment Invoices */
+export async function fetchReceptionistBilling(params = {}, token) {
+    const query = new URLSearchParams();
+    if (params.date) query.append("date", params.date);
+    if (params.doctorId) query.append("doctorId", params.doctorId);
+    if (params.status) query.append("status", params.status);
+    if (params.paymentMethod) query.append("paymentMethod", params.paymentMethod);
+    if (params.search) query.append("search", params.search);
+    const queryString = query.toString() ? `?${query.toString()}` : "";
+    return apiRequest(`/api/receptionist/billing${queryString}`, "GET", null, token);
+}
+
+/** Fetch Billing Statistics */
+export async function fetchReceptionistBillingStats(token) {
+    return apiRequest("/api/receptionist/billing/stats", "GET", null, token);
+}
+
+/** Create New Invoice */
+export async function createReceptionistInvoice(data, token) {
+    return apiRequest("/api/receptionist/billing", "POST", data, token);
+}
+
+/** Collect Payment for Invoice */
+export async function collectInvoicePayment(invoiceId, data, token) {
+    return apiRequest(`/api/receptionist/billing/${invoiceId}/pay`, "PATCH", data, token);
+}
+
+/** Issue Refund for Invoice */
+export async function refundInvoice(invoiceId, data, token) {
+    return apiRequest(`/api/receptionist/billing/${invoiceId}/refund`, "PATCH", data, token);
+}
+
+/** Fetch Operational & Clinical Reports */
+export async function fetchReceptionistReports(params = {}, token) {
+    const query = new URLSearchParams();
+    if (params.range) query.append("range", params.range);
+    if (params.startDate) query.append("startDate", params.startDate);
+    if (params.endDate) query.append("endDate", params.endDate);
+    const queryString = query.toString() ? `?${query.toString()}` : "";
+    return apiRequest(`/api/receptionist/reports${queryString}`, "GET", null, token);
 }
 
 // ==================================================
@@ -651,3 +713,4 @@ export async function fetchTeleconsultMessages(sessionId, token) {
 export async function sendTeleconsultMessage(sessionId, message, messageType = "text", token) {
     return apiRequest(`/api/teleconsult/${sessionId}/messages`, "POST", { message, messageType }, token);
 }
+

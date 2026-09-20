@@ -85,6 +85,31 @@ pool.query(`
     CREATE INDEX IF NOT EXISTS idx_doctor_reviews_patient ON doctor_reviews (patient_id);
     CREATE INDEX IF NOT EXISTS idx_doctor_reviews_appt ON doctor_reviews (appointment_id);
     CREATE INDEX IF NOT EXISTS idx_doctor_reviews_tele ON doctor_reviews (teleconsult_id);
+
+    CREATE TABLE IF NOT EXISTS invoices (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        invoice_number VARCHAR(50) UNIQUE NOT NULL,
+        appointment_id UUID REFERENCES appointments(id) ON DELETE SET NULL,
+        patient_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        doctor_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        amount NUMERIC(10, 2) NOT NULL DEFAULT 500.00,
+        discount NUMERIC(10, 2) DEFAULT 0.00,
+        tax NUMERIC(10, 2) DEFAULT 0.00,
+        total_amount NUMERIC(10, 2) NOT NULL DEFAULT 500.00,
+        payment_status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        payment_method VARCHAR(30) DEFAULT 'Cash',
+        service_type VARCHAR(100) DEFAULT 'OPD Consultation Fee',
+        notes TEXT,
+        refund_amount NUMERIC(10, 2) DEFAULT 0.00,
+        refund_reason TEXT,
+        paid_at TIMESTAMPTZ,
+        refunded_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_invoices_patient ON invoices (patient_id);
+    CREATE INDEX IF NOT EXISTS idx_invoices_doctor ON invoices (doctor_id);
+    CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices (payment_status);
 `).catch((err) => {
     console.warn("startup database check:", err.message);
 });
