@@ -1,0 +1,94 @@
+.page {
+    --green: #0b8a73;
+    --navy: #10223d;
+    min-height: 100svh;
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    padding: 110px 24px 70px;
+    color: var(--navy);
+    background:
+        radial-gradient(circle at 12% 15%, rgba(152, 223, 198, .24), transparent 29%),
+        radial-gradient(circle at 88% 82%, rgba(117, 193, 169, .18), transparent 27%),
+        linear-gradient(145deg, #f6fcf9 0%, #fff 48%, #f4faf7 100%);
+}
+
+.page::before, .page::after {
+    content: "";
+    position: absolute;
+    border: 1px solid rgba(22, 139, 116, .1);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.page::before { width: 520px; height: 520px; left: -330px; bottom: -250px; }
+.page::after { width: 430px; height: 430px; right: -285px; top: -235px; }
+.glow { position: absolute; width: 520px; height: 520px; border-radius: 50%; background: rgba(134, 211, 185, .12); filter: blur(70px); }
+
+.brand {
+    position: absolute;
+    top: 34px;
+    left: 50%;
+    z-index: 2;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.brand > span:last-child { display: flex; flex-direction: column; }
+.brand strong { font: 700 25px/1 Georgia, serif; color: var(--navy); }
+.brand strong span { color: var(--green); }
+.brand small { margin-top: 4px; color: #657389; font-size: 8px; }
+.mark { position: relative; width: 43px; height: 40px; }
+.mark i { position: absolute; background: linear-gradient(145deg, #a5e1c6, #209673); border-radius: 100% 0 100% 0; }
+.mark i:nth-child(1) { width: 21px; height: 32px; left: 14px; transform: rotate(45deg); }
+.mark i:nth-child(2) { width: 23px; height: 31px; left: 1px; top: 10px; transform: rotate(78deg); }
+.mark i:nth-child(3) { width: 2px; height: 34px; left: 21px; top: 14px; background: #137a67; }
+
+.card {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 500px);
+    padding: 52px 48px 42px;
+    border: 1px solid rgba(27, 117, 98, .13);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, .87);
+    box-shadow: 0 28px 80px rgba(24, 74, 63, .11), inset 0 1px 0 #fff;
+    backdrop-filter: blur(20px);
+}
+
+.content { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.iconWrap { position: relative; width: 76px; height: 76px; display: grid; place-items: center; margin-bottom: 27px; border-radius: 22px; color: var(--green); background: #e8f7f1; }
+.iconWrap > svg { width: 38px; height: 38px; }
+.spinner { animation: spin 1.25s linear infinite; }
+.googleDot { position: absolute; display: grid; place-items: center; width: 29px; height: 29px; border: 3px solid #fff; border-radius: 50%; right: -7px; bottom: -5px; background: #fff; color: #4285f4; box-shadow: 0 3px 12px rgba(32, 59, 80, .13); font-weight: 800; }
+.eyebrow { color: var(--green); font-size: 10px; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
+.card h1 { margin: 10px 0 12px; color: var(--navy); font: 700 32px/1.15 Inter, sans-serif; letter-spacing: -.8px; }
+.card p { max-width: 360px; color: #66758a; font-size: 14px; line-height: 1.65; }
+.progress { width: 100%; height: 5px; overflow: hidden; margin: 30px 0 25px; border-radius: 20px; background: #e8efed; }
+.progress span { display: block; width: 42%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0b8a73, #53b99d); animation: progress 1.5s ease-in-out infinite; }
+.security { display: flex; align-items: center; gap: 7px; color: #758296; font-size: 10px; }
+.security svg { width: 15px; color: var(--green); }
+.errorIcon { color: #c74b4b; background: #fff0f0; }
+.errorCard { border-color: rgba(199, 75, 75, .15); }
+.action { width: 100%; height: 48px; display: flex; align-items: center; justify-content: center; gap: 9px; margin-top: 28px; border-radius: 10px; color: #fff; background: linear-gradient(100deg, #087d68, #0b987d); font-size: 13px; font-weight: 700; }
+.action svg { width: 17px; }
+.footer { position: absolute; bottom: 30px; z-index: 1; color: #7a8a98; font-size: 10px; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes progress { 0% { transform: translateX(-105%); } 55%, 100% { transform: translateX(245%); } }
+
+@media (max-width: 560px) {
+    .page { padding: 100px 16px 65px; }
+    .brand { top: 27px; }
+    .card { padding: 40px 24px 34px; border-radius: 19px; }
+    .card h1 { font-size: 28px; }
+    .iconWrap { width: 68px; height: 68px; }
+    .footer { bottom: 22px; max-width: 260px; text-align: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner, .progress span { animation-duration: 3s; }
+}

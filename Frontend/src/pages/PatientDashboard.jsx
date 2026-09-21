@@ -1,363 +1,87 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Activity, ArrowRight, CalendarDays, Download, FileText, MoreVertical,
-  Pill, Share2, ShieldCheck, Sparkles, Trash2, X, Info, Calendar, Stethoscope, MapPin, User
-} from "lucide-react";
+import { ArrowRight, CalendarDays, Clock3, FileImage, FileText, Heart, MapPin, MoreVertical, Pill, Scale, Users, Waves, Footprints } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../i18n";
-import { useAccessibility } from "../context/AccessibilityContext";
-import { getPatientAppointments, uploadMedicalDocument, cancelAppointment } from "../services/api";
+import { getPatientAppointments, uploadMedicalDocument } from "../services/api";
 import { formatDoctorName, transliterateName } from "../utils/transliterate";
-import careImage from "../assets/indian-care-dashboard.png";
-import gatewayBanner from "../assets/patient-gateway-banner.png";
-import ClinicalSummaryCard from "../components/common/ClinicalSummaryCard";
+import heroImage from "../assets/patient-dashboard-mountain-hero.png";
 import styles from "./PatientDashboard.module.css";
 
-const actionCards = [
-  { label: "Book Appointment", copy: "Find and schedule with top doctors", icon: CalendarDays, to: "/patient/doctor", tone: "mint" },
-  { label: "Upload Records", copy: "Keep all your reports in one place", icon: FileText, action: "upload", tone: "sand" },
-  { label: "View Prescriptions", copy: "Access your past prescriptions", icon: Pill, to: "/patient/history", tone: "rose" },
-  { label: "AI Health Assistant", copy: "Get quick health insights", icon: Sparkles, to: "/patient/assessment", tone: "lilac" },
+const records = [
+  { name: "Blood Test Report", date: "12 Sep 2026", type: "Lab Report", icon: FileText, tone: "red" },
+  { name: "Prescription - Dr. Sharma", date: "10 Sep 2026", type: "Prescription", icon: FileText, tone: "blue" },
+  { name: "Chest X-Ray", date: "28 Aug 2026", type: "Imaging", icon: FileImage, tone: "purple" },
 ];
-
-const healthTips = [
-  { icon: "🍊", title: "Stay Hydrated", text: "Drinking enough water helps improve energy, digestion and skin health." },
-  { icon: "🚶", title: "Daily Movement", text: "Aim for at least 30 minutes of physical activity every day." },
-  { icon: "😴", title: "Quality Sleep", text: "Getting 7-8 hours of sleep helps your body recover and boosts immunity." },
-  { icon: "🥗", title: "Balanced Diet", text: "Incorporate more fruits and vegetables into your daily meals." },
-  { icon: "🧘", title: "Mental Health", text: "Take a few minutes each day to practice deep breathing or meditation." },
+const prescriptions = [
+  { name: "Amlodipine 5mg", dose: "1 tablet", frequency: "Once daily" },
+  { name: "Atorvastatin 10mg", dose: "1 tablet", frequency: "Once daily" },
+  { name: "Montelukast 10mg", dose: "1 tablet", frequency: "At night" },
 ];
 
 export default function PatientDashboard() {
   const { user, token } = useAuth();
   const { language, t } = useLanguage();
-  const { islEnabled, requestSign } = useAccessibility();
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
   const [appointments, setAppointments] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [tipIndex, setTipIndex] = useState(0);
-  const [selectedAppt, setSelectedAppt] = useState(null);
-
-
-  const fetchAppointments = () => {
-    if (!token) return;
-    getPatientAppointments(token, "upcoming").then((res) => {
-      if (res.success && Array.isArray(res.appointments)) setAppointments(res.appointments);
-    }).catch(() => {});
-  };
 
   useEffect(() => {
-    fetchAppointments();
+    if (!token) return;
+    getPatientAppointments(token, "upcoming").then((res) => res.success && setAppointments(Array.isArray(res.appointments) ? res.appointments : [])).catch(() => {});
   }, [token]);
-
-  const handleCancelAppointment = async (event, apptId) => {
-    event.stopPropagation();
-    if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
-    try {
-      await cancelAppointment(apptId, token);
-      toast.success("Appointment cancelled successfully.");
-      setSelectedAppt(null);
-      setAppointments((prev) => prev.filter((a) => a.id !== apptId));
-      fetchAppointments();
-    } catch (err) {
-      toast.error(err.message || "Failed to cancel appointment.");
-    }
-  };
 
   const uploadRecord = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
-      toast.error("Please choose a PDF, JPG, or PNG file.");
-      return;
-    }
+    if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type)) return toast.error("Please choose a PDF, JPG, or PNG file.");
     const data = new FormData();
-    data.append("file", file);
-    data.append("patientId", user?.id);
-    data.append("documentType", "other");
+    data.append("file", file); data.append("patientId", user?.id); data.append("documentType", "other");
     setUploading(true);
-    try {
-      await uploadMedicalDocument(data, token);
-      toast.success(t("dashboard.uploadSuccess", "Medical record uploaded."));
-    } catch (error) {
-      toast.error(error.message || "Upload failed.");
-    } finally {
-      setUploading(false);
-      event.target.value = "";
-    }
+    try { await uploadMedicalDocument(data, token); toast.success(t("dashboard.uploadSuccess", "Medical record uploaded.")); }
+    catch (error) { toast.error(error.message || "Upload failed."); }
+    finally { setUploading(false); event.target.value = ""; }
   };
 
-  const actionCards = [
-    { label: t("dashboard.bookAppointment", "Book Appointment"), copy: t("dashboard.bookAppointmentDesc", "Find and schedule with top doctors"), icon: CalendarDays, to: "/patient/doctor", tone: "mint" },
-    { label: t("dashboard.uploadRecords", "Upload Records"), copy: t("dashboard.uploadRecordsDesc", "Keep all your reports in one place"), icon: FileText, action: "upload", tone: "sand" },
-    { label: t("dashboard.viewPrescriptions", "View Prescriptions"), copy: t("dashboard.viewPrescriptionsDesc", "Access your past prescriptions"), icon: Pill, to: "/patient/history", tone: "rose" },
-    { label: t("dashboard.aiHealthAssistant", "AI Health Assistant"), copy: t("dashboard.aiHealthAssistantDesc", "Get quick health insights"), icon: Sparkles, to: "/patient/assessment", tone: "lilac" },
+  const firstName = transliterateName(user?.firstName || user?.name || "Nisarg", language);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const active = appointments.find((a) => ["scheduled", "confirmed", "upcoming"].includes(a.status?.toLowerCase())) || appointments[0];
+  const appointmentDate = active?.scheduledAt || active?.scheduled_at ? new Date(active.scheduledAt || active.scheduled_at) : new Date("2026-09-10T10:30:00");
+  const doctor = active ? formatDoctorName({ firstName: active.doctor?.firstName || active.doctor_first_name || "Rajesh", lastName: active.doctor?.lastName || active.doctor_last_name || "Sharma" }, language) : "Dr. Rajesh Sharma";
+  const openUploadPicker = () => document.getElementById("patient-record-upload")?.click();
+  const actions = [
+    { label: "Book Appointment", copy: "Find and schedule with trusted doctors", icon: CalendarDays, tone: "mint", onClick: () => navigate("/patient/doctor") },
+    { label: "Upload Record", copy: uploading ? "Uploading your record…" : "Add reports, prescriptions and more", icon: FileText, tone: "blue", onClick: openUploadPicker },
+    { label: "View Prescriptions", copy: "Access your current and past prescriptions", icon: Pill, tone: "rose", onClick: () => navigate("/patient/history") },
+    { label: "Find Doctors", copy: "Search by specialty, location or symptoms", icon: Users, tone: "lilac", onClick: () => navigate("/patient/doctor") },
   ];
 
-  const upcomingStatuses = new Set(["scheduled", "confirmed", "upcoming"]);
-  const uniqueAppointments = Array.from(new Map((appointments || []).map(item => [item.id, item])).values());
-  const activeAppointments = uniqueAppointments.filter((item) => upcomingStatuses.has(item.status?.toLowerCase()));
-  const displayedAppointments = activeAppointments.slice(0, 3);
-  const firstName = user?.firstName || user?.name || "Patient";
-
-  const currentHour = new Date().getHours();
-  const greetingText = currentHour < 12
-    ? t("dashboard.greetingMorning", "Good Morning")
-    : currentHour < 17
-    ? t("dashboard.greetingAfternoon", "Good Afternoon")
-    : t("dashboard.greetingEvening", "Good Evening");
-
-  const nextTip = () => setTipIndex((prev) => (prev + 1) % healthTips.length);
-  const prevTip = () => setTipIndex((prev) => (prev - 1 + healthTips.length) % healthTips.length);
-
-  return (
-    <div className={`${styles.page} workspacePage`}>
-      <section className={styles.contentGrid}>
-        <div className={styles.primaryColumn}>
-          <header className={styles.welcome}>
-            <div>
-              <h1>{greetingText}, {transliterateName(firstName, language)} <span>👋</span></h1>
-              <p>{t("dashboard.greetingSub", "Take charge of your health, one step at a time.")}</p>
-            </div>
-            <blockquote>{t("dashboard.quote", "“A healthier you builds a brighter tomorrow.”")}</blockquote>
-            <img className={styles.welcomeArt} src={gatewayBanner} alt="" aria-hidden="true" />
-          </header>
-
-          <section className={styles.profileBanner}>
-            <img src={careImage} alt="Doctor providing attentive care" />
-            <div className={styles.profileContent}>
-              <span>{t("dashboard.nextStep", "Next step")}</span>
-              <h2>{t("dashboard.completeProfileTitle", "Complete Your Health Profile")}</h2>
-              <div className={styles.progress}><i /><span>60%</span></div>
-              <p>{t("dashboard.completeProfileDesc", "Help your doctor understand you better with a complete medical profile.")}</p>
-              <div className={styles.bannerActions}>
-                <Link to="/patient/account" className={styles.completeBtn}>
-                  {t("dashboard.completeNow", "Complete Now")} <ArrowRight />
-                </Link>
-                <Link to="/patient/assessment" className={styles.assessmentBtn}>
-                  <Sparkles size={14} /> Clinical Assessment
-                </Link>
-              </div>
-            </div>
-            <em>{t("dashboard.profileTagline", "Small Details. Bigger Care.")}</em>
-          </section>
-
-          <section className={styles.actionGrid}>
-            {actionCards.map(({ label, copy, icon: Icon, to, action, tone }) => {
-              const body = <><Icon /><ArrowRight className={styles.actionArrow} /><strong>{label}</strong><small>{action === "upload" && uploading ? t("dashboard.uploadingRecord", "Uploading your record…") : copy}</small></>;
-              return action === "upload"
-                ? <button key={label} className={styles[tone]} onClick={() => fileInputRef.current?.click()} disabled={uploading}>{body}</button>
-                : <Link key={label} className={styles[tone]} to={to}>{body}</Link>;
-            })}
-            <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={uploadRecord} hidden />
-          </section>
-
-          <section className={styles.explore}>
-            <span>
-              {t("dashboard.exploreBanner", "Healthcare that understands you.")}<br />
-              <strong>{t("dashboard.exploreBannerSub", "For a healthier India.")}</strong>
-            </span>
-            <button onClick={() => navigate("/patient/assessment")}>
-              {t("dashboard.exploreFeatures", "Explore Features")} <ArrowRight />
-            </button>
-          </section>
+  return <div className={`${styles.page} workspacePage`}>
+    <section className={styles.hero} style={{ "--hero-image": `url(${heroImage})` }}>
+      <div className={styles.heroCopy}><span>{greeting}</span><h1>Take charge of your health, <em>{firstName}.</em></h1><p>Book appointments, access your records and get better care — all in one place.</p></div>
+      <blockquote>“A healthier<br />tomorrow is a<br />brighter you.”<i /></blockquote>
+    </section>
+    <section className={styles.actionGrid}>
+      {actions.map(({ label, copy, icon: Icon, tone, onClick }) => <button key={label} className={styles[tone]} onClick={onClick} disabled={uploading && label === "Upload Record"}><span className={styles.actionIcon}><Icon /></span><span className={styles.actionText}><strong>{label}</strong><small>{copy}</small></span><span className={styles.actionArrow}><ArrowRight /></span></button>)}
+      <input id="patient-record-upload" type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={uploadRecord} hidden />
+    </section>
+    <section className={styles.dashboardGrid}>
+      <article className={`${styles.panel} ${styles.appointmentPanel}`}>
+        <PanelHeader title="Your Next Appointment" link="/patient/appointments" label="View All" />
+        <div className={styles.appointmentBody}>
+          <time><small>{appointmentDate.toLocaleString("en", { month: "short" })}</small><strong>{String(appointmentDate.getDate()).padStart(2, "0")}</strong><span>{appointmentDate.toLocaleString("en", { weekday: "short" })}</span></time>
+          <div className={styles.doctorInfo}><strong>{doctor}</strong><small>{active?.doctor?.specialization || active?.specialization || "Cardiology"} <b>•</b> {active?.location || "MediKiosk Clinic, Mumbai"}</small><span><Clock3 /> {appointmentDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} <b>(in 2 days)</b></span><span><MapPin /> {active?.location || "MediKiosk Clinic, Mumbai"}</span></div>
+          <div className={styles.appointmentActions}><button onClick={() => navigate("/patient/appointments")}>View Details</button><button onClick={() => navigate("/patient/schedule")}>Reschedule</button></div>
         </div>
-
-        <aside className={styles.sideColumn}>
-          <section className={styles.card}>
-            <div className={styles.cardHeader}>
-              <h2>{t("dashboard.upcomingAppointments", "Upcoming Appointments")}</h2>
-              <Link to="/patient/appointments">{t("dashboard.viewAll", "View All")} <ArrowRight /></Link>
-            </div>
-            <div className={styles.appointments}>
-              {displayedAppointments.map((appointment) => {
-                const rawDate = appointment.scheduledAt || appointment.scheduled_at;
-                const date = rawDate ? new Date(rawDate) : new Date();
-                const isValidDate = !isNaN(date.getTime());
-                const docObj = appointment.doctor || {};
-                const docFirstName = docObj.firstName || appointment.doctor_first_name || appointment.doctorFirstName || "Doctor";
-                const docLastName = docObj.lastName || appointment.doctor_last_name || appointment.doctorLastName || "";
-                const docSpec = docObj.specialization || appointment.specialization || appointment.department || t("dashboard.generalPhysician", "General Physician");
-                const docNameFormatted = formatDoctorName({ firstName: docFirstName, lastName: docLastName }, language);
-
-                return (
-                  <article
-                    key={appointment.id}
-                    onClick={() => setSelectedAppt(appointment)}
-                    style={{ cursor: "pointer", position: "relative" }}
-                  >
-                    <time>
-                      <small>{isValidDate ? date.toLocaleString(language || "en", { month: "short" }) : "---"}</small>
-                      <strong>{isValidDate ? String(date.getDate()).padStart(2, "0") : "--"}</strong>
-                    </time>
-                    <div>
-                      <strong>{docNameFormatted}</strong>
-                      <small>{docSpec}</small>
-                      <span>
-                        {isValidDate ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "TBD"} &nbsp;•&nbsp; {appointment.location || t("dashboard.clinicDefault", "MediKiosk Clinic")}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => handleCancelAppointment(e, appointment.id)}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        color: "#ef4444",
-                        cursor: "pointer",
-                        padding: "6px",
-                        borderRadius: "6px",
-                        marginLeft: "auto",
-                      }}
-                      title="Cancel Appointment"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </article>
-                );
-              })}
-              {displayedAppointments.length === 0 && <div style={{ textAlign: "center", padding: "20px 0", color: "#617471", fontSize: "13px" }}>{t("dashboard.noAppointments", "No upcoming appointments.")}</div>}
-            </div>
-          </section>
-
-          {/* Appointment Details Modal */}
-          {selectedAppt && (
-            <div style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(15, 23, 42, 0.6)",
-              backdropFilter: "blur(4px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 9999,
-              padding: "20px"
-            }} onClick={() => setSelectedAppt(null)}>
-              <div style={{
-                background: "#ffffff",
-                borderRadius: "20px",
-                padding: "28px",
-                maxWidth: "500px",
-                width: "100%",
-                boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
-                border: "1px solid #e2e8f0"
-              }} onClick={(e) => e.stopPropagation()}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                  <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#0f172a", margin: 0 }}>
-                    Appointment Details
-                  </h3>
-                  <button onClick={() => setSelectedAppt(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>
-                    <X size={20} />
-                  </button>
-                </div>
-
-                {(() => {
-                  const rawDate = selectedAppt.scheduledAt || selectedAppt.scheduled_at;
-                  const d = rawDate ? new Date(rawDate) : new Date();
-                  const docObj = selectedAppt.doctor || {};
-                  const docName = formatDoctorName({ firstName: docObj.firstName || selectedAppt.doctor_first_name, lastName: docObj.lastName || selectedAppt.doctor_last_name }, language);
-                  const spec = docObj.specialization || selectedAppt.specialization || "General Medicine";
-
-                  return (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                      <div style={{ background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: "12px", padding: "16px" }}>
-                        <strong style={{ fontSize: "16px", color: "#0d9488", display: "block" }}>{docName}</strong>
-                        <span style={{ fontSize: "13px", color: "#475569" }}>{spec}</span>
-                      </div>
-
-                      <div style={{ fontSize: "13px", color: "#334155", display: "flex", flexDirection: "column", gap: "8px" }}>
-                        <div>📅 <strong>Scheduled Date:</strong> {!isNaN(d.getTime()) ? d.toLocaleDateString(undefined, { dateStyle: "full" }) : "TBD"}</div>
-                        <div>⏰ <strong>Time Slot:</strong> {!isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "TBD"}</div>
-                        <div>🏥 <strong>Location:</strong> {selectedAppt.location || "MediKiosk Clinic, Mumbai"}</div>
-                        <div>🩺 <strong>Consultation Type:</strong> {["teleconsultation", "virtual", "video"].includes((selectedAppt.appointmentType || selectedAppt.appointment_type)?.toLowerCase()) ? "Video Call (Teleconsultation)" : "In-Person Visit"}</div>
-                        <div>📌 <strong>Reason:</strong> {selectedAppt.reason || "General Medical Checkup"}</div>
-                        {selectedAppt.notes && (
-                          <div style={{ marginTop: "8px" }}>
-                            <strong style={{ fontSize: "13px", color: "#334155", display: "block", marginBottom: "6px" }}>📝 Clinical Notes & AI Intake Summary:</strong>
-                            <ClinicalSummaryCard
-                              summary={selectedAppt.notes}
-                              chiefComplaint={selectedAppt.reason}
-                              createdAt={selectedAppt.createdAt || selectedAppt.scheduledAt}
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "12px" }}>
-                        <button
-                          type="button"
-                          onClick={(e) => handleCancelAppointment(e, selectedAppt.id)}
-                          style={{
-                            background: "#fef2f2",
-                            border: "1px solid #fecaca",
-                            color: "#ef4444",
-                            padding: "10px 18px",
-                            borderRadius: "10px",
-                            fontSize: "13px",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px"
-                          }}
-                        >
-                          <Trash2 size={15} /> Cancel Appointment
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedAppt(null)}
-                          style={{
-                            background: "#0d9488",
-                            color: "#ffffff",
-                            border: "none",
-                            padding: "10px 20px",
-                            borderRadius: "10px",
-                            fontSize: "13px",
-                            fontWeight: "600",
-                            cursor: "pointer"
-                          }}
-                        >
-                          Close
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
-
-          <section className={styles.card}>
-            <div className={styles.cardHeader}>
-              <h2>{t("dashboard.quickActions", "Quick Actions")}</h2>
-            </div>
-            <div className={styles.quickActions}>
-              <button onClick={() => navigate("/patient/medical-passport")}><Share2 /><span>{t("dashboard.shareRecords", "Share Records")}</span></button>
-              <button onClick={() => navigate("/patient/documents")}><Download /><span>{t("dashboard.downloadSummary", "Download Summary")}</span></button>
-              <button onClick={() => navigate("/patient/assessment")}><Activity /><span>{t("dashboard.addVitals", "Add Vitals")}</span></button>
-              <button onClick={() => navigate("/patient/history")}><ShieldCheck /><span>{t("dashboard.insuranceClaims", "Insurance Claims")}</span></button>
-            </div>
-          </section>
-
-          <section className={`${styles.card} ${styles.tipCard}`}>
-            <div className={styles.cardHeader}>
-              <h2>{t("dashboard.healthTips", "Health Tips")}</h2>
-              <small>
-                {tipIndex + 1} / {healthTips.length} &nbsp; 
-                <span style={{ cursor: 'pointer' }} onClick={prevTip}>‹</span> &nbsp; 
-                  <span style={{ cursor: "pointer" }} onClick={nextTip}>›</span>
-              </small>
-            </div>
-            <div>
-              <span>{healthTips[tipIndex].icon}</span>
-              <p><strong>{t(`dashboard.tip${tipIndex + 1}Title`, healthTips[tipIndex].title)}</strong>{t(`dashboard.tip${tipIndex + 1}Desc`, healthTips[tipIndex].text)}</p>
-            </div>
-          </section>
-        </aside>
-      </section>
-    </div>
-  );
+      </article>
+      <article className={`${styles.panel} ${styles.overviewPanel}`}><PanelHeader title="Health Overview" link="/patient/assessment" label="View Details" /><div className={styles.metrics}><Metric icon={Heart} value="72 bpm" label="Heart Rate" tone="metricRed" /><Metric icon={Waves} value="98 %" label={<>SpO<sub>2</sub></>} tone="metricOrange" /><Metric icon={Scale} value="65 kg" label="Weight" tone="metricGreen" /><Metric icon={Footprints} value="4,320" label="Steps Today" tone="metricGreen" /></div></article>
+      <article className={`${styles.panel} ${styles.recordsPanel}`}><PanelHeader title="Recent Records" link="/patient/documents" label="View All" /><div className={styles.rows}>{records.map(({ name, date, type, icon: Icon, tone }) => <div className={styles.recordRow} key={name}><span className={`${styles.fileIcon} ${styles[tone]}`}><Icon /></span><strong>{name}</strong><span>{date} <b>•</b> {type}</span><button onClick={() => navigate("/patient/documents")}>View</button><MoreVertical /></div>)}</div></article>
+      <article className={`${styles.panel} ${styles.prescriptionsPanel}`}><PanelHeader title="Prescriptions" link="/patient/history" label="View All" /><div className={styles.rows}>{prescriptions.map(({ name, dose, frequency }) => <Link className={styles.prescriptionRow} to="/patient/history" key={name}><span><Pill /></span><strong>{name}</strong><small>{dose} <b>•</b> {frequency}</small><ArrowRight /></Link>)}</div></article>
+    </section>
+  </div>;
 }
+
+function PanelHeader({ title, link, label }) { return <header className={styles.panelHeader}><h2>{title}</h2><Link to={link}>{label} <ArrowRight /></Link></header>; }
+function Metric({ icon: Icon, value, label, tone }) { return <div className={`${styles.metric} ${styles[tone]}`}><Icon /><strong>{value}</strong><span>{label}</span></div>; }

@@ -26,6 +26,7 @@ import ClaimEstimator from "./pages/patient/ClaimEstimator";
 import DoctorAppointments from "./pages/doctor/DoctorAppointments";
 import PatientAccess from "./pages/doctor/PatientAccess";
 import TeamManagement from "./pages/doctor/TeamManagement";
+import { DoctorRecords, DoctorPrescriptions, DoctorMessages } from "./pages/doctor/DoctorClinicalWorkspace";
 import ComingSoon from "./pages/ComingSoon";
 
 // Teleconsultation Video & Voice Calling Pages
@@ -105,6 +106,9 @@ function App() {
             <Route path="patients" element={<PatientAccess />} />
             <Route path="insurance" element={<SharedInsurancePolicies />} />
             <Route path="team" element={<TeamManagement />} />
+            <Route path="records" element={<DoctorRecords />} />
+            <Route path="prescriptions" element={<DoctorPrescriptions />} />
+            <Route path="messages" element={<DoctorMessages />} />
             
             {/* Doctor Teleconsultation & Shared Modules */}
             <Route path="account" element={<Account />} />

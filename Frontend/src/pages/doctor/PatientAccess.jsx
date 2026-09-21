@@ -341,15 +341,15 @@ const PatientAccess = () => {
                                                             >
                                                                 <Eye size={13} /> View History
                                                             </button>
-                                                            <button 
+                                                            {pt.relationshipId && <button
                                                                 onClick={() => handleRevoke(pt.id)}
                                                                 disabled={revokingId === pt.id}
-                                                                title="Revoke Access"
+                                                                title="Revoke QR-granted access"
                                                                 style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fee2e2", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
                                                             >
                                                                 <Trash2 size={13} />
                                                                 {revokingId === pt.id ? "Revoking..." : "Revoke"}
-                                                            </button>
+                                                            </button>}
                                                         </div>
                                                     </td>
                                                 </tr>

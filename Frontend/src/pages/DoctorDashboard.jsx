@@ -21,7 +21,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { fetchDoctorQueue } from "../services/api";
 import PatientHistoryModal from "../components/doctor/PatientHistoryModal";
-import doctorHero from "../assets/doctor-dashboard-hero-v2.png";
+import doctorHero from "../assets/patient-dashboard-mountain-hero.png";
 import styles from "./DoctorDashboard.module.css";
 
 const quickActions = [
@@ -114,8 +114,8 @@ export default function DoctorDashboard() {
         <section className={styles.mainColumn}>
           <header className={styles.hero}>
             <img src={doctorHero} alt="Doctor reviewing a digital care plan" />
-            <div className={styles.heroCopy}><span>Doctor portal</span><h1>Good Morning, Dr. {doctorName}</h1><p>Here’s what’s happening with your practice today.</p></div>
-            <blockquote>“Compassion today,<br />healthier tomorrows.”</blockquote>
+            <div className={styles.heroCopy}><span>Good evening,</span><h1>Dr. {doctorName}.</h1><p>Today you can make a difference.<br/>Here’s what’s happening at your clinic.</p></div>
+            <blockquote>“Better conversations,<br />healthier tomorrows.”</blockquote>
           </header>
 
           <section className={styles.metrics}>

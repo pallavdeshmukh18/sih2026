@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, CircleAlert, LoaderCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { exchangeGoogleCode } from "../services/api";
-import styles from "./AuthPage.module.css";
+import styles from "./GoogleCallback.module.css";
 
 function GoogleCallback() {
     const [searchParams] = useSearchParams();
@@ -42,38 +43,48 @@ function GoogleCallback() {
         }
 
         processCode();
-    }, [searchParams, login, navigate]);
+    }, [searchParams, login, refreshUser, navigate]);
 
     return (
-        <div className={styles.authContainer}>
-            <div className={styles.bgBlobTopRight}></div>
-            <div className={styles.bgBlobBottomLeft}></div>
+        <main className={styles.page}>
+            <div className={styles.glow} aria-hidden="true" />
+            <a className={styles.brand} href="/" aria-label="MediKiosk home">
+                <span className={styles.mark} aria-hidden="true"><i /><i /><i /></span>
+                <span><strong>MediKiosk<span>.</span></strong><small>Your Health. In Your Hands.</small></span>
+            </a>
 
-            <div className={styles.authCard} style={{ maxWidth: "450px", textAlign: "center", padding: "2.5rem" }}>
+            <section className={`${styles.card} ${error ? styles.errorCard : ""}`} aria-live="polite">
                 {error ? (
-                    <div>
-                        <div style={{ color: "#ef4444", fontSize: "1.25rem", fontWeight: "600", marginBottom: "1rem" }}>
-                            Authentication Error
-                        </div>
-                        <p style={{ color: "rgba(255, 255, 255, 0.8)", marginBottom: "1.5rem" }}>{error}</p>
+                    <div className={styles.content}>
+                        <div className={`${styles.iconWrap} ${styles.errorIcon}`}><CircleAlert /></div>
+                        <span className={styles.eyebrow}>Unable to sign in</span>
+                        <h1>Google verification failed</h1>
+                        <p>{error}</p>
                         <button
                             type="button"
-                            className={styles.submitBtn}
+                            className={styles.action}
                             onClick={() => navigate("/auth", { replace: true })}
                         >
-                            Return to Sign In
+                            <ArrowLeft /> Return to sign in
                         </button>
                     </div>
                 ) : (
-                    <div>
-                        <div style={{ color: "#38bdf8", fontSize: "1.25rem", fontWeight: "600", marginBottom: "1rem" }}>
-                            Verifying Google Sign-In...
+                    <div className={styles.content}>
+                        <div className={styles.iconWrap}>
+                            <LoaderCircle className={styles.spinner} />
+                            <span className={styles.googleDot}>G</span>
                         </div>
-                        <p style={{ color: "rgba(255, 255, 255, 0.7)" }}>Please wait while we complete your authentication.</p>
+                        <span className={styles.eyebrow}>Secure authentication</span>
+                        <h1>Signing you in</h1>
+                        <p>We’re securely verifying your Google account. This will only take a moment.</p>
+                        <div className={styles.progress} aria-label="Verification in progress"><span /></div>
+                        <div className={styles.security}><ShieldCheck /> Your connection is private and protected</div>
                     </div>
                 )}
-            </div>
-        </div>
+            </section>
+
+            <p className={styles.footer}>One secure account for your complete health journey.</p>
+        </main>
     );
 }
 

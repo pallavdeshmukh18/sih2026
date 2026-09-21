@@ -664,18 +664,44 @@ async function getDoctorPatients(req, res, next) {
         const doctorId = req.user.id;
 
         const result = await pool.query(
-            `SELECT pdr.id AS relationship_id, pdr.status AS access_status, pdr.created_at AS connected_at,
+            `WITH accessible_patients AS (
+                SELECT patient_id
+                FROM patient_doctor_relationships
+                WHERE doctor_id = $1 AND status = 'active'
+                UNION
+                SELECT patient_id FROM appointments WHERE doctor_id = $1
+                UNION
+                SELECT patient_id FROM teleconsult_sessions WHERE doctor_id = $1
+             )
+             SELECT relationship.id AS relationship_id,
+                    COALESCE(relationship.status, 'clinical_access') AS access_status,
+                    COALESCE(relationship.created_at, last_appointment.created_at, last_teleconsult.created_at) AS connected_at,
                     u.id AS patient_id, u.first_name, u.last_name, u.email, u.phone,
                     p.date_of_birth, p.gender, p.state, p.abha_id,
-                    MAX(a.scheduled_at) AS last_visit,
+                    last_appointment.scheduled_at AS last_visit,
                     (SELECT cs.summary FROM clinical_sessions cs WHERE cs.patient_id = u.id ORDER BY cs.created_at DESC LIMIT 1) AS latest_intake_summary
-             FROM patient_doctor_relationships pdr
-             JOIN users u ON pdr.patient_id = u.id
+             FROM accessible_patients accessible
+             JOIN users u ON accessible.patient_id = u.id
              LEFT JOIN patient_profiles p ON u.id = p.user_id
-             LEFT JOIN appointments a ON a.patient_id = u.id AND a.doctor_id = pdr.doctor_id
-             WHERE pdr.doctor_id = $1 AND pdr.status = 'active'
-             GROUP BY pdr.id, pdr.status, pdr.created_at, u.id, u.first_name, u.last_name, u.email, u.phone, p.date_of_birth, p.gender, p.state, p.abha_id
-             ORDER BY pdr.created_at DESC;`,
+             LEFT JOIN LATERAL (
+                SELECT id, status, created_at
+                FROM patient_doctor_relationships
+                WHERE doctor_id = $1 AND patient_id = u.id AND status = 'active'
+                ORDER BY created_at DESC LIMIT 1
+             ) relationship ON TRUE
+             LEFT JOIN LATERAL (
+                SELECT scheduled_at, created_at
+                FROM appointments
+                WHERE doctor_id = $1 AND patient_id = u.id
+                ORDER BY scheduled_at DESC NULLS LAST LIMIT 1
+             ) last_appointment ON TRUE
+             LEFT JOIN LATERAL (
+                SELECT created_at
+                FROM teleconsult_sessions
+                WHERE doctor_id = $1 AND patient_id = u.id
+                ORDER BY created_at DESC LIMIT 1
+             ) last_teleconsult ON TRUE
+             ORDER BY COALESCE(relationship.created_at, last_appointment.created_at, last_teleconsult.created_at) DESC NULLS LAST;`,
             [doctorId]
         );
 
@@ -701,7 +727,7 @@ async function getDoctorPatients(req, res, next) {
                 age: age,
                 state: row.state || "Not recorded",
                 lastVisit: row.last_visit ? new Date(row.last_visit).toLocaleDateString("en-IN") : "No visits recorded",
-                status: "Granted",
+                status: row.access_status === "active" ? "Granted" : "Clinical access",
                 connectedAt: row.connected_at,
                 latestIntakeSummary: row.latest_intake_summary,
             };

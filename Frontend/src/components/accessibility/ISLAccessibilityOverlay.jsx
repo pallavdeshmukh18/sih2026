@@ -2,13 +2,17 @@ import React, { useState } from "react";
 import { Sparkles, ChevronDown, ChevronUp, RotateCcw, Maximize2, Minimize2, X } from "lucide-react";
 import { useAccessibility } from "../../context/AccessibilityContext";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../i18n";
 import ISLAvatar from "./ISLAvatar";
 import styles from "./ISLAccessibilityOverlay.module.css";
 
 const QUICK_PRESETS = ["NAMASTE", "HELLO", "TIME", "HOME", "CARE", "YOU", "PERSON"];
+const SIGN_LANGUAGE_LABELS = { en:"Sign language", hi:"सांकेतिक भाषा", mr:"सांकेतिक भाषा", gu:"સાંકેતિક ભાષા", bn:"সংকেত ভাষা", ta:"சைகை மொழி", te:"సంకేత భాష", kn:"ಸಂಕೇತ ಭಾಷೆ", ml:"ആംഗ്യഭാഷ", pa:"ਸੰਕੇਤਕ ਭਾਸ਼ਾ", or:"ସାଙ୍କେତିକ ଭାଷା", as:"সাংকেতিক ভাষা" };
 
 export default function ISLAccessibilityOverlay() {
   const { user } = useAuth();
+  const { currentLanguage } = useLanguage();
+  const signLanguageLabel = SIGN_LANGUAGE_LABELS[currentLanguage] || SIGN_LANGUAGE_LABELS.en;
   const {
     islEnabled,
     setIslEnabled,
@@ -53,8 +57,8 @@ export default function ISLAccessibilityOverlay() {
   if (!islEnabled) {
     return <div className={styles.overlayContainer} data-isl-ignore="true">
       <button data-isl-ignore="true" className={`${styles.minimizedButton} ${styles.interactive}`}
-        onClick={() => setIslEnabled(true)} aria-label="Enable sign language assistance">
-        <Sparkles size={16} /> Sign language
+        onClick={() => setIslEnabled(true)} aria-label={signLanguageLabel}>
+        <Sparkles size={16} /> {signLanguageLabel}
       </button>
     </div>;
   }

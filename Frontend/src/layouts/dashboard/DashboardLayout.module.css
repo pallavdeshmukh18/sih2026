@@ -117,15 +117,41 @@
 @media(max-width:760px){.mainWrapper{padding-top:127px}}
 
 /* Patient navigation rests as a compact rail and expands over the page on hover. */
-.patientLayout .mainWrapper{margin-left:76px;background:#f7f9f8}
-.patientLayout .mainWrapper{transition:margin-left .24s ease}
-.patientLayout .patientSidebarOpen{margin-left:238px}
-.patientLayout .mainContent{padding:18px 20px 24px;background:#f7f9f8}
-@media(max-width:1100px){.patientLayout .mainWrapper{margin-left:76px}.patientLayout .patientSidebarOpen{margin-left:210px}}
-@media(max-width:760px){.patientLayout .mainWrapper,.patientLayout .patientSidebarOpen{margin-left:0}}
+.patientLayout .mainWrapper,.patientLayout .patientSidebarOpen{margin-left:0;background:#f7f9f8}
+.patientLayout .mainContent{max-width:1600px;margin:0 auto;padding:18px 20px 24px;background:#f7f9f8}
+@media(max-width:1100px){.patientLayout .mainWrapper,.patientLayout .patientSidebarOpen{margin-left:0}}
+@media(max-width:760px){.patientLayout .mainWrapper,.patientLayout .patientSidebarOpen{margin-left:0}.patientLayout .mainContent{padding:14px}}
+.patientDashboardLayout .mainWrapper,.patientDashboardLayout .patientSidebarOpen{margin-left:0;padding-top:72px;background:#fff}
+.patientDashboardLayout .mainContent{max-width:none;padding:0;background:#fff}
+
+/* Patient portal visual system: shared with the dashboard, isolated from staff portals. */
+.patientLayout{--color-primary:#0f8b75;--color-teal:#0f8b75;--color-dark:#102142;--color-border:#e5ebef;--color-text-muted:#687791;background:#f8fafb}
+.patientLayout .mainWrapper{padding-top:72px;background:#f8fafb}
+.patientLayout .mainContent{background:#f8fafb}
+.patientLayout .mainContent :global(.workspacePage){color:#142340}
+.patientLayout .mainContent :global(.workspacePage) h1,
+.patientLayout .mainContent :global(.workspacePage) h2,
+.patientLayout .mainContent :global(.workspacePage) h3{color:#12213f}
+.patientLayout .mainContent :global(.workspaceCard){border:1px solid #e5ebef!important;border-radius:14px!important;background:#fff!important;box-shadow:0 4px 16px rgba(30,54,78,.035)!important}
+.patientLayout .mainContent :global(.workspaceHeader) a{color:#0f826e}
+.patientLayout .mainContent :global(.workspacePage) button:not([class*="danger"]){font-family:inherit}
+.patientLayout .mainContent :global(.workspacePage) input,
+.patientLayout .mainContent :global(.workspacePage) select,
+.patientLayout .mainContent :global(.workspacePage) textarea{border-color:#dfe7ed!important;background:#fff;color:#243450}
+.patientLayout .mainContent :global(.workspacePage) input:focus,
+.patientLayout .mainContent :global(.workspacePage) select:focus,
+.patientLayout .mainContent :global(.workspacePage) textarea:focus{border-color:#35a18f!important;box-shadow:0 0 0 3px rgba(15,139,117,.09)!important}
+.patientLayout:not(.patientDashboardLayout) .mainContent :global([class*="_hero_"]){border:1px solid #e7edf0;border-radius:16px;background-color:#f2f8f6;box-shadow:0 4px 16px rgba(30,54,78,.025)}
+.patientLayout:not(.patientDashboardLayout) .mainContent :global([class*="_hero_"]) :global(h1){color:#102142!important;font-family:Georgia,'Times New Roman',serif!important}
+.patientLayout:not(.patientDashboardLayout) .mainContent :global([class*="_hero_"]) :global(blockquote){color:#0e7e6a}
 .doctorLayout .mainWrapper{margin-left:238px;background:#f7f9f8}
 .doctorLayout .mainWrapper{transition:margin-left .24s ease}
 .doctorLayout .doctorSidebarCollapsed{margin-left:76px}
 .doctorLayout .mainContent{padding:18px 20px 24px;background:#f7f9f8}
 @media(max-width:1100px){.doctorLayout .mainWrapper{margin-left:210px}.doctorLayout .doctorSidebarCollapsed{margin-left:76px}}
 @media(max-width:760px){.doctorLayout .mainWrapper,.doctorLayout .doctorSidebarCollapsed{margin-left:0}}
+.doctorLayout .mainWrapper,.doctorLayout .doctorSidebarCollapsed{margin-left:0;padding-top:72px;background:#f8fafb}
+.doctorLayout .mainContent{max-width:1700px;margin:0 auto;padding:18px 20px 24px;background:#f8fafb}
+.doctorLayout{--color-primary:#0f846e;--color-teal:#0f846e;--color-dark:#102142;--color-border:#e4eaf0;--color-text-muted:#697895}
+.doctorLayout .mainContent :global(.workspaceCard){border:1px solid #e4eaf0!important;border-radius:14px!important;background:#fff!important;box-shadow:0 4px 16px rgba(26,48,72,.035)!important}
+@media(max-width:760px){.doctorLayout .mainContent{padding:14px}}
